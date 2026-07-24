@@ -1,0 +1,43 @@
+{
+  "name": "bgy-wali-kelas",
+  "version": "1.0.0",
+  "description": "Bantu Guru Yuk - Wali Kelas",
+  "main": "dist/main/main/main.js",
+  "scripts": {
+    "dev:main": "tsc -p tsconfig.main.json && electron .",
+    "dev:renderer": "vite",
+    "dev": "concurrently -k \"npm run dev:renderer\" \"wait-on http://localhost:5173 && npm run dev:main\"",
+    "build:main": "tsc -p tsconfig.main.json",
+    "build:renderer": "vite build",
+    "build": "npm run build:main && npm run build:renderer",
+    "preview": "vite preview"
+  },
+  "author": "BGY",
+  "license": "MIT",
+  "directories": {
+    "doc": "docs"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.8",
+    "lucide-react": "^1.26.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "react-router-dom": "^7.18.1",
+    "sql.js": "^1.14.1",
+    "zustand": "^5.0.14"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@types/sql.js": "^1.4.11",
+    "@vitejs/plugin-react": "^6.0.4",
+    "concurrently": "^10.0.3",
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^7.0.2",
+    "vite": "^8.1.5",
+    "wait-on": "^9.1.0"
+  }
+}
