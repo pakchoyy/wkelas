@@ -23,22 +23,18 @@ export default function Laporan() {
   useEffect(() => {
     (async () => {
       if (tab === 'presensi') {
-        const res = await window.electronAPI.db.query(
-          'SELECT p.*, s.nama as siswa_nama FROM presensi p JOIN siswa s ON p.siswa_id = s.id WHERE p.kelas_id = ? ORDER BY p.tanggal DESC',
-          [kelasId]
-        )
+        const res = await window.electronAPI.presensi.listByKelas(kelasId)
         setData(res)
       } else if (tab === 'perilaku') {
-        const res = await window.electronAPI.db.query(
-          'SELECT p.*, s.nama as siswa_nama FROM perilaku p JOIN siswa s ON p.siswa_id = s.id ORDER BY p.tanggal DESC'
-        )
-        setData(res)
+        const mapNama = new Map(siswa.map((s) => [s.id, s.nama]))
+        const res = await window.electronAPI.perilaku.list()
+        setData(res.map((r) => ({ ...r, siswa_nama: mapNama.get(r.siswa_id) || 'Unknown' })))
       } else if (tab === 'jurnal') {
         const res = await window.electronAPI.jurnal.list(kelasId)
         setData(res)
       }
     })()
-  }, [tab, kelasId])
+  }, [tab, kelasId, siswa])
 
   return (
     <div>

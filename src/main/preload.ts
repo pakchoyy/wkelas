@@ -27,6 +27,7 @@ export interface ElectronAPI {
   }
   presensi: {
     get: (kelasId: number, tanggal: string) => Promise<any[]>
+    listByKelas: (kelasId: number) => Promise<any[]>
     save: (records: any[]) => Promise<any>
   }
   mapel: {

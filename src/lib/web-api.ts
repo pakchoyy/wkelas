@@ -80,6 +80,12 @@ const electronAPI: ElectronAPI = {
     get: async (kelasId: number, tanggal: string) => {
       return db.presensi.where({ kelas_id: kelasId, tanggal }).toArray()
     },
+    listByKelas: async (kelasId: number) => {
+      const records = await db.presensi.where({ kelas_id: kelasId }).toArray()
+      const siswa = await db.siswa.where({ kelas_id: kelasId }).toArray()
+      const map = new Map(siswa.map((s) => [s.id!, s.nama]))
+      return records.map((r) => ({ ...r, siswa_nama: map.get(r.siswa_id) || 'Unknown' }))
+    },
     save: async (records: any[]) => {
       const now = nowISO()
       for (const r of records) {

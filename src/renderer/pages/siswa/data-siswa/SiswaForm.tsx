@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { X } from 'lucide-react'
 import type { Siswa, SiswaFieldDefinition } from '../../../../shared/types'
+import Modal from '../../../components/Modal'
 
 interface Props {
   siswa?: Siswa | null
@@ -28,6 +28,14 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
         jenis_kelamin: siswa.jenis_kelamin || '',
         no_absen: siswa.no_absen?.toString() || '',
       })
+      ;(async () => {
+        const vals = await window.electronAPI.fieldVal.get(siswa.id)
+        const map: Record<number, string> = {}
+        for (const v of vals) {
+          if (v.nilai) map[v.field_id] = v.nilai
+        }
+        setCustom(map)
+      })()
     }
   }, [siswa])
 
@@ -61,120 +69,117 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-      <div className="w-full max-w-lg rounded-2xl" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow-lg)' }}>
-        <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-          <h3 className="text-sm font-bold">{siswa ? 'Edit Siswa' : 'Tambah Siswa'}</h3>
-          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded-lg transition-colors">
-            <X size={18} />
+    <Modal
+      title={siswa ? 'Edit Siswa' : 'Tambah Siswa'}
+      onClose={onClose}
+      maxWidth="max-w-lg"
+      footer={
+        <>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl px-4 py-2.5 text-sm font-semibold border transition-all duration-200"
+            style={{ borderColor: 'var(--border)' }}
+          >
+            Batal
           </button>
+          <button
+            type="submit"
+            form="siswa-form"
+            disabled={loading}
+            className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
+            style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}
+          >
+            {loading ? 'Menyimpan...' : 'Simpan'}
+          </button>
+        </>
+      }
+    >
+      <form id="siswa-form" onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label className="text-sm font-medium text-gray-700 block mb-1">Nama <span className="text-red-500">*</span></label>
+          <input
+            value={form.nama}
+            onChange={(e) => setForm({ ...form, nama: e.target.value })}
+            className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+            style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
+            required
+          />
         </div>
 
-        <form onSubmit={handleSubmit} className="p-4 space-y-4 max-h-[75vh] overflow-y-auto">
+        <div className="grid grid-cols-3 gap-3">
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Nama <span className="text-red-500">*</span></label>
+            <label className="text-sm font-medium text-gray-700 block mb-1">NIS</label>
             <input
-              value={form.nama}
-              onChange={(e) => setForm({ ...form, nama: e.target.value })}
+              value={form.nis}
+              onChange={(e) => setForm({ ...form, nis: e.target.value })}
               className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
               style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-              required
             />
           </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">JK</label>
+            <select
+              value={form.jenis_kelamin}
+              onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })}
+              className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+              style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
+            >
+              <option value="">-</option>
+              <option value="L">Laki-laki</option>
+              <option value="P">Perempuan</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">No. Absen</label>
+            <input
+              type="number"
+              value={form.no_absen}
+              onChange={(e) => setForm({ ...form, no_absen: e.target.value })}
+              className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+              style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
+            />
+          </div>
+        </div>
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">NIS</label>
-              <input
-                value={form.nis}
-                onChange={(e) => setForm({ ...form, nis: e.target.value })}
-                className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-                style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-              />
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">JK</label>
+        {fields.map((f) => (
+          <div key={f.id}>
+            <label className="text-sm font-medium text-gray-700 block mb-1">
+              {f.nama_field}
+              {f.wajib ? <span className="text-red-500"> *</span> : null}
+            </label>
+            {f.tipe === 'dropdown' ? (
               <select
-                value={form.jenis_kelamin}
-                onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })}
+                value={custom[f.id] || ''}
+                onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
                 className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
                 style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
               >
                 <option value="">-</option>
-                <option value="L">Laki-laki</option>
-                <option value="P">Perempuan</option>
+                {JSON.parse(f.pilihan || '[]').map((p: string) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
               </select>
-            </div>
-            <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">No. Absen</label>
+            ) : f.tipe === 'tanggal' ? (
               <input
-                type="number"
-                value={form.no_absen}
-                onChange={(e) => setForm({ ...form, no_absen: e.target.value })}
+                type="date"
+                value={custom[f.id] || ''}
+                onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
                 className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
                 style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
               />
-            </div>
+            ) : (
+              <input
+                type={f.tipe === 'angka' ? 'number' : 'text'}
+                value={custom[f.id] || ''}
+                onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
+                className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+                style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
+              />
+            )}
           </div>
-
-          {fields.map((f) => (
-            <div key={f.id}>
-              <label className="text-sm font-medium text-gray-700 block mb-1">
-                {f.nama_field}
-                {f.wajib ? <span className="text-red-500"> *</span> : null}
-              </label>
-              {f.tipe === 'dropdown' ? (
-                <select
-                  value={custom[f.id] || ''}
-                  onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-                  style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-                >
-                  <option value="">-</option>
-                  {JSON.parse(f.pilihan || '[]').map((p: string) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              ) : f.tipe === 'tanggal' ? (
-                <input
-                  type="date"
-                  value={custom[f.id] || ''}
-                  onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-                  style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-                />
-              ) : (
-                <input
-                  type={f.tipe === 'angka' ? 'number' : 'text'}
-                  value={custom[f.id] || ''}
-                  onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
-                  className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-                  style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-                />
-              )}
-            </div>
-          ))}
-
-          <div className="flex gap-3 justify-end pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl px-4 py-2.5 text-sm font-semibold border transition-all duration-200"
-              style={{ borderColor: 'var(--border)' }}
-            >
-              Batal
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
-              style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}
-            >
-              {loading ? 'Menyimpan...' : 'Simpan'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        ))}
+      </form>
+    </Modal>
   )
 }

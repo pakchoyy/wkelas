@@ -87,13 +87,15 @@ export async function seedDemoData(): Promise<void> {
     }
 
     const kolom = [
-      { id: 1, label: 'PH 1', bobot: 1, urutan: 1 },
-      { id: 2, label: 'PH 2', bobot: 1, urutan: 2 },
-      { id: 3, label: 'PTS', bobot: 2, urutan: 3 },
-      { id: 4, label: 'PAS', bobot: 3, urutan: 4 },
+      { id: 1, mata_pelajaran_id: 1, label: 'PH 1', bobot: 1, urutan: 1 },
+      { id: 2, mata_pelajaran_id: 1, label: 'PH 2', bobot: 1, urutan: 2 },
+      { id: 3, mata_pelajaran_id: 1, label: 'PTS', bobot: 2, urutan: 3 },
+      { id: 4, mata_pelajaran_id: 1, label: 'PAS', bobot: 3, urutan: 4 },
+      { id: 5, mata_pelajaran_id: 2, label: 'PH 1', bobot: 1, urutan: 1 },
+      { id: 6, mata_pelajaran_id: 2, label: 'PTS', bobot: 2, urutan: 2 },
     ]
     for (const k of kolom) {
-      await db.penilaian_kolom.add({ ...k, mata_pelajaran_id: 1, tanggal: null, catatan: null, created_at: now, updated_at: now })
+      await db.penilaian_kolom.add({ ...k, tanggal: null, catatan: null, created_at: now, updated_at: now })
     }
 
     for (const siswaId of siswaIds) {
@@ -216,6 +218,15 @@ export async function seedDemoData(): Promise<void> {
     ]
     for (const t of todo) {
       await db.todo.add({ ...t, deleted_at: null, created_at: now, updated_at: now })
+    }
+
+    const dokumen = [
+      { judul: 'Soal Ulangan Harian Bilangan Bulat', deskripsi: 'Soal beserta kunci jawaban', kategori: 'Soal', format_file: 'pdf', ukuran_file: 245760 },
+      { judul: 'Rencana Pelaksanaan Pembelajaran Pecahan', deskripsi: 'RPP Kurikulum Merdeka', kategori: 'RPP', format_file: 'docx', ukuran_file: 35840 },
+      { judul: 'Daftar Nilai Semester Ganjil', deskripsi: 'Rekap nilai kelas 7A', kategori: 'Laporan', format_file: 'xlsx', ukuran_file: 92160 },
+    ]
+    for (const d of dokumen) {
+      await db.dokumen_saya.add({ ...d, file_data: undefined, deleted_at: null, created_at: now, updated_at: now })
     }
   })
 }
