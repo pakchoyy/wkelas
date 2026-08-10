@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { GraduationCap, Loader2 } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
+import { seedDemoData } from '../../lib/demo-data'
 
 export default function Login() {
   const [email, setEmail] = useState('')
@@ -27,8 +28,17 @@ export default function Login() {
     }
   }
 
-  const handleDemo = () => {
-    setDemo()
+  const handleDemo = async () => {
+    setLoading(true)
+    setError('')
+    try {
+      await seedDemoData()
+      setDemo()
+    } catch (err: any) {
+      setError(err.message || 'Gagal memuat data demo')
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -99,10 +109,11 @@ export default function Login() {
 
         <button
           onClick={handleDemo}
-          className="w-full rounded-xl py-2.5 text-sm font-semibold mt-2 transition-all duration-200 active:scale-[0.98] border"
+          disabled={loading}
+          className="w-full rounded-xl py-2.5 text-sm font-semibold mt-2 transition-all duration-200 active:scale-[0.98] border disabled:opacity-50"
           style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
         >
-          Demo Mode
+          {loading ? <Loader2 size={18} className="animate-spin mx-auto" /> : 'Demo Mode'}
         </button>
       </div>
     </div>
