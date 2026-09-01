@@ -13,10 +13,7 @@ import {
   CheckSquare,
   FileText,
   Settings,
-  LogOut,
 } from 'lucide-react'
-import { useAuthStore } from '../stores/authStore'
-import { resetToMainDb } from '../../lib/demo-data'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -104,15 +101,6 @@ export default function Sidebar() {
         })}
       </nav>
 
-      <div className="p-3 border-t" style={{ borderColor: 'var(--border)' }}>
-        <button
-          onClick={() => { resetToMainDb(); useAuthStore.getState().logout() }}
-          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-100 w-full transition-colors duration-200"
-        >
-          <LogOut size={18} />
-          Keluar
-        </button>
-      </div>
     </aside>
   )
 }

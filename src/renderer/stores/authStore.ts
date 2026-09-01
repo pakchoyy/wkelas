@@ -13,9 +13,10 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  mode: null,
-  user: null,
-  isLicensed: false,
+  // Akses lokal sementara selama autentikasi belum diaktifkan.
+  mode: 'login',
+  user: { nama: 'Admin Lokal', email: 'admin@lokal' },
+  isLicensed: true,
   setLogin: (user) => set({ mode: 'login', user, isLicensed: false }),
   setDemo: () => set({ mode: 'demo', user: { nama: 'Demo User', email: 'demo@bgy.app' }, isLicensed: true }),
   logout: () => set({ mode: null, user: null, isLicensed: false }),
