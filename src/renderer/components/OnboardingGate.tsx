@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, GraduationCap, School, ShieldCheck, X } from 'lucide-react'
 import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
+import { getRecommendedMapel } from '../../shared/mapelRecommendations'
 
 const now = () => new Date().toISOString().replace('T', ' ').slice(0, 19)
 
@@ -54,6 +55,7 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
       nama_kelas: data.namaKelas, tingkat: data.tingkat, tahun_ajaran: data.tahunAjaran,
       semester: data.semester, is_aktif: 1, guru_id: guruId, created_at: timestamp, updated_at: timestamp,
     })
+    await db.mata_pelajaran.bulkAdd(getRecommendedMapel(data.tingkat).map((mapel, index) => ({ kelas_id: kelasId, nama: mapel.nama, kode: mapel.kode, urutan: index + 1, created_at: timestamp })))
     await db.pengaturan.bulkPut([
       { key: 'fase_aktif', value: data.fase, updated_at: timestamp },
       { key: 'onboarding_complete', value: 'true', updated_at: timestamp },
