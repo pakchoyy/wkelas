@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react'
 import { FileDown, Printer } from 'lucide-react'
 import { useSiswaList } from '../../hooks/useSiswa'
 import { useAppStore } from '../../stores/appStore'
+import { db } from '../../../lib/db'
 
-type TabLaporan = 'presensi' | 'nilai' | 'perilaku' | 'jurnal'
+type TabLaporan = 'presensi' | 'nilai' | 'perilaku' | 'jurnal' | 'kalender'
 
 export default function Laporan() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
@@ -12,11 +13,13 @@ export default function Laporan() {
   const [periodeMulai, setPeriodeMulai] = useState('')
   const [periodeSelesai, setPeriodeSelesai] = useState('')
   const [data, setData] = useState<any[]>([])
-  const filtered = data.filter((item) => (!periodeMulai || item.tanggal >= periodeMulai) && (!periodeSelesai || item.tanggal <= periodeSelesai))
+  const [identity,setIdentity]=useState({sekolah:'-',kelas:'-',semester:'-',tahun:'-',guru:'-'})
+  const filtered = data.filter((item) => {const date=item.tanggal||item.tanggal_mulai;return (!periodeMulai || date >= periodeMulai) && (!periodeSelesai || date <= periodeSelesai)})
 
   const exportExcel = async () => {
     const XLSX = await import('xlsx')
-    const sheet = XLSX.utils.json_to_sheet(filtered)
+    const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',periodeMulai||'Semua','s/d',periodeSelesai||'Semua'],[],...XLSX.utils.sheet_to_json<any[]>(XLSX.utils.json_to_sheet(filtered),{header:1})]
+    const sheet = XLSX.utils.aoa_to_sheet(report)
     const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, tab); XLSX.writeFile(workbook, `laporan-${tab}.xlsx`)
   }
 
@@ -25,7 +28,10 @@ export default function Laporan() {
     { id: 'nilai', label: 'Nilai' },
     { id: 'perilaku', label: 'Perilaku' },
     { id: 'jurnal', label: 'Jurnal' },
+    { id: 'kalender', label: 'Kalender' },
   ]
+
+  useEffect(()=>{db.kelas.get(kelasId).then(async(kelas)=>{if(!kelas)return;const guru=await db.guru.get(kelas.guru_id);setIdentity({sekolah:guru?.nama_sekolah||'-',kelas:kelas.nama_kelas,semester:String(kelas.semester),tahun:kelas.tahun_ajaran,guru:guru?.nama||'-'})})},[kelasId])
 
   useEffect(() => {
     (async () => {
@@ -39,15 +45,20 @@ export default function Laporan() {
       } else if (tab === 'jurnal') {
         const res = await window.electronAPI.jurnal.list(kelasId)
         setData(res)
+      } else if(tab==='kalender') {
+        setData(await window.electronAPI.kalender.list(kelasId))
+      } else if(tab==='nilai') {
+        setData([])
       }
     })()
   }, [tab, kelasId, siswa])
 
   return (
-    <div>
-      <div className="mb-4"><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div>
+    <div><style>{`@media print{aside,header,button,.no-print{display:none!important}main{overflow:visible!important;padding:0!important}.report{box-shadow:none!important;border:1px solid #999!important}body{background:white!important}}`}</style>
+      <div className="mb-4 no-print"><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div>
+      <div className="report mb-4 rounded-xl border border-slate-200 bg-white p-4 text-center"><h1 className="font-extrabold uppercase">Laporan {tabs.find(item=>item.id===tab)?.label}</h1><p className="mt-1 text-sm font-semibold">{identity.sekolah}</p><p className="mt-1 text-xs text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun} · Wali Kelas: {identity.guru}</p></div>
 
-      <div className="flex gap-1 mb-4 rounded-xl p-1" style={{ background: '#f1f5f9' }}>
+      <div className="flex gap-1 mb-4 rounded-xl p-1 no-print" style={{ background: '#f1f5f9' }}>
         {tabs.map((t) => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
             {t.label}
@@ -55,7 +66,7 @@ export default function Laporan() {
         ))}
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
+      <div className="flex items-center gap-3 mb-4 no-print">
         <input type="date" value={periodeMulai} onChange={(e) => setPeriodeMulai(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} />
         <span className="text-xs text-gray-400">s/d</span>
         <input type="date" value={periodeSelesai} onChange={(e) => setPeriodeSelesai(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} />
@@ -65,7 +76,7 @@ export default function Laporan() {
         </div>
       </div>
 
-      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}>
+      <div className="report rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}><div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">{filtered.length} data ditemukan</div>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
@@ -78,6 +89,7 @@ export default function Laporan() {
               {tab === 'jurnal' && <th className="px-4 py-3 text-left">Mapel</th>}
               {tab === 'jurnal' && <th className="px-4 py-3 text-left">Materi</th>}
               {tab === 'nilai' && <th className="px-4 py-3 text-left" colSpan={3}>Pilih tab Penilaian untuk rekap nilai</th>}
+              {tab === 'kalender' && <><th className="px-4 py-3 text-left">Kegiatan</th><th className="px-4 py-3 text-left">Jenis</th></>}
             </tr>
           </thead>
           <tbody>
@@ -85,7 +97,7 @@ export default function Laporan() {
               <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-4 py-2">{r.tanggal}</td>
                 <td className="px-4 py-2">{r.siswa_nama}</td>
-                <td className="px-4 py-2"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full text-white ${r.status === 'S' ? 'bg-blue-500' : r.status === 'I' ? 'bg-amber-500' : 'bg-red-500'}`}>{r.status}</span></td>
+                <td className="px-4 py-2"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full text-white ${r.status === 'H'?'bg-emerald-500':r.status === 'S' ? 'bg-blue-500' : r.status === 'I' ? 'bg-amber-500' : 'bg-red-500'}`}>{r.status}</span></td>
               </tr>
             ))}
             {tab === 'perilaku' && filtered.map((r: any) => (
@@ -106,6 +118,7 @@ export default function Laporan() {
             {tab === 'nilai' && (
               <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={3}>Buka menu Siswa → Penilaian untuk input dan lihat nilai</td></tr>
             )}
+            {tab==='kalender'&&filtered.map((r:any)=><tr key={r.id} className="border-t border-slate-100"><td className="px-4 py-2">{r.tanggal_mulai}{r.tanggal_selesai?` – ${r.tanggal_selesai}`:''}</td><td className="px-4 py-2 font-semibold">{r.judul}</td><td className="px-4 py-2 capitalize">{r.jenis.replace('_',' ')}</td></tr>)}
             {filtered.length === 0 && tab !== 'nilai' && (
               <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={5}>Belum ada data</td></tr>
             )}
