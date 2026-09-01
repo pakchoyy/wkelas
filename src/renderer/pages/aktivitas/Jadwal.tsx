@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Settings2, Trash2 } from 'lucide-react'
+import { Download, Settings2, Trash2, Upload } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import type { Jadwal as JadwalType, MataPelajaran } from '../../../shared/types'
 import { db } from '../../../lib/db'
@@ -16,6 +16,7 @@ export default function Jadwal() {
   const [hariSekolah, setHariSekolah] = useState<5 | 6>(5)
   const [jumlahJam, setJumlahJam] = useState(10)
   const [editId, setEditId] = useState<number | null>(null)
+  const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null)
   const [form, setForm] = useState({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' })
 
   const load = async () => {
@@ -27,11 +28,13 @@ export default function Jadwal() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    await window.electronAPI.jadwal.save({ ...form, kelas_id: kelasId, id: editId, mata_pelajaran_id: form.mata_pelajaran_id ? parseInt(form.mata_pelajaran_id) : null })
-    setShowForm(false)
-    setEditId(null)
-    setForm({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' })
-    load()
+    try {
+      if (!form.mata_pelajaran_id && !form.nama_mapel_custom.trim()) throw new Error('Mata pelajaran wajib diisi')
+      await window.electronAPI.jadwal.save({ ...form, kelas_id: kelasId, id: editId, mata_pelajaran_id: form.mata_pelajaran_id ? parseInt(form.mata_pelajaran_id) : null })
+      setShowForm(false); setEditId(null)
+      setForm({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' })
+      await load(); setToast({ text: 'Jadwal berhasil disimpan' })
+    } catch (error) { setToast({ text: error instanceof Error ? error.message : 'Jadwal gagal disimpan', error: true }) }
   }
 
   const handleEdit = (item: JadwalType) => {
@@ -44,14 +47,43 @@ export default function Jadwal() {
 
   const getMapelName = (item: JadwalType) => item.nama_mapel_custom || mapelList.find((m) => m.id === item.mata_pelajaran_id)?.nama || '-'
 
+  useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(null), 3000); return () => clearTimeout(timer) }, [toast])
+
+  const downloadTemplate = async () => {
+    const XLSX = await import('xlsx')
+    const rows = [['Hari', 'Jam Ke', 'Mulai', 'Selesai', 'Mata Pelajaran', 'Guru', 'Ruang'], ['Senin', 1, '07:00', '07:35', 'Matematika', '', 'Kelas']]
+    const sheet = XLSX.utils.aoa_to_sheet(rows); sheet['!cols'] = [{ wch: 12 }, { wch: 9 }, { wch: 10 }, { wch: 10 }, { wch: 24 }, { wch: 20 }, { wch: 14 }]
+    const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, 'Jadwal'); XLSX.writeFile(workbook, 'template-jadwal-pelajaran.xlsx')
+  }
+
+  const uploadTemplate = async (file?: File) => {
+    if (!file) return
+    try {
+      const XLSX = await import('xlsx'); const workbook = XLSX.read(await file.arrayBuffer(), { type: 'array' }); const sheet = workbook.Sheets[workbook.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, { defval: '' }); if (!rows.length) throw new Error('Template masih kosong')
+      let imported = 0
+      for (const row of rows) {
+        const dayName = String(row['Hari'] || '').trim().toLowerCase(); const hari = HARI.findIndex((name) => name.toLowerCase() === dayName) + 1
+        const jam = Number(row['Jam Ke']); const subjectName = String(row['Mata Pelajaran'] || '').trim()
+        if (!hari || !jam || !subjectName) continue
+        const subject = mapelList.find((item) => item.nama.toLowerCase() === subjectName.toLowerCase())
+        await window.electronAPI.jadwal.save({ kelas_id: kelasId, hari, jam_ke: jam, jam_mulai: String(row['Mulai'] || '07:00'), jam_selesai: String(row['Selesai'] || '07:35'), mata_pelajaran_id: subject?.id || null, nama_mapel_custom: subject ? '' : subjectName, nama_guru: String(row['Guru'] || ''), ruang: String(row['Ruang'] || '') })
+        imported++
+      }
+      if (!imported) throw new Error('Tidak ada baris yang dapat dibaca. Gunakan template yang disediakan.')
+      await load(); setToast({ text: `${imported} jadwal berhasil diimpor` })
+    } catch (error) { setToast({ text: error instanceof Error ? error.message : 'Template gagal diunggah', error: true }) }
+  }
+
   return (
     <div>
+      {toast && <div className={`fixed left-1/2 top-20 z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.text}</div>}
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">Jadwal Pelajaran</h2>
-        <button onClick={() => setShowSettings(true)}
+        <div className="flex flex-wrap gap-2"><button onClick={downloadTemplate} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Download size={16}/>Template Excel</button><label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Upload size={16}/>Unggah Excel<input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { uploadTemplate(e.target.files?.[0]); e.currentTarget.value = '' }}/></label><button onClick={() => setShowSettings(true)}
           className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
           <Settings2 size={16} /> Pengaturan
-        </button>
+        </button></div>
       </div>
 
       <div className="rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}>
@@ -123,7 +155,7 @@ export default function Jadwal() {
                   <input value={form.ruang} onChange={(e) => setForm({ ...form, ruang: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
               </div>
               <div className="flex gap-3 justify-end pt-2">
-                <button type="button" onClick={() => { if (editId) { window.electronAPI.jadwal.delete(editId); load() }; setShowForm(false) }}
+                <button type="button" onClick={async () => { if (editId) { await window.electronAPI.jadwal.delete(editId); await load(); setToast({ text: 'Jadwal berhasil dihapus' }) }; setShowForm(false) }}
                   className="rounded-xl px-4 py-2 text-sm font-semibold text-red-600 border border-red-200" style={{ background: '#fef2f2' }}>
                   <Trash2 size={14} className="inline mr-1" />Hapus</button>
                 <button type="submit" className="rounded-xl px-6 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Simpan</button>

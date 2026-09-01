@@ -198,14 +198,14 @@ export default function Rencana() {
         {toISO(weekStart) !== toISO(mondayOf(todayISO())) && <button onClick={() => setAnchorDate(todayISO())} className="font-bold text-emerald-600">Ke minggu ini</button>}
       </div>
 
-      <div className="grid gap-3 overflow-x-auto pb-2" style={{ gridTemplateColumns: `repeat(${hariSekolah}, minmax(210px, 1fr))` }}>
+      <div className="grid grid-cols-1 gap-3 pb-2 md:grid-cols-2 xl:grid-cols-3">
         {days.map((date, dayIndex) => {
           const dateISO = toISO(date)
           const slots = jadwal.filter((item) => item.hari === dayIndex + 1).sort((a, b) => a.jam_ke - b.jam_ke)
           const isToday = dateISO === todayISO()
           return (
-            <section key={dateISO} className={`min-h-[360px] overflow-hidden rounded-2xl border ${isToday ? 'border-emerald-400' : 'border-slate-200'} bg-slate-50`}>
-              <header className={`border-b px-4 py-3 ${isToday ? 'bg-emerald-600 text-white' : 'bg-white text-slate-800'}`}>
+            <section key={dateISO} className={`min-h-[330px] overflow-hidden rounded-2xl border ${isToday ? 'border-emerald-400' : 'border-slate-200'} ${['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
+              <header className={`border-b px-4 py-3 ${isToday ? 'bg-emerald-600 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold">{HARI[dayIndex]}</span>
                   {isToday && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">HARI INI</span>}

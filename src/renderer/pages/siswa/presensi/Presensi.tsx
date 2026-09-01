@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, BarChart3, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Info, Lightbulb, Save, Settings2, X } from 'lucide-react'
+import { AlertCircle, BarChart3, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Cloud, Info, Lightbulb, Settings2, X } from 'lucide-react'
 import { useSiswaList } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
 import { todayISO } from '../../../../shared/utils'
@@ -53,6 +53,8 @@ export default function Presensi() {
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
   const [tab, setTab] = useState<'harian' | 'rekap'>('harian')
   const [settings, setSettings] = useState<Settings>(defaultSettings)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [loadedDate, setLoadedDate] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [rekapRecords, setRekapRecords] = useState<any[]>([])
 
@@ -60,27 +62,39 @@ export default function Presensi() {
     const res = await window.electronAPI.presensi.get(kelasId, tanggal)
     const sm: Record<number, Status> = {}; const km: Record<number, string> = {}
     for (const r of res) { sm[r.siswa_id] = r.status as Status; km[r.siswa_id] = r.keterangan || '' }
-    setStatusMap(sm); setKeteranganMap(km); setActiveId(null)
+    setStatusMap(sm); setKeteranganMap(km); setActiveId(null); setLoadedDate(tanggal)
   })() }, [kelasId, tanggal])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3500); return () => clearTimeout(t) }, [toast])
-  useEffect(() => { db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setSettings({ ...defaultSettings, ...JSON.parse(x.value) }) } catch {} }) }, [kelasId])
+  useEffect(() => { setSettingsLoaded(false); db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setSettings({ ...defaultSettings, ...JSON.parse(x.value) }) } catch {}; setSettingsLoaded(true) }) }, [kelasId])
   useEffect(() => { if (tab === 'rekap') window.electronAPI.presensi.listByKelas(kelasId).then(setRekapRecords) }, [tab, kelasId])
 
   const getStatus = (id: number): Status | null => statusMap[id] || (settings.autoHadir ? 'H' : null)
-  const setStatus = (id: number, status: Status) => { setStatusMap((m) => ({ ...m, [id]: status })); if (status === 'H') setKeteranganMap((m) => ({ ...m, [id]: '' })) }
+  const persistStudent = async (id: number, status: Status, note = '') => {
+    setSaving(true)
+    try { await window.electronAPI.presensi.save([{ siswa_id: id, kelas_id: kelasId, tanggal, status, keterangan: note || undefined }]) }
+    catch { setToast({ type: 'error', text: 'Perubahan belum tersimpan. Silakan coba lagi.' }) }
+    finally { setSaving(false) }
+  }
+  const setStatus = (id: number, status: Status) => {
+    const note = status === 'H' ? '' : (keteranganMap[id] || '')
+    setStatusMap((m) => ({ ...m, [id]: status }))
+    if (status === 'H') setKeteranganMap((m) => ({ ...m, [id]: '' }))
+    persistStudent(id, status, note)
+  }
   const counts = Object.fromEntries(STATUS.map((st) => [st, siswa.filter((s) => getStatus(s.id) === st).length])) as Record<Status, number>
   const selectedDay = new Date(`${tanggal}T12:00:00`).getDay()
   const isSchoolDay = selectedDay >= 1 && selectedDay <= settings.hariSekolah
 
-  const save = async () => {
-    if (siswa.some((s) => !getStatus(s.id))) { setToast({ type: 'error', text: 'Masih ada siswa yang belum dipilih statusnya.' }); return }
+  useEffect(() => {
+    if (!settingsLoaded || loadedDate !== tanggal || !settings.autoHadir || !isSchoolDay || siswa.length === 0) return
+    const missing = siswa.filter((student) => !statusMap[student.id])
+    if (!missing.length) return
+    setStatusMap((current) => ({ ...current, ...Object.fromEntries(missing.map((student) => [student.id, 'H'])) }))
     setSaving(true)
-    try {
-      await window.electronAPI.presensi.save(siswa.map((s) => ({ siswa_id: s.id, kelas_id: kelasId, tanggal, status: getStatus(s.id)!, keterangan: keteranganMap[s.id] || undefined })))
-      setToast({ type: 'success', text: `Presensi ${longDate(tanggal)} berhasil disimpan.` })
-    } catch { setToast({ type: 'error', text: 'Presensi gagal disimpan. Silakan coba lagi.' }) }
-    finally { setSaving(false) }
-  }
+    window.electronAPI.presensi.save(missing.map((student) => ({ siswa_id: student.id, kelas_id: kelasId, tanggal, status: 'H' })))
+      .catch(() => setToast({ type: 'error', text: 'Auto Hadir belum berhasil disimpan.' }))
+      .finally(() => setSaving(false))
+  }, [settingsLoaded, loadedDate, tanggal, settings.autoHadir, isSchoolDay, siswa, statusMap, kelasId])
 
   const saveSettings = async (next: Settings) => { setSettings(next); await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify(next), updated_at: new Date().toISOString() }); setShowSettings(false); setToast({ type: 'success', text: 'Pengaturan presensi berhasil disimpan.' }) }
   const toggleAutoHadir = async () => { const next = { ...settings, autoHadir: !settings.autoHadir }; setSettings(next); await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify(next), updated_at: new Date().toISOString() }) }
@@ -95,9 +109,10 @@ export default function Presensi() {
 
     <div className="grid grid-cols-2 sm:grid-cols-5 rounded-2xl bg-white border border-slate-200 mb-4 overflow-hidden">{STATUS.map((st) => <div key={st} className="flex items-center justify-center gap-2 px-3 py-3.5 border-b sm:border-b-0 sm:border-r last:border-r-0 border-slate-100"><span className={`w-2.5 h-2.5 rounded-full ${config[st].dot}`}/><span className="text-sm text-slate-600">{config[st].label}</span><strong className="text-slate-900">{counts[st]}</strong></div>)}</div>
 
-    <div className="rounded-2xl bg-white border border-slate-200 p-4 mb-4 text-sm">
+    <div className="rounded-2xl bg-gradient-to-r from-amber-50 via-white to-blue-50 border border-slate-200 p-4 mb-4 text-sm">
       <div className="flex gap-2 items-center text-slate-600"><Lightbulb size={17} className="text-amber-500"/><strong className="text-slate-800">Klik kartu siswa</strong><span>untuk mengubah status kehadiran.</span></div>
       <div className="flex gap-2 items-center mt-3 pt-3 border-t border-slate-100"><Info size={17} className="text-blue-500 shrink-0"/><span className="text-slate-600">Auto Hadir mengisi siswa yang belum dicatat sebagai Hadir. Status yang sudah dipilih <strong>tidak berubah</strong>.</span><button onClick={toggleAutoHadir} role="switch" aria-checked={settings.autoHadir} className={`ml-auto shrink-0 w-12 h-7 rounded-full p-1 transition ${settings.autoHadir ? 'bg-emerald-600' : 'bg-slate-300'}`}><span className={`block w-5 h-5 rounded-full bg-white shadow transition ${settings.autoHadir ? 'translate-x-5' : ''}`}/></button></div>
+      <div className="flex gap-2 items-center mt-3 pt-3 border-t border-slate-100 text-emerald-700"><Cloud size={17} className={saving ? 'animate-pulse' : ''}/><strong>{saving ? 'Sedang menyimpan...' : 'Tersimpan otomatis'}</strong><span className="text-slate-500">setiap kali status atau keterangan diubah.</span></div>
     </div>
 
     {!isSchoolDay && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-center px-5 py-12 mb-4"><CalendarDays size={34} className="mx-auto text-amber-500 mb-3"/><div className="font-extrabold text-amber-900">Hari Libur Sekolah</div><p className="text-sm text-amber-700 mt-1">Tidak ada daftar presensi karena tanggal ini bukan hari masuk sekolah.</p></div>}
@@ -106,11 +121,11 @@ export default function Presensi() {
       const st = getStatus(s.id); const open = activeId === s.id
       return <div key={s.id} className={`rounded-2xl bg-white border border-slate-200 border-l-4 ${st ? config[st].line : 'border-l-slate-300'} overflow-hidden transition shadow-sm hover:shadow-md`}>
         <button onClick={() => setActiveId(open ? null : s.id)} className="w-full px-5 py-4 flex items-center gap-4 text-left"><div className="w-11 h-11 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 text-white grid place-items-center font-extrabold">{initials(s.nama)}</div><div className="flex-1 min-w-0"><div className="font-extrabold text-slate-900 truncate">{s.nama}</div><div className="text-sm text-slate-400 mt-0.5">No. {index + 1}</div></div>{st ? <span className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${config[st].soft} ${config[st].text}`}>{config[st].label}</span> : <span className="rounded-full px-3.5 py-1.5 text-sm font-bold bg-slate-100 text-slate-500">Belum diisi</span>}</button>
-        {open && <div className="px-5 pb-4 pt-1 border-t border-slate-100 bg-slate-50/60"><div className="text-xs font-bold text-slate-500 mb-2.5">Pilih status kehadiran</div><div className="flex flex-wrap gap-2">{STATUS.map((option) => <button key={option} onClick={() => setStatus(s.id, option)} className={`rounded-xl px-3.5 py-2 text-xs font-bold border transition ${st === option ? `${config[option].soft} ${config[option].text} border-current` : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>{config[option].label}</button>)}</div>{st && st !== 'H' && <input value={keteranganMap[s.id] || ''} onChange={(e) => setKeteranganMap((m) => ({ ...m, [s.id]: e.target.value }))} placeholder="Keterangan (opsional), misalnya demam atau izin keluarga" className="field mt-3"/>}</div>}
+        {open && <div className="px-5 pb-4 pt-1 border-t border-slate-100 bg-slate-50/60"><div className="text-xs font-bold text-slate-500 mb-2.5">Pilih status kehadiran</div><div className="flex flex-wrap gap-2">{STATUS.map((option) => <button key={option} onClick={() => setStatus(s.id, option)} className={`rounded-xl px-3.5 py-2 text-xs font-bold border transition ${st === option ? `${config[option].soft} ${config[option].text} border-current` : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>{config[option].label}</button>)}</div>{st && st !== 'H' && <input value={keteranganMap[s.id] || ''} onChange={(e) => setKeteranganMap((m) => ({ ...m, [s.id]: e.target.value }))} onBlur={() => persistStudent(s.id, st, keteranganMap[s.id] || '')} placeholder="Keterangan (opsional), misalnya demam atau izin keluarga" className="field mt-3"/>}</div>}
       </div>
     })}</div>)}
 
-    {siswa.length > 0 && <div className="fixed bottom-5 right-6 z-40"><button onClick={save} disabled={saving || !isSchoolDay} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3.5 font-bold shadow-xl flex items-center gap-2 disabled:opacity-50"><Save size={18}/>{saving ? 'Menyimpan...' : 'Simpan Presensi'}</button></div>}</>}
+    </>}
     {showSettings && <SettingsModal value={settings} onClose={() => setShowSettings(false)} onSave={saveSettings}/>} 
     {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border bg-white px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'border-emerald-200 text-emerald-800' : 'border-red-200 text-red-800'}`}>{toast.type === 'success' ? <span className="w-8 h-8 rounded-full bg-emerald-100 grid place-items-center"><CheckCircle2 size={18}/></span> : <span className="w-8 h-8 rounded-full bg-red-100 grid place-items-center"><AlertCircle size={18}/></span>}<span>{toast.text}</span><button onClick={() => setToast(null)} className="ml-3 opacity-50"><X size={15}/></button></div></div>}
   </div>
