@@ -14,7 +14,7 @@ export default function Laporan() {
   const [periodeSelesai, setPeriodeSelesai] = useState('')
   const [data, setData] = useState<any[]>([])
   const [identity,setIdentity]=useState({sekolah:'-',kelas:'-',semester:'-',tahun:'-',guru:'-'})
-  const filtered = data.filter((item) => {const date=item.tanggal||item.tanggal_mulai;return (!periodeMulai || date >= periodeMulai) && (!periodeSelesai || date <= periodeSelesai)})
+  const filtered = tab==='nilai' ? data : data.filter((item) => {const date=item.tanggal||item.tanggal_mulai;return (!periodeMulai || date >= periodeMulai) && (!periodeSelesai || date <= periodeSelesai)})
 
   const exportExcel = async () => {
     const XLSX = await import('xlsx')
@@ -48,7 +48,11 @@ export default function Laporan() {
       } else if(tab==='kalender') {
         setData(await window.electronAPI.kalender.list(kelasId))
       } else if(tab==='nilai') {
-        setData([])
+        const subjects=(await window.electronAPI.mapel.list(kelasId)).filter((item:any)=>item.is_aktif!==0)
+        const setting=await db.pengaturan.get(`bobot_nilai_${kelasId}`);let weights={harian:40,uts:25,uas:35};if(setting?.value)try{weights={...weights,...JSON.parse(setting.value)}}catch{}
+        const result:any[]=[]
+        for(const subject of subjects){const columns=await window.electronAPI.kolom.list(subject.id);const values=await window.electronAPI.nilai.getAll(subject.id,siswa.map(item=>item.id));const fixed=(label:string)=>columns.find((column:any)=>column.label.toUpperCase()===label);const daily=columns.filter((column:any)=>!['UTS','UAS'].includes(column.label.toUpperCase())).slice(0,10);for(const student of siswa){const dailyValues=daily.map((column:any)=>values[`${student.id}-${column.id}`]).filter((value:any)=>value!==null&&value!==undefined);const dailyAverage=dailyValues.length?dailyValues.reduce((sum:number,value:number)=>sum+Number(value),0)/dailyValues.length:null;const uts=fixed('UTS');const uas=fixed('UAS');const parts=[{value:dailyAverage,weight:weights.harian},{value:uts?values[`${student.id}-${uts.id}`]:null,weight:weights.uts},{value:uas?values[`${student.id}-${uas.id}`]:null,weight:weights.uas}].filter(item=>item.value!==null&&item.value!==undefined);const totalWeight=parts.reduce((sum,item)=>sum+item.weight,0);result.push({siswa_nama:student.nama,mata_pelajaran:subject.nama,rata_harian:dailyAverage?.toFixed(1)||'—',uts:uts?values[`${student.id}-${uts.id}`]??'—':'—',uas:uas?values[`${student.id}-${uas.id}`]??'—':'—',nilai_akhir:totalWeight?(parts.reduce((sum,item)=>sum+Number(item.value)*item.weight,0)/totalWeight).toFixed(1):'—'})}}
+        setData(result)
       }
     })()
   }, [tab, kelasId, siswa])
@@ -80,7 +84,7 @@ export default function Laporan() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
-              <th className="px-4 py-3 text-left">Tanggal</th>
+              {tab!=='nilai'&&<th className="px-4 py-3 text-left">Tanggal</th>}
               {tab === 'presensi' && <th className="px-4 py-3 text-left">Siswa</th>}
               {tab === 'presensi' && <th className="px-4 py-3 text-left">Status</th>}
               {tab === 'perilaku' && <th className="px-4 py-3 text-left">Siswa</th>}
@@ -88,7 +92,7 @@ export default function Laporan() {
               {tab === 'perilaku' && <th className="px-4 py-3 text-left">Deskripsi</th>}
               {tab === 'jurnal' && <th className="px-4 py-3 text-left">Mapel</th>}
               {tab === 'jurnal' && <th className="px-4 py-3 text-left">Materi</th>}
-              {tab === 'nilai' && <th className="px-4 py-3 text-left" colSpan={3}>Pilih tab Penilaian untuk rekap nilai</th>}
+              {tab === 'nilai' && <><th className="px-4 py-3 text-left">Mata Pelajaran</th><th className="px-4 py-3 text-left">Siswa</th><th className="px-4 py-3 text-center">Harian</th><th className="px-4 py-3 text-center">UTS</th><th className="px-4 py-3 text-center">UAS</th><th className="px-4 py-3 text-center">Nilai Akhir</th></>}
               {tab === 'kalender' && <><th className="px-4 py-3 text-left">Kegiatan</th><th className="px-4 py-3 text-left">Jenis</th></>}
             </tr>
           </thead>
@@ -115,11 +119,9 @@ export default function Laporan() {
                 <td className="px-4 py-2 text-xs">{r.materi || '-'}</td>
               </tr>
             ))}
-            {tab === 'nilai' && (
-              <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={3}>Buka menu Siswa → Penilaian untuk input dan lihat nilai</td></tr>
-            )}
+            {tab === 'nilai' && filtered.map((r:any,index:number)=><tr key={`${r.mata_pelajaran}-${r.siswa_nama}-${index}`} className="border-t border-slate-100"><td className="px-4 py-2 font-semibold">{r.mata_pelajaran}</td><td className="px-4 py-2">{r.siswa_nama}</td><td className="px-4 py-2 text-center">{r.rata_harian}</td><td className="px-4 py-2 text-center">{r.uts}</td><td className="px-4 py-2 text-center">{r.uas}</td><td className="px-4 py-2 text-center font-extrabold text-emerald-700">{r.nilai_akhir}</td></tr>)}
             {tab==='kalender'&&filtered.map((r:any)=><tr key={r.id} className="border-t border-slate-100"><td className="px-4 py-2">{r.tanggal_mulai}{r.tanggal_selesai?` – ${r.tanggal_selesai}`:''}</td><td className="px-4 py-2 font-semibold">{r.judul}</td><td className="px-4 py-2 capitalize">{r.jenis.replace('_',' ')}</td></tr>)}
-            {filtered.length === 0 && tab !== 'nilai' && (
+            {filtered.length === 0 && (
               <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={5}>Belum ada data</td></tr>
             )}
           </tbody>
