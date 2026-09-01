@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Plus, Upload, Settings, Search, Pencil, Trash2, X } from 'lucide-react'
+import { Plus, Upload, Settings2, Search, Pencil, Archive, X, Users } from 'lucide-react'
+import { db } from '../../../../lib/db'
 import { useSiswaList, useFieldDefs } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
 import type { Siswa } from '../../../../shared/types'
@@ -14,6 +15,9 @@ export default function DataSiswa() {
   const { data: fields, reload: reloadFields } = useFieldDefs(kelasId)
   const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>({})
   const [search, setSearch] = useState('')
+  const [jkFilter, setJkFilter] = useState('')
+  const [sortBy, setSortBy] = useState('absen')
+  const [kelasLabel, setKelasLabel] = useState('Kelas aktif')
   const [formOpen, setFormOpen] = useState(false)
   const [editSiswa, setEditSiswa] = useState<Siswa | null>(null)
   const [fieldOpen, setFieldOpen] = useState(false)
@@ -39,11 +43,20 @@ export default function DataSiswa() {
     return () => { cancelled = true }
   }, [siswa])
 
-  const filtered = siswa.filter((s) =>
-    s.nama.toLowerCase().includes(search.toLowerCase()) ||
-    (s.nis && s.nis.includes(search))
-  )
-  const isSearching = search.trim() !== ''
+  useEffect(() => {
+    db.kelas.get(kelasId).then((kelas) => {
+      if (kelas) setKelasLabel(`${kelas.nama_kelas} · ${kelas.tahun_ajaran} · Semester ${kelas.semester}`)
+    })
+  }, [kelasId])
+
+  const filtered = siswa.filter((s) => {
+    const q = search.toLowerCase().trim()
+    const cocok = !q || s.nama.toLowerCase().includes(q) || (s.nis && s.nis.includes(q)) || String(s.no_absen || '').includes(q)
+    return cocok && (!jkFilter || s.jenis_kelamin === jkFilter)
+  }).sort((a, b) => sortBy === 'nama' ? a.nama.localeCompare(b.nama) : sortBy === 'terbaru' ? b.id - a.id : (a.no_absen || 9999) - (b.no_absen || 9999))
+  const isFiltering = search.trim() !== '' || jkFilter !== ''
+  const laki = siswa.filter((s) => s.jenis_kelamin === 'L').length
+  const perempuan = siswa.filter((s) => s.jenis_kelamin === 'P').length
 
   const handleEdit = (s: Siswa) => {
     setEditSiswa(s)
@@ -60,45 +73,45 @@ export default function DataSiswa() {
   }
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-xl font-bold">Data Siswa</h2>
+    <div className="max-w-[1440px] mx-auto">
+      <div className="flex items-start justify-between mb-5 flex-wrap gap-4">
+        <div>
+          <div className="flex items-center gap-2 mb-1"><Users size={20} className="text-emerald-600"/><h2 className="text-xl font-extrabold text-slate-900">Data Siswa</h2></div>
+          <p className="text-sm text-slate-500">{kelasLabel}</p>
+          <div className="flex gap-3 mt-2 text-xs font-semibold text-slate-500"><span>{siswa.length} siswa</span><span>•</span><span>{laki} laki-laki</span><span>•</span><span>{perempuan} perempuan</span></div>
+        </div>
         <div className="flex gap-2 flex-wrap">
           <button
             onClick={() => setFieldOpen(true)}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border transition-all duration-200 active:scale-[0.98]"
-            style={{ borderColor: 'var(--border)' }}
+            className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
           >
-            <Settings size={16} /> Kelola Field
+            <Settings2 size={16} /> Kolom Tambahan
           </button>
           <button
             onClick={() => setImportOpen(true)}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border transition-all duration-200 active:scale-[0.98]"
-            style={{ borderColor: 'var(--border)' }}
+            className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
           >
             <Upload size={16} /> Import Data
           </button>
           <button
             onClick={() => { setEditSiswa(null); setFormOpen(true) }}
-            className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98]"
-            style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}
+            className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-[0.98]"
           >
-            <Plus size={16} /> Tambah
+            <Plus size={16} /> Tambah Siswa
           </button>
         </div>
       </div>
 
-      <div className="mb-4">
-        <div className="relative max-w-md">
+      <div className="rounded-2xl bg-white border border-slate-200 p-3 mb-4 flex flex-col md:flex-row gap-3 md:items-center">
+        <div className="relative flex-1 max-w-xl">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Cari berdasarkan nama atau NIS..."
-            className="w-full rounded-lg pl-9 pr-9 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-            style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
+            className="w-full rounded-xl pl-9 pr-9 py-2.5 text-sm border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
-          {isSearching && (
+          {search && (
             <button
               onClick={() => setSearch('')}
               className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 text-gray-400 hover:text-gray-600"
@@ -107,45 +120,50 @@ export default function DataSiswa() {
             </button>
           )}
         </div>
-        <p className="text-xs mt-1.5" style={{ color: 'var(--text-light)' }}>
-          {isSearching
-            ? `${filtered.length} dari ${siswa.length} siswa`
-            : `${siswa.length} siswa di kelas`}
-        </p>
+        <select value={jkFilter} onChange={(e) => setJkFilter(e.target.value)} className="rounded-xl px-3 py-2.5 text-sm border border-slate-200 bg-white text-slate-600"><option value="">Semua JK</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
+        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-xl px-3 py-2.5 text-sm border border-slate-200 bg-white text-slate-600"><option value="absen">Urut No. Absen</option><option value="nama">Urut Nama</option><option value="terbaru">Siswa Terbaru</option></select>
+        <div className="md:ml-auto text-xs font-semibold text-slate-500 whitespace-nowrap">{isFiltering ? `${filtered.length} dari ${siswa.length}` : `${siswa.length} siswa`}</div>
       </div>
 
-      <div className="rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}>
-        <table className="w-full text-sm">
+      <div className="rounded-2xl overflow-hidden border border-slate-200 bg-white">
+        <div className="overflow-x-auto">
+        <table className="w-full min-w-[760px] text-sm">
           <thead>
-            <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
-              <th className="px-6 py-4 text-left font-medium">No</th>
-              <th className="px-6 py-4 text-left font-medium">Nama</th>
-              <th className="px-6 py-4 text-left font-medium">NIS</th>
-              <th className="px-6 py-4 text-left font-medium">JK</th>
+            <tr className="text-xs uppercase tracking-wider bg-slate-50 text-slate-500 border-b border-slate-200">
+              <th className="px-5 py-3.5 text-left font-bold whitespace-nowrap">No. Absen</th>
+              <th className="px-6 py-3.5 text-left font-bold">Nama</th>
+              <th className="px-6 py-3.5 text-left font-bold">NIS</th>
+              <th className="px-6 py-3.5 text-left font-bold">JK</th>
               {fields.map((f) => (
-                <th key={f.id} className="px-6 py-4 text-left font-medium">{f.nama_field}</th>
+                <th key={f.id} className="px-6 py-3.5 text-left font-bold">{f.nama_field}</th>
               ))}
-              <th className="px-6 py-4 text-right font-medium">Aksi</th>
+              <th className="px-6 py-3.5 text-right font-bold">Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((s, i) => (
-              <tr key={s.id} className="border-t hover:bg-gray-50/50 transition-colors" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-6 py-4">{s.no_absen || i + 1}</td>
-                <td className="px-6 py-4 font-medium">{s.nama}</td>
-                <td className="px-6 py-4" style={{ color: 'var(--text-light)' }}>{s.nis || '-'}</td>
-                <td className="px-6 py-4">{s.jenis_kelamin || '-'}</td>
+              <tr key={s.id} className="border-b border-slate-100 bg-white hover:bg-emerald-50/40 transition-colors">
+                <td className="px-5 py-3.5 font-bold text-slate-600">{s.no_absen || <span className="text-amber-500" title="Nomor absen belum diisi">—</span>}</td>
+                <td className="px-6 py-3.5 font-semibold text-slate-800">{s.nama}</td>
+                <td className="px-6 py-3.5" style={{ color: 'var(--text-light)' }}>{s.nis || '-'}</td>
+                <td className="px-6 py-3.5">{s.jenis_kelamin || '-'}</td>
                 {fields.map((f) => (
-                  <td key={f.id} className="px-6 py-4" style={{ color: 'var(--text-light)' }}>
+                  <td key={f.id} className="px-6 py-3.5" style={{ color: 'var(--text-light)' }}>
                     {fieldValues[s.id]?.[f.id] || '-'}
                   </td>
                 ))}
-                <td className="px-6 py-4 text-right whitespace-nowrap">
-                  <button onClick={() => handleEdit(s)} className="p-1 hover:text-[#0ea5a0] transition-colors" title="Edit">
-                    <Pencil size={15} />
+                <td className="px-6 py-3.5 text-right whitespace-nowrap">
+                  <button
+                    onClick={() => handleEdit(s)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 transition-colors"
+                  >
+                    <Pencil size={13} /> Edit
                   </button>
-                  <button onClick={() => confirmHapus(s)} className="p-1 hover:text-red-600 transition-colors ml-1" title="Hapus">
-                    <Trash2 size={15} />
+                  <button
+                    onClick={() => confirmHapus(s)}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition-colors ml-1.5"
+                  >
+                    <Archive size={13} /> Arsipkan
                   </button>
                 </td>
               </tr>
@@ -153,7 +171,7 @@ export default function DataSiswa() {
             {filtered.length === 0 && !loading && (
               <tr>
                 <td colSpan={4 + fields.length} className="px-6 py-10 text-center text-sm" style={{ color: 'var(--text-light)' }}>
-                  {isSearching ? 'Tidak ada siswa yang cocok dengan pencarian.' : 'Belum ada data siswa. Klik "Tambah" atau "Import Data".'}
+                  {isFiltering ? 'Tidak ada siswa yang cocok dengan pencarian atau filter.' : <div className="py-5"><Users size={34} className="mx-auto mb-3 text-slate-300"/><div className="font-bold text-slate-700">Belum ada siswa di kelas ini</div><div className="text-xs mt-1">Tambahkan satu per satu atau impor sekaligus dari Excel.</div><div className="flex justify-center gap-2 mt-4"><button onClick={() => { setEditSiswa(null); setFormOpen(true) }} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Tambah Siswa</button><button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600">Impor Excel</button></div></div>}
                 </td>
               </tr>
             )}
@@ -165,10 +183,8 @@ export default function DataSiswa() {
               </tr>
             )}
           </tbody>
-        </table>
-        <div className="px-6 py-3 text-xs border-t" style={{ color: 'var(--text-light)', borderColor: 'var(--border)' }}>
-          Total: {filtered.length} siswa
-        </div>
+        </table></div>
+        <div className="px-5 py-3 text-xs border-t border-slate-100 font-semibold text-slate-500 bg-slate-50">Menampilkan {filtered.length} siswa</div>
       </div>
 
       {formOpen && (
@@ -200,9 +216,9 @@ export default function DataSiswa() {
 
       <ConfirmDialog
         open={hapus.open}
-        title="Hapus Siswa"
-        message={`Apakah Anda yakin ingin menghapus ${hapus.siswa?.nama}? Data akan diarsipkan.`}
-        confirmText="Hapus"
+        title="Arsipkan Siswa"
+        message={`Arsipkan ${hapus.siswa?.nama}? Siswa tidak akan tampil di daftar aktif.`}
+        confirmText="Arsipkan"
         onCancel={() => setHapus({ open: false, siswa: null })}
         onConfirm={handleHapus}
       />

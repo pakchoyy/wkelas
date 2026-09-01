@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { useFieldDefs } from '../../../hooks/useSiswa'
 import type { SiswaFieldDefinition } from '../../../../shared/types'
 import Modal from '../../../components/Modal'
@@ -77,22 +77,31 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
   }
 
   return (
-    <Modal title="Kelola Custom Field" onClose={onClose}>
+    <Modal title="Kelola Kolom Tambahan" onClose={onClose}>
       <div className="space-y-3">
+        <p className="text-xs" style={{ color: 'var(--text-light)' }}>
+          Kolom tambahan otomatis muncul di formulir dan tabel Data Siswa.
+        </p>
+
         <button
           onClick={() => { setEditField(null); resetForm(); setShowForm(true) }}
           className="flex items-center gap-2 text-sm font-semibold text-[#0ea5a0] hover:underline"
         >
-          <Plus size={16} /> Tambah Field Baru
+          <Plus size={16} /> Tambah Kolom Baru
         </button>
 
-        {fields.map((f) => (
+        {fields.map((f, i) => (
           <div key={f.id} className="flex items-center gap-3 rounded-xl p-3 border" style={{ borderColor: 'var(--border)' }}>
-            <GripVertical size={16} className="text-gray-400" />
+            <div
+              className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
+              style={{ background: '#e7f6f5', color: '#0d7a8a' }}
+            >
+              {i + 1}
+            </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-semibold truncate">{f.nama_field}</div>
               <div className="text-xs" style={{ color: 'var(--text-light)' }}>
-                {f.tipe} {f.wajib ? '· Wajib' : ''} · Urutan {f.urutan}
+                {f.tipe} {f.wajib ? '· Wajib' : ''}
               </div>
             </div>
             <button
@@ -114,7 +123,7 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
 
         {fields.length === 0 && !loading && (
           <p className="text-sm text-center py-8" style={{ color: 'var(--text-light)' }}>
-            Belum ada custom field. Klik "Tambah Field Baru" untuk mulai.
+            Belum ada kolom tambahan. Klik "Tambah Kolom Baru" untuk mulai.
           </p>
         )}
       </div>
@@ -122,7 +131,7 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
       {showForm && (
         <form onSubmit={handleSubmit} className="mt-4 space-y-3 border-t pt-4" style={{ borderColor: 'var(--border)' }}>
           <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Nama Field</label>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Nama Kolom</label>
             <input
               value={form.nama_field}
               onChange={(e) => setForm({ ...form, nama_field: e.target.value })}
@@ -169,7 +178,7 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
           </div>
           <div className="flex gap-3 justify-end pt-1">
             <button type="button" onClick={() => { setShowForm(false); setEditField(null) }} className="text-sm px-4 py-2 rounded-xl border" style={{ borderColor: 'var(--border)' }}>Batal</button>
-            <button type="submit" disabled={saving} className="text-sm px-4 py-2 rounded-xl text-white font-semibold" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
+            <button type="submit" disabled={saving} className="text-sm px-4 py-2 rounded-xl text-white font-bold bg-emerald-600 hover:bg-emerald-700">
               {saving ? 'Menyimpan...' : editField ? 'Update' : 'Simpan'}
             </button>
           </div>
@@ -178,8 +187,8 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
 
       <ConfirmDialog
         open={hapus.open}
-        title="Hapus Field"
-        message={`Hapus field "${hapus.field?.nama_field}"? Semua nilainya akan ikut terhapus.`}
+        title="Hapus Kolom"
+        message={`Hapus kolom "${hapus.field?.nama_field}"? Semua nilainya akan ikut terhapus.`}
         confirmText="Hapus"
         onCancel={() => setHapus({ open: false, field: null })}
         onConfirm={handleHapus}

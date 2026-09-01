@@ -2,7 +2,12 @@ import { useRef, useState } from 'react'
 import { FileDown, Upload, CheckCircle2, AlertCircle, Loader2 } from 'lucide-react'
 import Modal from '../../../components/Modal'
 import type { SiswaFieldDefinition } from '../../../../shared/types'
-import { buildTemplateCSV, downloadCSV, importSiswaCSV, type ImportResult } from '../../../lib/csv'
+import {
+  downloadTemplate,
+  importSiswaXLSX,
+  importSiswaCSV,
+  type ImportResult,
+} from '../../../lib/spreadsheet'
 
 interface Props {
   fields: SiswaFieldDefinition[]
@@ -17,9 +22,13 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
   const [error, setError] = useState('')
   const [importing, setImporting] = useState(false)
 
-  const handleDownloadTemplate = () => {
-    downloadCSV('template-import-siswa.csv', buildTemplateCSV(fields))
+  const handleDownloadTemplate = async () => {
     setError('')
+    try {
+      await downloadTemplate(fields)
+    } catch {
+      setError('Gagal membuat template.')
+    }
   }
 
   const handlePickFile = () => {
@@ -33,11 +42,18 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
     setError('')
     setImporting(true)
     try {
-      const text = await file.text()
-      const res = await importSiswaCSV(text, fields, kelasId)
-      setResult(res)
+      const ext = file.name.split('.').pop()?.toLowerCase()
+      if (ext === 'xlsx' || ext === 'xls') {
+        const buffer = await file.arrayBuffer()
+        setResult(await importSiswaXLSX(buffer, fields, kelasId))
+      } else if (ext === 'csv') {
+        const text = await file.text()
+        setResult(await importSiswaCSV(text, fields, kelasId))
+      } else {
+        setError('Format tidak didukung. Gunakan file Excel (.xlsx) atau CSV.')
+      }
     } catch {
-      setError('Gagal membaca file. Pastikan file berformat CSV.')
+      setError('Gagal membaca file. Pastikan file Excel tidak rusak.')
     } finally {
       setImporting(false)
     }
@@ -49,11 +65,11 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
   }
 
   return (
-    <Modal title="Import Data Siswa" onClose={onClose} maxWidth="max-w-md">
+    <Modal title="Import Data Siswa" onClose={onClose} maxWidth="max-w-sm">
       {!result ? (
         <div className="space-y-3">
           <p className="text-xs" style={{ color: 'var(--text-light)' }}>
-            Download template, isi data siswa, lalu upload. File dibuka dengan Microsoft Excel atau Google Sheets.
+            Download template Excel, isi data siswa, lalu upload kembali.
           </p>
 
           <button
@@ -66,7 +82,7 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
             </div>
             <div>
               <div className="text-sm font-semibold">Download Template</div>
-              <div className="text-xs" style={{ color: 'var(--text-light)' }}>template-import-siswa.csv · Excel compatible</div>
+              <div className="text-xs" style={{ color: 'var(--text-light)' }}>template-import-siswa.xlsx</div>
             </div>
           </button>
 
@@ -81,7 +97,7 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
             </div>
             <div>
               <div className="text-sm font-semibold">Upload Data</div>
-              <div className="text-xs" style={{ color: 'var(--text-light)' }}>Pilih file CSV yang sudah diisi</div>
+              <div className="text-xs" style={{ color: 'var(--text-light)' }}>Pilih file Excel (.xlsx) yang sudah diisi</div>
             </div>
           </button>
 
@@ -94,7 +110,7 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
           <input
             ref={fileRef}
             type="file"
-            accept=".csv,text/csv"
+            accept=".xlsx,.xls,.csv"
             className="hidden"
             onChange={handleFile}
           />
@@ -129,7 +145,7 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
           <button onClick={() => setResult(null)} className="rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}>
             Import Lagi
           </button>
-          <button onClick={handleDone} className="rounded-xl px-6 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
+          <button onClick={handleDone} className="rounded-xl px-6 py-2 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700">
             Selesai
           </button>
         </div>

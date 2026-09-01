@@ -72,7 +72,7 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
     <Modal
       title={siswa ? 'Edit Siswa' : 'Tambah Siswa'}
       onClose={onClose}
-      maxWidth="max-w-lg"
+      maxWidth="max-w-md"
       footer={
         <>
           <button
@@ -87,8 +87,7 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
             type="submit"
             form="siswa-form"
             disabled={loading}
-            className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}
+            className="rounded-xl px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? 'Menyimpan...' : 'Simpan'}
           </button>
@@ -107,8 +106,8 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
           />
         </div>
 
-        <div className="grid grid-cols-3 gap-3">
-          <div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="sm:col-span-2">
             <label className="text-sm font-medium text-gray-700 block mb-1">NIS</label>
             <input
               value={form.nis}
