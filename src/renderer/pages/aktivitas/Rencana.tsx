@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react'
+import { createJournalDraft } from '../../../lib/journal-storage'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Plus, Trash2 } from 'lucide-react'
 import type { Jadwal, MataPelajaran, RencanaMengajar } from '../../../shared/types'
 import { todayISO } from '../../../shared/utils'
@@ -50,6 +51,12 @@ const addDays = (date: Date, amount: number) => {
 
 export default function Rencana() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
+  return <RencanaKelas key={kelasId} kelasId={kelasId}/>
+}
+function RencanaKelas({kelasId}:{kelasId:number}) {
+  const [busy,setBusy] = useState(false)
+  const lock = useRef(false)
+  const [formError,setFormError] = useState('')
   const [data, setData] = useState<RencanaMengajar[]>([])
   const [jadwal, setJadwal] = useState<Jadwal[]>([])
   const [mapel, setMapel] = useState<MataPelajaran[]>([])
@@ -75,7 +82,7 @@ export default function Rencana() {
   }
 
   useEffect(() => {
-    load()
+    load().catch(() => setToast({message:'Rencana gagal dimuat. Muat ulang halaman.',error:true}))
     db.pengaturan.get(`presensi_${kelasId}`).then((item) => {
       if (!item?.value) return
       try { setHariSekolah(JSON.parse(item.value).hariSekolah || 5) } catch {}
@@ -105,6 +112,7 @@ export default function Rencana() {
   )
 
   const openPlan = (date: string, schedule: Jadwal, plan?: RencanaMengajar) => {
+    setFormError('')
     setSelectedJadwal(schedule)
     setEditing(plan || null)
     setForm(plan ? {
@@ -122,6 +130,8 @@ export default function Rencana() {
 
   const savePlan = async (event: React.FormEvent) => {
     event.preventDefault()
+    if (lock.current) return
+    lock.current=true;setBusy(true);setFormError('')
     try {
       await window.electronAPI.rencana.save({
         ...form,
@@ -130,39 +140,27 @@ export default function Rencana() {
         mata_pelajaran_id: form.mata_pelajaran_id ? Number(form.mata_pelajaran_id) : null
       })
       setShowForm(false)
-      await load()
-      setToast({ message: editing ? 'Rencana berhasil diperbarui' : 'Rencana berhasil disimpan' })
+      try { await load(); setToast({message:editing ? 'Rencana berhasil diperbarui' : 'Rencana berhasil disimpan'}) } catch { setToast({message:'Rencana tersimpan, tetapi daftar gagal dimuat ulang.',error:true}) }
     } catch {
-      setToast({ message: 'Rencana gagal disimpan', error: true })
-    }
+      setFormError('Rencana gagal disimpan. Isian tetap tersedia; silakan coba lagi.')
+    } finally {lock.current=false;setBusy(false)}
   }
 
   const removePlan = async () => {
-    if (!editing || !window.confirm('Hapus rencana mengajar ini?')) return
-    await window.electronAPI.rencana.delete(editing.id)
-    setShowForm(false)
-    await load()
-    setToast({ message: 'Rencana berhasil dihapus' })
+    if (!editing || lock.current || !window.confirm('Hapus rencana mengajar ini?')) return
+    lock.current=true;setBusy(true);setFormError('')
+    try {await window.electronAPI.rencana.delete(editing.id);setShowForm(false);await load()}
+    catch {setFormError('Rencana gagal dihapus atau daftar gagal dimuat ulang.')}
+    finally {lock.current=false;setBusy(false)}
   }
-
   const createJournal = async () => {
-    if (!editing) return
+    if (!editing || lock.current) return
+    lock.current=true;setBusy(true);setFormError('')
     try {
-      await window.electronAPI.jurnal.save({
-        kelas_id: kelasId,
-        tanggal: form.tanggal,
-        jam_ke: selectedJadwal?.jam_ke?.toString() || '',
-        mata_pelajaran: mapelName(selectedJadwal, editing.mata_pelajaran_id),
-        materi: form.topik,
-        kegiatan: form.kegiatan,
-        kendala: '',
-        refleksi: ''
-      })
-      setShowForm(false)
-      setToast({ message: 'Draft Jurnal berhasil dibuat' })
-    } catch {
-      setToast({ message: 'Draft Jurnal gagal dibuat', error: true })
-    }
+      await createJournalDraft(db,{kelas_id:kelasId,tanggal:form.tanggal,jam_ke:selectedJadwal?.jam_ke?.toString() || '',mata_pelajaran:mapelName(selectedJadwal,editing.mata_pelajaran_id),materi:form.topik,kegiatan:form.kegiatan,kendala:'',refleksi:''})
+      setShowForm(false);setToast({message:'Draft Jurnal berhasil dibuat'})
+    } catch(error) {setFormError(error instanceof Error ? error.message : 'Draft Jurnal gagal dibuat.')}
+    finally {lock.current=false;setBusy(false)}
   }
 
   const statusStyle = (status: string) => status === 'selesai'
@@ -171,29 +169,19 @@ export default function Rencana() {
 
   return (
     <div className="space-y-4">
-      {toast && <div className={`fixed left-1/2 top-20 z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.message}</div>}
+      {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.message}</div>}
 
       <div>
         <h2 className="text-xl font-bold">Rencana Mengajar</h2>
         <p className="mt-1 text-sm text-slate-500">Isi rencana langsung dari jadwal pelajaran minggu ini.</p>
       </div>
 
-      <div className="flex items-center justify-between rounded-2xl border bg-white p-3" style={{ borderColor: 'var(--border)', boxShadow: 'var(--shadow)' }}>
-        <button onClick={() => setAnchorDate(toISO(addDays(weekStart, -7)))} className="rounded-xl border p-3 text-slate-700 hover:bg-slate-50" style={{ borderColor: 'var(--border)' }} title="Minggu sebelumnya"><ChevronLeft size={20} /></button>
-        <div className="text-center">
-          <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">Rencana Mingguan</div>
-          <div className="mt-1 text-base font-bold text-slate-900">{weekLabel}</div>
-        </div>
-        <div className="flex gap-2">
-          <label className="relative flex cursor-pointer items-center rounded-xl border p-3 text-slate-700 hover:bg-slate-50" style={{ borderColor: 'var(--border)' }} title="Pilih tanggal">
-            <CalendarDays size={20} />
-            <input type="date" value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Pilih tanggal" />
-          </label>
-          <button onClick={() => setAnchorDate(toISO(addDays(weekStart, 7)))} className="rounded-xl border p-3 text-slate-700 hover:bg-slate-50" style={{ borderColor: 'var(--border)' }} title="Minggu berikutnya"><ChevronRight size={20} /></button>
-        </div>
+      <div className="rounded-2xl border bg-white p-3">
+        <div className="grid grid-cols-[44px_minmax(0,1fr)_44px] items-center gap-2"><button aria-label="Minggu sebelumnya" onClick={()=>setAnchorDate(toISO(addDays(weekStart,-7)))} className="size-11 border rounded-xl grid place-items-center"><ChevronLeft size={20}/></button><div className="text-center"><p className="text-xs text-teal-700">Rencana Mingguan</p><h3 className="text-sm sm:text-base font-bold">{weekLabel}</h3></div><button aria-label="Minggu berikutnya" onClick={()=>setAnchorDate(toISO(addDays(weekStart,7)))} className="size-11 border rounded-xl grid place-items-center"><ChevronRight size={20}/></button></div>
+        <label className="mt-3 flex flex-wrap justify-center items-center gap-2 text-sm">Pilih tanggal<input type="date" value={anchorDate} onChange={e=>{if(e.target.value)setAnchorDate(e.target.value)}} className="field !w-auto min-w-0"/></label>
       </div>
 
-      <div className="flex items-center justify-between rounded-xl border bg-white px-4 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+      <div className="flex flex-wrap gap-3 items-center justify-between rounded-xl border bg-white px-4 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
         <span className="text-slate-600"><strong className="text-slate-800">Cara cepat:</strong> klik kotak jadwal, lalu isi topik. Bagian lainnya boleh dikosongkan.</span>
         {toISO(weekStart) !== toISO(mondayOf(todayISO())) && <button onClick={() => setAnchorDate(todayISO())} className="font-bold text-emerald-600">Ke minggu ini</button>}
       </div>
@@ -205,7 +193,7 @@ export default function Rencana() {
           const isToday = dateISO === todayISO()
           const holiday = holidays.find((item) => ['libur_nasional','libur_sekolah'].includes(item.jenis) && dateISO >= item.tanggal_mulai && dateISO <= (item.tanggal_selesai || item.tanggal_mulai))
           return (
-            <section key={dateISO} className={`min-h-[330px] overflow-hidden rounded-2xl border ${isToday ? 'border-emerald-400' : 'border-slate-200'} ${['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
+            <section key={dateISO} className={`md:min-h-[330px] overflow-hidden rounded-2xl border ${isToday ? 'border-emerald-400' : 'border-slate-200'} ${['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
               <header className={`border-b px-4 py-3 ${isToday ? 'bg-emerald-600 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold">{HARI[dayIndex]}</span>
@@ -214,7 +202,7 @@ export default function Rencana() {
                 <span className={`text-xs ${isToday ? 'text-emerald-50' : 'text-slate-500'}`}>{date.getDate()} {BULAN[date.getMonth()]}</span>
               </header>
               <div className="space-y-2 p-3">
-                {holiday ? <div className="flex min-h-[190px] flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 text-center"><CalendarDays size={26} className="mb-2 text-amber-500"/><p className="text-sm font-bold text-amber-800">{holiday.judul}</p><p className="mt-1 text-xs text-amber-600">Tidak ada rencana mengajar pada hari libur.</p></div> : slots.map((slot) => {
+                {holiday ? <div className="flex min-h-[100px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 text-center"><CalendarDays size={26} className="mb-2 text-amber-500"/><p className="text-sm font-bold text-amber-800">{holiday.judul}</p><p className="mt-1 text-xs text-amber-600">Tidak ada rencana mengajar pada hari libur.</p></div> : slots.map((slot) => {
                   const plan = findPlan(dateISO, slot)
                   return (
                     <button key={slot.id} onClick={() => openPlan(dateISO, slot, plan)} className="w-full rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md" style={{ borderColor: 'var(--border)' }}>
@@ -229,19 +217,19 @@ export default function Rencana() {
                     </button>
                   )
                 })}
-                {!holiday && slots.length === 0 && <div className="flex min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-center"><BookOpen size={26} className="mb-2 text-slate-300" /><p className="text-xs font-semibold text-slate-400">Belum ada jadwal pelajaran</p><p className="mt-1 text-[11px] text-slate-400">Isi terlebih dahulu di menu Jadwal.</p></div>}
+                {!holiday && slots.length === 0 && <div className="flex min-h-[100px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-center"><BookOpen size={26} className="mb-2 text-slate-300" /><p className="text-xs font-semibold text-slate-400">Belum ada jadwal pelajaran</p><p className="mt-1 text-[11px] text-slate-400">Isi terlebih dahulu di menu Jadwal.</p></div>}
               </div>
             </section>
           )
         })}
       </div>
 
-      {showForm && <Modal title={`${editing ? 'Edit' : 'Isi'} Rencana · ${mapelName(selectedJadwal, Number(form.mata_pelajaran_id))}`} onClose={() => setShowForm(false)} maxWidth="max-w-2xl" footer={<>
-        {editing && <button onClick={removePlan} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16} /> Hapus</button>}
-        {editing && <button onClick={createJournal} className="flex items-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-bold text-emerald-700"><ClipboardCheck size={16} /> Buat Draft Jurnal</button>}
-        <button type="submit" form="rencana-form" className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Simpan Rencana</button>
+      {showForm && <Modal title={`${editing ? 'Edit' : 'Isi'} Rencana · ${mapelName(selectedJadwal, Number(form.mata_pelajaran_id))}`} onClose={() => {if(!lock.current)setShowForm(false)}} maxWidth="max-w-2xl" footer={<>
+        {editing && <button disabled={busy} onClick={removePlan} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16} /> Hapus</button>}
+        {editing && <button disabled={busy} onClick={createJournal} className="flex items-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-bold text-emerald-700"><ClipboardCheck size={16} /> Buat Draft Jurnal</button>}
+        <button disabled={busy} type="submit" form="rencana-form" className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Simpan Rencana</button>
       </>}>
-        <form id="rencana-form" onSubmit={savePlan} className="space-y-4">
+        <form id="rencana-form" onSubmit={savePlan}>{formError && <p role="alert" className="mb-3 text-sm text-red-700">{formError}</p>}<fieldset disabled={busy} className="min-w-0 space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="text-xs font-bold text-slate-600">Tanggal<input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} className="field mt-1.5" required /></label>
             <label className="text-xs font-bold text-slate-600 sm:col-span-2">Mata pelajaran<select value={form.mata_pelajaran_id} onChange={(e) => setForm({ ...form, mata_pelajaran_id: e.target.value })} className="field mt-1.5"><option value="">Tanpa mata pelajaran</option>{mapel.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</select></label>
@@ -254,7 +242,7 @@ export default function Rencana() {
             <label className="text-xs font-bold text-slate-600">Penilaian <span className="font-normal text-slate-400">(opsional)</span><input value={form.penilaian} onChange={(e) => setForm({ ...form, penilaian: e.target.value })} className="field mt-1.5" placeholder="Observasi, kuis..." /></label>
           </div>
           <label className="block text-xs font-bold text-slate-600">Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="field mt-1.5"><option value="draft">Draft</option><option value="selesai">Selesai</option><option value="ditunda">Ditunda</option></select></label>
-        </form>
+        </fieldset></form>
       </Modal>}
     </div>
   )

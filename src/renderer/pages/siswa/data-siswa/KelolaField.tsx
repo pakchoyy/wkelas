@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { dropdownText, encodeDropdown } from '../../../../shared/dropdown'
+import { useState, useRef } from 'react'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 import { useFieldDefs } from '../../../hooks/useSiswa'
 import type { SiswaFieldDefinition } from '../../../../shared/types'
@@ -16,33 +17,37 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
   const [showForm, setShowForm] = useState(false)
   const [editField, setEditField] = useState<SiswaFieldDefinition | null>(null)
   const [form, setForm] = useState({ nama_field: '', slug: '', tipe: 'teks', pilihan: '', wajib: false, urutan: 0 })
+  const [error, setError] = useState('')
+  const busyRef = useRef(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [hapus, setHapus] = useState<{ open: boolean; field: SiswaFieldDefinition | null }>({ open: false, field: null })
 
-  useEffect(() => {
-    if (editField) {
-      setForm({
-        nama_field: editField.nama_field,
-        slug: editField.slug,
-        tipe: editField.tipe,
-        pilihan: editField.pilihan || '',
-        wajib: !!editField.wajib,
-        urutan: editField.urutan,
-      })
-    }
-  }, [editField])
+  const openEdit = (field: SiswaFieldDefinition) => {
+    if (busyRef.current) return
+    setError('')
+    try {
+      const pilihan = field.tipe === 'dropdown' ? dropdownText(field.pilihan) : ''
+      setEditField(field)
+      setForm({nama_field:field.nama_field,slug:field.slug,tipe:field.tipe,pilihan,wajib:!!field.wajib,urutan:field.urutan})
+      setShowForm(true)
+    } catch(error) { setError(error instanceof Error ? error.message : 'Kolom gagal dibuka.'); setShowForm(false); setEditField(null) }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (busyRef.current) return
+    busyRef.current = true
+    setError('')
     setSaving(true)
     try {
+      if (!form.nama_field.trim()) throw new Error('Nama kolom wajib diisi.')
       const data = {
         kelas_id: kelasId,
-        nama_field: form.nama_field,
-        slug: form.slug || form.nama_field.toLowerCase().replace(/\s+/g, '_'),
+        nama_field: form.nama_field.trim(),
+        slug: form.slug || form.nama_field.trim().toLowerCase().replace(/\s+/g, '_'),
         tipe: form.tipe,
-        pilihan: form.tipe === 'dropdown' ? JSON.stringify(form.pilihan.split(',').map((s) => s.trim()).filter(Boolean)) : null,
+        pilihan: form.tipe === 'dropdown' ? encodeDropdown(form.pilihan) : null,
         wajib: form.wajib ? 1 : 0,
         urutan: fields.length + 1,
       }
@@ -58,7 +63,8 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
       resetForm()
       reload()
       onChanged()
-    } finally {
+    } catch(error) { setError(error instanceof Error ? error.message : 'Kolom gagal disimpan. Silakan coba lagi.') } finally {
+      busyRef.current = false
       setSaving(false)
     }
   }
@@ -66,24 +72,30 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
   const confirmHapus = (f: SiswaFieldDefinition) => setHapus({ open: true, field: f })
 
   const handleHapus = async () => {
-    if (!hapus.field) return
+    if (!hapus.field || busyRef.current) return
+    busyRef.current = true
+    setError('')
     setDeleting(true)
     try {
       await window.electronAPI.fieldDef.delete(hapus.field.id)
       setHapus({ open: false, field: null })
       await reload()
       onChanged()
-    } finally {
+    } catch { setError('Kolom gagal dihapus. Silakan coba lagi.') } finally {
+      busyRef.current = false
       setDeleting(false)
     }
   }
 
   const resetForm = () => {
+    setError('')
     setForm({ nama_field: '', slug: '', tipe: 'teks', pilihan: '', wajib: false, urutan: 0 })
   }
 
   return (
-    <Modal title="Atur Kolom Data Siswa" onClose={onClose}>
+    <Modal title="Atur Kolom Data Siswa" onClose={() => {if (!busyRef.current) onClose()}}>
+      {error && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      <fieldset disabled={saving || deleting} className="min-w-0">
       <div className="space-y-3">
         <p className="text-xs" style={{ color: 'var(--text-light)' }}>
           Tambahkan informasi yang ingin dicatat untuk setiap siswa, misalnya agama, alamat, atau nomor telepon orang tua.
@@ -116,7 +128,7 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
               </div>
             </div>
             <button
-              onClick={() => { setEditField(f); resetForm(); setShowForm(true) }}
+              onClick={() => openEdit(f)}
               className="p-1 hover:text-[#0ea5a0] transition-colors"
               title="Edit"
             >
@@ -167,11 +179,12 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
           </div>
           {form.tipe === 'dropdown' && (
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">Pilihan (pisah dengan koma)</label>
-              <input
+              <label className="text-sm font-medium text-gray-700 block mb-1">Pilihan (satu pilihan per baris)</label>
+              <textarea
+                rows={5}
                 value={form.pilihan}
                 onChange={(e) => setForm({ ...form, pilihan: e.target.value })}
-                placeholder="Islam, Kristen, Katolik, Hindu, Buddha"
+                placeholder={"Islam\nKristen\nKatolik\nHindu\nBuddha"}
                 className="w-full rounded-lg px-3 py-2 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
                 style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
               />
@@ -196,12 +209,13 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
         </form>
       )}
 
+      </fieldset>
       <ConfirmDialog
         open={hapus.open}
         title="Hapus Kolom"
         message={`Hapus kolom "${hapus.field?.nama_field}"? Semua nilainya akan ikut terhapus.`}
         confirmText={deleting ? 'Menghapus...' : 'Hapus'}
-        onCancel={() => setHapus({ open: false, field: null })}
+        onCancel={() => {if (!busyRef.current) setHapus({ open: false, field: null })}}
         onConfirm={handleHapus}
       />
     </Modal>

@@ -7,7 +7,7 @@ export interface SiswaFieldDef { id?: number; kelas_id: number; nama_field: stri
 export interface SiswaFieldVal { id?: number; siswa_id: number; field_id: number; nilai?: string; updated_at: string }
 export interface Presensi { id?: number; siswa_id: number; kelas_id: number; tanggal: string; status: string; keterangan?: string; created_at: string; updated_at: string }
 export interface MataPelajaran { id?: number; kelas_id: number; nama: string; kode?: string; urutan: number; is_aktif?: number; created_at: string }
-export interface PenilaianKolom { id?: number; mata_pelajaran_id: number; label: string; bobot: number; tanggal?: string; urutan: number; catatan?: string; created_at: string; updated_at: string }
+export interface PenilaianKolom { periode?: string; id?: number; mata_pelajaran_id: number; label: string; bobot: number; tanggal?: string; urutan: number; catatan?: string; created_at: string; updated_at: string }
 export interface Nilai { id?: number; siswa_id: number; kolom_id: number; nilai?: number; catatan?: string; created_at: string; updated_at: string }
 export interface Perilaku { id?: number; siswa_id: number; tanggal: string; jenis: string; kategori?: string; deskripsi: string; tindak_lanjut?: string; created_at: string; updated_at: string }
 export interface Jadwal { id?: number; kelas_id: number; hari: number; jam_ke: number; jam_mulai: string; jam_selesai: string; mata_pelajaran_id?: number; nama_mapel_custom?: string; nama_guru?: string; ruang?: string; created_at: string; updated_at: string }
@@ -41,8 +41,8 @@ export class BgyDatabase extends Dexie {
   perangkat_ajar_cache!: Table<PerangkatAjarCache, string>
   pengaturan!: Table<Pengaturan, string>
 
-  constructor() {
-    super('bgy-wali-kelas')
+  constructor(name = 'bgy-wali-kelas') {
+    super(name)
     this.version(1).stores({
       guru: '++id, supabase_uid',
       kelas: '++id, guru_id, is_aktif',

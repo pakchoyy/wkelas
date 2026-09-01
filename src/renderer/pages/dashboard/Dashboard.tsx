@@ -5,24 +5,26 @@ import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 
-const day = (() => { const d = new Date().getDay(); return d === 0 ? 7 : d })()
-const dateLabel = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date())
-
 export default function Dashboard() {
   const navigate = useNavigate()
+  const [today, setToday] = useState(todayISO())
+  useEffect(() => { const refresh = () => setToday(todayISO()); const timer = window.setInterval(refresh, 30000); window.addEventListener('focus', refresh); return () => { window.clearInterval(timer); window.removeEventListener('focus', refresh) } }, [])
+  const date = new Date(`${today}T12:00:00`)
+  const day = date.getDay() || 7
+  const dateLabel = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date)
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
   const [data, setData] = useState<any>({ siswa: [], jadwal: [], todo: [], presensi: [], jurnal: [], mapel: [], kalender: [] })
   const [loading, setLoading] = useState(true)
   useEffect(() => { ;(async () => {
     try {
-      const [siswa, jadwal, todo, presensi, kelas, jurnal, mapel, kalender] = await Promise.all([window.electronAPI.siswa.list(kelasId), window.electronAPI.jadwal.list(kelasId), window.electronAPI.todo.list(), window.electronAPI.presensi.get(kelasId, todayISO()), db.kelas.get(kelasId), window.electronAPI.jurnal.list(kelasId), window.electronAPI.mapel.list(kelasId), window.electronAPI.kalender.list(kelasId)])
+      const [siswa, jadwal, todo, presensi, kelas, jurnal, mapel, kalender] = await Promise.all([window.electronAPI.siswa.list(kelasId), window.electronAPI.jadwal.list(kelasId), window.electronAPI.todo.list(), window.electronAPI.presensi.get(kelasId, today), db.kelas.get(kelasId), window.electronAPI.jurnal.list(kelasId), window.electronAPI.mapel.list(kelasId), window.electronAPI.kalender.list(kelasId)])
       const guru = kelas?.guru_id ? await db.guru.get(kelas.guru_id) : undefined
-      setData({ siswa, jadwal: jadwal.filter((j: any) => j.hari === day).sort((a: any, b: any) => a.jam_ke - b.jam_ke), todo, presensi, kelas, guru, jurnal, mapel, kalender })
+      setData({ siswa, jadwal: jadwal.filter((j: any) => j.hari === day).sort((a: any, b: any) => a.jam_ke - b.jam_ke), todo, presensi: presensi.filter((p: any) => siswa.some((s: any) => s.id === p.siswa_id)), kelas, guru, jurnal, mapel, kalender })
     } finally { setLoading(false) }
-  })() }, [kelasId])
-  const counts = useMemo(() => { const count = (s: string) => data.presensi.filter((p: any) => p.status === s).length; const todayJournals=data.jurnal.filter((item:any)=>item.tanggal===todayISO()); return { hadir: count('H'), sakit: count('S'), izin: count('I'), alpa: count('A'), todo: data.todo.filter((t: any) => t.status !== 'selesai').length, journalMissing: data.jadwal.filter((slot:any)=>!todayJournals.some((item:any)=>String(item.jam_ke)===String(slot.jam_ke)&&item.materi)).length } }, [data])
+  })() }, [kelasId, today])
+  const counts = useMemo(() => { const count = (s: string) => data.presensi.filter((p: any) => p.status === s).length; const todayJournals=data.jurnal.filter((item:any)=>item.tanggal===today); return { hadir: count('H') + count('T'), terlambat: count('T'), sakit: count('S'), izin: count('I'), alpa: count('A'), todo: data.todo.filter((t: any) => t.status !== 'selesai').length, journalMissing: data.jadwal.filter((slot:any)=>!todayJournals.some((item:any)=>String(item.jam_ke)===String(slot.jam_ke)&&item.materi)).length } }, [data, today])
   const lengkap = data.siswa.length > 0 && data.presensi.length >= data.siswa.length
-  const holiday=data.kalender.find((item:any)=>['libur_nasional','libur_sekolah'].includes(item.jenis)&&todayISO()>=item.tanggal_mulai&&todayISO()<=(item.tanggal_selesai||item.tanggal_mulai))
+  const holiday=data.kalender.find((item:any)=>['libur_nasional','libur_sekolah'].includes(item.jenis)&&today>=item.tanggal_mulai&&today<=(item.tanggal_selesai||item.tanggal_mulai))
   const subjectName=(slot:any)=>slot.nama_mapel_custom||data.mapel.find((item:any)=>item.id===slot.mata_pelajaran_id)?.nama||'Mata pelajaran'
 
   return <div className="max-w-[1440px] mx-auto space-y-5">
@@ -31,12 +33,12 @@ export default function Dashboard() {
       <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6"><div><div className="text-emerald-300 text-xs font-bold uppercase tracking-[.14em] mb-2">{dateLabel}</div><h1 className="text-2xl md:text-3xl font-extrabold">Selamat bekerja, {data.guru?.nama || 'Wali Kelas'} 👋</h1><p className="text-slate-400 mt-2 text-sm">{data.guru?.nama_sekolah || 'Sekolah belum diatur'} · {data.kelas?.nama_kelas || 'Kelas aktif'}</p></div>
         <button onClick={() => navigate(holiday?'/aktivitas/kalender':'/siswa/presensi')} className="shrink-0 rounded-xl bg-emerald-500 hover:bg-emerald-400 px-5 py-3.5 font-bold flex items-center justify-center gap-2"><ClipboardCheck size={20}/>{holiday?holiday.judul:lengkap ? 'Lihat Presensi Hari Ini' : 'Isi Presensi Hari Ini'}<ArrowRight size={17}/></button></div>
     </section>
-    <section className="grid grid-cols-2 lg:grid-cols-5 gap-3"><Stat label="Total siswa" value={data.siswa.length} icon={Users} tone="emerald"/><Stat label="Hadir hari ini" value={counts.hadir} icon={CheckCircle2} tone="blue"/><Stat label="Tidak hadir" value={counts.sakit + counts.izin + counts.alpa} icon={ClipboardCheck} tone="amber"/><Stat label="Jurnal belum diisi" value={holiday?0:counts.journalMissing} icon={BookOpen} tone="rose"/><Stat label="Tugas tertunda" value={counts.todo} icon={ListTodo} tone="violet"/></section>
+    <section className="grid grid-cols-2 lg:grid-cols-5 gap-3"><Stat label="Total siswa" value={data.siswa.length} icon={Users} tone="emerald"/><Stat label="Hadir (termasuk terlambat)" value={counts.hadir} icon={CheckCircle2} tone="blue"/><Stat label="Tidak hadir" value={counts.sakit + counts.izin + counts.alpa} icon={ClipboardCheck} tone="amber"/><Stat label="Jurnal belum diisi" value={holiday?0:counts.journalMissing} icon={BookOpen} tone="rose"/><Stat label="Tugas tertunda" value={counts.todo} icon={ListTodo} tone="violet"/></section>
     <section className="grid lg:grid-cols-[1.15fr_.85fr] gap-5">
       <Panel title="Jadwal Hari Ini" subtitle={`${data.jadwal.length} kegiatan terjadwal`} icon={CalendarDays} action="Buka jadwal" onAction={() => navigate('/aktivitas/jadwal')}>
         {loading ? <Empty text="Memuat jadwal..."/> : holiday ? <Empty text={`Hari libur: ${holiday.judul}`}/> : data.jadwal.length === 0 ? <Empty text="Belum ada jadwal untuk hari ini."/> : <div className="divide-y divide-slate-100">{data.jadwal.slice(0, 5).map((x: any) => <div key={x.id} className="py-3 flex items-center gap-4"><div className="w-14 text-center"><div className="text-xs text-slate-400">Jam {x.jam_ke}</div><div className="text-sm font-bold">{x.jam_mulai || '--:--'}</div></div><div className="w-1 h-10 rounded-full bg-emerald-400"/><div><div className="font-bold text-sm">{subjectName(x)}</div><div className="text-xs text-slate-500 mt-1">{x.jam_selesai || '--:--'} {x.ruang ? `· ${x.ruang}` : ''}</div></div></div>)}</div>}
       </Panel>
-      <Panel title="Ringkasan Presensi" subtitle={lengkap ? 'Presensi hari ini sudah lengkap' : `${Math.max(data.siswa.length - data.presensi.length, 0)} siswa belum dicatat`} icon={ClipboardCheck} action="Kelola" onAction={() => navigate('/siswa/presensi')}><div className="grid grid-cols-2 gap-3 mt-2"><Attendance label="Hadir" value={counts.hadir} tone="emerald"/><Attendance label="Sakit" value={counts.sakit} tone="blue"/><Attendance label="Izin" value={counts.izin} tone="amber"/><Attendance label="Alpa" value={counts.alpa} tone="rose"/></div></Panel>
+      <Panel title="Ringkasan Presensi" subtitle={lengkap ? 'Presensi hari ini sudah lengkap' : `${Math.max(data.siswa.length - data.presensi.length, 0)} siswa belum dicatat`} icon={ClipboardCheck} action="Kelola" onAction={() => navigate('/siswa/presensi')}><div className="grid grid-cols-2 gap-3 mt-2"><Attendance label="Hadir termasuk terlambat" value={counts.hadir} tone="emerald"/><Attendance label="Sakit" value={counts.sakit} tone="blue"/><Attendance label="Izin" value={counts.izin} tone="amber"/><Attendance label="Alpa" value={counts.alpa} tone="rose"/></div></Panel>
     </section>
     <section className="grid lg:grid-cols-[1.15fr_.85fr] gap-5">
       <Panel title="Yang Perlu Diselesaikan" subtitle="Daftar pekerjaan terdekat" icon={ListTodo} action="Semua tugas" onAction={() => navigate('/aktivitas/todo')}>

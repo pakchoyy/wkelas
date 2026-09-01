@@ -80,6 +80,7 @@ export interface MataPelajaran {
 }
 
 export interface PenilaianKolom {
+  periode?: string
   id: number
   mata_pelajaran_id: number
   label: string

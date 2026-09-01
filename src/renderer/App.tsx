@@ -1,4 +1,5 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
+import NavigationGuard from './components/NavigationGuard'
+import { createHashRouter, createRoutesFromElements, RouterProvider, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import OnboardingGate from './components/OnboardingGate'
 import Dashboard from './pages/dashboard/Dashboard'
@@ -16,13 +17,10 @@ import PerangkatAjar from './pages/perangkat-ajar/PerangkatAjar'
 import Laporan from './pages/laporan/Laporan'
 import Pengaturan from './pages/pengaturan/Pengaturan'
 
-export default function App() {
-  return (
-    <HashRouter>
-      <Routes>
+const router = createHashRouter(createRoutesFromElements(<>
         {/* Login dinonaktifkan sementara selama pengembangan fitur. */}
         <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route element={<OnboardingGate><Layout /></OnboardingGate>}>
+        <Route element={<><NavigationGuard/><OnboardingGate><Layout /></OnboardingGate></>}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/siswa/data-siswa" element={<DataSiswa />} />
           <Route path="/siswa/presensi" element={<Presensi />} />
@@ -39,7 +37,6 @@ export default function App() {
           <Route path="/pengaturan" element={<Pengaturan />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </HashRouter>
-  )
-}
+</>))
+
+export default function App() { return <RouterProvider router={router}/> }

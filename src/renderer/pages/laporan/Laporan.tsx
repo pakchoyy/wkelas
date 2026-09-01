@@ -1,7 +1,10 @@
+import { classWeightKey } from '../../../lib/grade-periods'
+import { calculateGrade } from '../../../shared/grades'
 import { useState, useEffect, useMemo } from 'react'
 import { FileDown, Printer } from 'lucide-react'
 import { useSiswaList } from '../../hooks/useSiswa'
 import { useAppStore } from '../../stores/appStore'
+import { attendancePercent } from '../../../shared/attendance'
 import { db } from '../../../lib/db'
 
 type TabLaporan = 'presensi' | 'nilai' | 'perilaku' | 'jurnal' | 'kalender'
@@ -12,6 +15,9 @@ export default function Laporan() {
   const [tab, setTab] = useState<TabLaporan>('presensi')
   const [periodeMulai, setPeriodeMulai] = useState('')
   const [periodeSelesai, setPeriodeSelesai] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState('')
+  const invalidPeriod = tab !== 'nilai' && !!periodeMulai && !!periodeSelesai && periodeMulai > periodeSelesai
   const [data, setData] = useState<any[]>([])
   const [identity,setIdentity]=useState({sekolah:'-',kelas:'-',semester:'-',tahun:'-',guru:'-'})
   const filtered = tab==='nilai' ? data : data.filter((item) => {const date=item.tanggal||item.tanggal_mulai;return (!periodeMulai || date >= periodeMulai) && (!periodeSelesai || date <= periodeSelesai)})
@@ -26,7 +32,7 @@ export default function Laporan() {
         row[key] += 1
         row.total_hari += 1
       }
-      return Array.from(rows.values()).map((row) => ({ ...row, persentase_kehadiran: row.total_hari ? `${Math.round(((row.hadir + row.terlambat) / row.total_hari) * 100)}%` : '—' }))
+      return Array.from(rows.values()).map((row) => ({ ...row, persentase_kehadiran: row.total_hari ? `${attendancePercent(row.hadir, row.terlambat, row.total_hari)}%` : '—' }))
     }
     if (tab === 'perilaku') {
       const rows = new Map<number, any>()
@@ -48,7 +54,7 @@ export default function Laporan() {
 
   const exportExcel = async () => {
     const XLSX = await import('xlsx')
-    const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',periodeMulai||'Semua','s/d',periodeSelesai||'Semua'],[],...XLSX.utils.sheet_to_json<any[]>(XLSX.utils.json_to_sheet(reportRows),{header:1})]
+    const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',tab==='nilai' ? `${identity.tahun} Semester ${identity.semester}` : `${periodeMulai||'Semua'} s/d ${periodeSelesai||'Semua'}`],[],...XLSX.utils.sheet_to_json<any[]>(XLSX.utils.json_to_sheet(reportRows),{header:1})]
     const sheet = XLSX.utils.aoa_to_sheet(report)
     const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, tab); XLSX.writeFile(workbook, `laporan-${tab}.xlsx`)
   }
@@ -64,27 +70,38 @@ export default function Laporan() {
   useEffect(()=>{db.kelas.get(kelasId).then(async(kelas)=>{if(!kelas)return;const guru=await db.guru.get(kelas.guru_id);setIdentity({sekolah:guru?.nama_sekolah||'-',kelas:kelas.nama_kelas,semester:String(kelas.semester),tahun:kelas.tahun_ajaran,guru:guru?.nama||'-'})})},[kelasId])
 
   useEffect(() => {
-    (async () => {
+    let cancelled = false
+    setLoading(true); setLoadError(''); setData([])
+    const update = (rows: any[]) => { if (!cancelled) setData(rows) }
+    ;(async () => {
       if (tab === 'presensi') {
         const res = await window.electronAPI.presensi.listByKelas(kelasId)
-        setData(res)
+        update(res)
       } else if (tab === 'perilaku') {
         const mapNama = new Map(siswa.map((s) => [s.id, s.nama]))
         const res = await window.electronAPI.perilaku.list()
-        setData(res.map((r) => ({ ...r, siswa_nama: mapNama.get(r.siswa_id) || 'Unknown' })))
+        update(res.map((r) => ({ ...r, siswa_nama: mapNama.get(r.siswa_id) || 'Unknown' })))
       } else if (tab === 'jurnal') {
         const res = await window.electronAPI.jurnal.list(kelasId)
-        setData(res)
+        update(res)
       } else if(tab==='kalender') {
-        setData(await window.electronAPI.kalender.list(kelasId))
+        update(await window.electronAPI.kalender.list(kelasId))
       } else if(tab==='nilai') {
         const subjects=(await window.electronAPI.mapel.list(kelasId)).filter((item:any)=>item.is_aktif!==0)
-        const setting=await db.pengaturan.get(`bobot_nilai_${kelasId}`);let weights={harian:40,uts:25,uas:35};if(setting?.value)try{weights={...weights,...JSON.parse(setting.value)}}catch{}
+        const setting=await db.pengaturan.get(await classWeightKey(db,kelasId));let weights={harian:40,uts:25,uas:35};if(setting?.value)try{weights={...weights,...JSON.parse(setting.value)}}catch{}
         const result:any[]=[]
-        for(const subject of subjects){const columns=await window.electronAPI.kolom.list(subject.id);const values=await window.electronAPI.nilai.getAll(subject.id,siswa.map(item=>item.id));const fixed=(label:string)=>columns.find((column:any)=>column.label.toUpperCase()===label);const daily=columns.filter((column:any)=>!['UTS','UAS'].includes(column.label.toUpperCase())).slice(0,10);for(const student of siswa){const dailyValues=daily.map((column:any)=>values[`${student.id}-${column.id}`]).filter((value:any)=>value!==null&&value!==undefined);const dailyAverage=dailyValues.length?dailyValues.reduce((sum:number,value:number)=>sum+Number(value),0)/dailyValues.length:null;const uts=fixed('UTS');const uas=fixed('UAS');const parts=[{value:dailyAverage,weight:weights.harian},{value:uts?values[`${student.id}-${uts.id}`]:null,weight:weights.uts},{value:uas?values[`${student.id}-${uas.id}`]:null,weight:weights.uas}].filter(item=>item.value!==null&&item.value!==undefined);const totalWeight=parts.reduce((sum,item)=>sum+item.weight,0);result.push({siswa_nama:student.nama,mata_pelajaran:subject.nama,rata_harian:dailyAverage?.toFixed(1)||'—',uts:uts?values[`${student.id}-${uts.id}`]??'—':'—',uas:uas?values[`${student.id}-${uas.id}`]??'—':'—',nilai_akhir:totalWeight?(parts.reduce((sum,item)=>sum+Number(item.value)*item.weight,0)/totalWeight).toFixed(1):'—'})}}
-        setData(result)
+        for (const subject of subjects) {
+          const columns = await window.electronAPI.kolom.list(subject.id)
+          const values = await window.electronAPI.nilai.getAll(subject.id,siswa.map(item => item.id))
+          for (const student of siswa) {
+            const grade = calculateGrade(columns,values,student.id,weights)
+            result.push({siswa_nama:student.nama,mata_pelajaran:subject.nama,rata_harian:grade.harian?.toFixed(1) ?? '—',uts:grade.uts ?? '—',uas:grade.uas ?? '—',nilai_akhir:grade.akhir === null ? '—' : `${grade.akhir.toFixed(1)}${grade.lengkap ? '' : ' *'}`})
+          }
+        }
+        update(result)
       }
-    })()
+    })().catch(() => { if (!cancelled) setLoadError('Laporan gagal dimuat. Muat ulang halaman untuk mencoba lagi.') }).finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
   }, [tab, kelasId, siswa])
 
   return (
@@ -92,26 +109,40 @@ export default function Laporan() {
       <div className="mb-4 no-print"><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div>
       <div className="report mb-4 rounded-xl border border-slate-200 bg-white p-4 text-center"><h1 className="font-extrabold uppercase">Laporan {tabs.find(item=>item.id===tab)?.label}</h1><p className="mt-1 text-sm font-semibold">{identity.sekolah}</p><p className="mt-1 text-xs text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun} · Wali Kelas: {identity.guru}</p></div>
 
-      <div className="flex gap-1 mb-4 rounded-xl p-1 no-print" style={{ background: '#f1f5f9' }}>
+      <div className="flex gap-1 overflow-x-auto mb-4 rounded-xl p-1 no-print" style={{ background: '#f1f5f9' }}>
         {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`flex-1 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
+          <button aria-pressed={tab === t.id} key={t.id} onClick={() => setTab(t.id)} className={`min-h-11 shrink-0 flex-1 px-3 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
             {t.label}
           </button>
         ))}
       </div>
 
-      <div className="flex items-center gap-3 mb-4 no-print">
-        <input type="date" value={periodeMulai} onChange={(e) => setPeriodeMulai(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} />
-        <span className="text-xs text-gray-400">s/d</span>
-        <input type="date" value={periodeSelesai} onChange={(e) => setPeriodeSelesai(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} />
-        <div className="flex gap-2 ml-auto">
-          <button onClick={exportExcel} disabled={!reportRows.length} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> Excel</button>
-          <button onClick={()=>window.print()} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><Printer size={16} /> Cetak / PDF</button>
+      <div className="flex flex-wrap items-end gap-3 mb-4 no-print">
+        {tab !== 'nilai' && <div className="grid w-full sm:w-auto grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="min-w-0 text-sm text-slate-600">Tanggal mulai<input type="date" value={periodeMulai} onChange={e => setPeriodeMulai(e.target.value)} className="field mt-1 min-w-0"/></label>
+          <label className="min-w-0 text-sm text-slate-600">Tanggal selesai<input type="date" min={periodeMulai || undefined} value={periodeSelesai} onChange={e => setPeriodeSelesai(e.target.value)} className="field mt-1 min-w-0"/></label>
+        </div>}
+        {tab === 'nilai' && <p className="text-sm text-slate-500">Nilai periode aktif: {identity.tahun}, semester {identity.semester}. Pilih periode lain di Pengaturan. * Nilai sementara.</p>}
+        <div className="flex flex-wrap gap-2 sm:ml-auto">
+          <button onClick={exportExcel} disabled={loading || !!loadError || invalidPeriod || !reportRows.length} className="min-h-11 disabled:opacity-40 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> Excel</button>
+          <button disabled={loading || !!loadError || invalidPeriod} onClick={()=>window.print()} className="min-h-11 disabled:opacity-40 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><Printer size={16} /> Cetak / PDF</button>
         </div>
       </div>
 
-      <div className="report rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}><div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">{tab === 'presensi' ? `${reportRows.length} siswa dalam rekap` : `${reportRows.length} data ditemukan`}</div>
-        <div className="overflow-x-auto"><table className={`w-full text-sm ${tab === 'jurnal' ? 'min-w-[980px]' : ''}`}>
+      {loading && <p role="status" className="p-4">Memuat laporan...</p>}
+      {loadError && <p role="alert" className="p-4 text-red-700">{loadError}</p>}
+      {invalidPeriod && <p role="alert" className="p-4 text-red-700">Tanggal selesai harus sama atau setelah tanggal mulai.</p>}
+      {!loading && !loadError && !invalidPeriod && <div className="report rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}><div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">{tab === 'presensi' ? `${reportRows.length} siswa dalam rekap` : `${reportRows.length} data ditemukan`}</div>
+        <div className="lg:hidden print:hidden divide-y divide-slate-100">{reportRows.map((row: any,index: number) => {
+          const title = tab === 'jurnal' ? row.mata_pelajaran || 'Umum' : tab === 'kalender' ? row.judul : row.siswa_nama
+          const details: [string, any][] = tab === 'presensi' ? [['Hadir',row.hadir],['Sakit',row.sakit],['Izin',row.izin],['Alpa',row.alpa],['Terlambat',row.terlambat],['Hari tercatat',row.total_hari],['Kehadiran',row.persentase_kehadiran]]
+            : tab === 'nilai' ? [['Mata pelajaran',row.mata_pelajaran],['Harian',row.rata_harian],['UTS',row.uts],['UAS',row.uas],['Nilai akhir',row.nilai_akhir]]
+            : tab === 'perilaku' ? [['Positif',row.positif],['Perlu perhatian',row.perhatian],['Catatan terakhir',row.catatan_terakhir],['Tanggal catatan',row.tanggal_terakhir],['Tindak lanjut',row.tindak_lanjut]]
+            : tab === 'jurnal' ? [['Tanggal',row.tanggal],['Jam',row.jam_ke],['Materi',row.materi],['Kegiatan pembelajaran',row.kegiatan],['Kendala',row.kendala],['Refleksi',row.refleksi]]
+            : [['Mulai',row.tanggal_mulai],['Selesai',row.tanggal_selesai || row.tanggal_mulai],['Jenis',String(row.jenis || '').replaceAll('_',' ')]]
+          return <article key={index} className="p-4"><h2 className="font-bold text-slate-800 break-words">{title}</h2><dl className={`mt-3 grid gap-3 text-sm ${tab === 'presensi' ? 'grid-cols-2' : 'grid-cols-1'}`}>{details.map(([label,value]) => <div key={label} className="min-w-0"><dt className="text-slate-500">{label}</dt><dd className="font-medium whitespace-pre-wrap break-words">{value === null || value === undefined || value === '' ? '—' : value}</dd></div>)}</dl></article>
+        })}{!reportRows.length && <p className="p-8 text-center text-sm text-slate-500">Belum ada data pada periode ini.</p>}</div>
+        <div className="hidden lg:block print:block overflow-x-auto"><table className={`w-full text-sm ${tab === 'jurnal' ? 'min-w-[980px]' : ''}`}>
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
               {tab!=='nilai'&&tab!=='presensi'&&tab!=='perilaku'&&<th className="px-4 py-3 text-left">Tanggal</th>}
@@ -156,7 +187,7 @@ export default function Laporan() {
             )}
           </tbody>
         </table></div>
-      </div>
+      </div>}
     </div>
   )
 }

@@ -1,3 +1,4 @@
+import { safeDropdownOptions } from '../../../../shared/dropdown'
 import { useState, useEffect } from 'react'
 import type { Siswa, SiswaFieldDefinition } from '../../../../shared/types'
 import Modal from '../../../components/Modal'
@@ -100,9 +101,10 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">Nama <span className="text-red-500">*</span></label>
           <input
+            aria-label="Nama siswa"
             value={form.nama}
             onChange={(e) => setForm({ ...form, nama: e.target.value })}
-            className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+            className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2.5 text-base lg:text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
             style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
             required
           />
@@ -112,18 +114,20 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
           <div className="sm:col-span-2">
             <label className="text-sm font-medium text-gray-700 block mb-1">NIS <span className="text-slate-400 font-normal">(Opsional)</span></label>
             <input
+              aria-label="NIS"
               value={form.nis}
               onChange={(e) => setForm({ ...form, nis: e.target.value })}
-              className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+              className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2.5 text-base lg:text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
               style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
             />
           </div>
           <div className="sm:col-span-2">
             <label className="text-sm font-medium text-gray-700 block mb-1">Jenis Kelamin <span className="text-slate-400 font-normal">(Opsional)</span></label>
             <select
+              aria-label="Jenis kelamin"
               value={form.jenis_kelamin}
               onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })}
-              className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+              className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2.5 text-base lg:text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
               style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
             >
               <option value="">-</option>
@@ -141,30 +145,34 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
             </label>
             {f.tipe === 'dropdown' ? (
               <select
+                aria-label={f.nama_field}
                 value={custom[f.id] || ''}
                 onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
-                className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+                className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2.5 text-base lg:text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
                 style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
               >
                 <option value="">-</option>
-                {JSON.parse(f.pilihan || '[]').map((p: string) => (
+                {custom[f.id] && !safeDropdownOptions(f.pilihan).includes(custom[f.id]) && <option value={custom[f.id]}>{custom[f.id]} (pilihan lama)</option>}
+                {safeDropdownOptions(f.pilihan).map((p: string) => (
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
             ) : f.tipe === 'tanggal' ? (
               <input
                 type="date"
+                aria-label={f.nama_field}
                 value={custom[f.id] || ''}
                 onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
-                className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+                className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2.5 text-base lg:text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
                 style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
               />
             ) : (
               <input
                 type={f.tipe === 'angka' ? 'number' : 'text'}
+                aria-label={f.nama_field}
                 value={custom[f.id] || ''}
                 onChange={(e) => setCustom({ ...custom, [f.id]: e.target.value })}
-                className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
+                className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2.5 text-base lg:text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
                 style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
               />
             )}

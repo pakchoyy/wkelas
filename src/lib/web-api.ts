@@ -1,4 +1,9 @@
+import { deleteSubject } from './subject-storage'
+import { saveCalendar } from './calendar-storage'
+import { saveSchedule } from './schedule-storage'
+import { ensureGradePeriods, listPeriodColumns, subjectPeriod } from './grade-periods'
 import { db } from './db'
+import { createBackupText, restoreBackupText } from './backup'
 import type { ElectronAPI } from '../main/preload'
 
 function nowISO() {
@@ -88,6 +93,7 @@ const electronAPI: ElectronAPI = {
     },
     save: async (records: any[]) => {
       const now = nowISO()
+      await db.transaction('rw', db.presensi, async () => {
       for (const r of records) {
         const existing = await db.presensi.get({ siswa_id: r.siswa_id, tanggal: r.tanggal } as any)
         if (existing) {
@@ -96,6 +102,7 @@ const electronAPI: ElectronAPI = {
           await db.presensi.add({ ...r, created_at: now, updated_at: now })
         }
       }
+      })
       return { success: true }
     },
   },
@@ -107,32 +114,42 @@ const electronAPI: ElectronAPI = {
       const id = await db.mata_pelajaran.add({ ...data, created_at: nowISO() })
       return db.mata_pelajaran.get(id)
     },
-    delete: async (id: number) => {
-      const koloms = await db.penilaian_kolom.where({ mata_pelajaran_id: id }).toArray()
-      const kolomIds = koloms.map((k) => k.id!).filter(Boolean)
-      if (kolomIds.length > 0) await db.nilai.where('kolom_id').anyOf(kolomIds).delete()
-      await db.mata_pelajaran.delete(id)
-      await db.penilaian_kolom.where({ mata_pelajaran_id: id }).delete()
-      return { success: true }
-    },
+    delete: async (id: number) => deleteSubject(db,id),
   },
   kolom: {
-    list: async (mapelId: number) => {
-      return db.penilaian_kolom.where({ mata_pelajaran_id: mapelId }).toArray()
-    },
+    list: async (mapelId: number) => listPeriodColumns(db,mapelId),
     create: async (data: any) => {
-      const now = nowISO()
-      const id = await db.penilaian_kolom.add({ ...data, created_at: now, updated_at: now })
-      return db.penilaian_kolom.get(id)
+      await ensureGradePeriods(db)
+      return db.transaction('rw',[db.kelas,db.mata_pelajaran,db.penilaian_kolom],async () => {
+        const periode = await subjectPeriod(db,data.mata_pelajaran_id)
+        // StrictMode and multiple tabs can request the fixed columns together.
+        if (['UTS','UAS'].includes(data.label.toUpperCase())) {
+          const existing = await db.penilaian_kolom.where({mata_pelajaran_id:data.mata_pelajaran_id}).filter(c => c.periode === periode && c.label.toUpperCase() === data.label.toUpperCase()).first()
+          if (existing) return existing
+        }
+        const now = nowISO()
+        const id = await db.penilaian_kolom.add({...data,periode,created_at:now,updated_at:now})
+        return db.penilaian_kolom.get(id)
+      })
     },
     update: async (id: number, data: any) => {
-      await db.penilaian_kolom.update(id, { ...data, updated_at: nowISO() })
-      return db.penilaian_kolom.get(id)
+      await ensureGradePeriods(db)
+      return db.transaction('rw',[db.kelas,db.mata_pelajaran,db.penilaian_kolom],async () => {
+        const old = await db.penilaian_kolom.get(id)
+        if (!old || old.periode !== await subjectPeriod(db,old.mata_pelajaran_id)) throw new Error('Periode sudah berubah. Muat ulang Penilaian.')
+        await db.penilaian_kolom.update(id,{...data,mata_pelajaran_id:old.mata_pelajaran_id,periode:old.periode,updated_at:nowISO()})
+        return db.penilaian_kolom.get(id)
+      })
     },
     delete: async (id: number) => {
-      await db.penilaian_kolom.delete(id)
-      await db.nilai.where({ kolom_id: id }).delete()
-      return { success: true }
+      await ensureGradePeriods(db)
+      return db.transaction('rw',[db.kelas,db.mata_pelajaran,db.penilaian_kolom,db.nilai],async () => {
+        const old = await db.penilaian_kolom.get(id)
+        if (!old || old.periode !== await subjectPeriod(db,old.mata_pelajaran_id)) throw new Error('Periode sudah berubah. Muat ulang Penilaian.')
+        await db.penilaian_kolom.delete(id)
+        await db.nilai.where({kolom_id:id}).delete()
+        return {success:true}
+      })
     },
   },
   nilai: {
@@ -140,16 +157,16 @@ const electronAPI: ElectronAPI = {
       return db.nilai.where({ kolom_id: kolomId }).toArray()
     },
     getAll: async (mapelId: number, siswaIds: number[]) => {
-      const koloms = await db.penilaian_kolom.where({ mata_pelajaran_id: mapelId }).toArray()
-      const kolomIds = koloms.map(k => k.id!)
-      const all = await db.nilai.where('kolom_id').anyOf(kolomIds).toArray()
-      const map: Record<string, number | null> = {}
-      for (const n of all) {
-        map[`${n.siswa_id}-${n.kolom_id}`] = n.nilai ?? null
-      }
-      return map
+      const columns = await listPeriodColumns(db,mapelId)
+      const allowed = new Set(siswaIds)
+      const all = await db.nilai.where('kolom_id').anyOf(columns.map(c => c.id!)).toArray()
+      return Object.fromEntries(all.filter(n => allowed.has(n.siswa_id)).map(n => [`${n.siswa_id}-${n.kolom_id}`,n.nilai ?? null]))
     },
     save: async (sId: number, kId: number, val: number | null) => {
+      await ensureGradePeriods(db)
+      return db.transaction('rw',[db.kelas,db.mata_pelajaran,db.penilaian_kolom,db.nilai],async () => {
+        const column = await db.penilaian_kolom.get(kId)
+        if (!column || column.periode !== await subjectPeriod(db,column.mata_pelajaran_id)) throw new Error('Periode sudah berubah. Muat ulang Penilaian.')
       const existing = await db.nilai.get({ siswa_id: sId, kolom_id: kId } as any)
       const now = nowISO()
       if (existing) {
@@ -158,21 +175,14 @@ const electronAPI: ElectronAPI = {
         await db.nilai.add({ siswa_id: sId, kolom_id: kId, nilai: val ?? undefined, created_at: now, updated_at: now })
       }
       return { success: true }
+      })
     },
   },
   jadwal: {
     list: async (kelasId: number) => {
       return db.jadwal.where({ kelas_id: kelasId }).toArray()
     },
-    save: async (data: any) => {
-      if (data.id) {
-        await db.jadwal.update(data.id, { ...data, updated_at: nowISO() })
-        return db.jadwal.get(data.id)
-      }
-      const now = nowISO()
-      const id = await db.jadwal.add({ ...data, created_at: now, updated_at: now })
-      return db.jadwal.get(id)
-    },
+    save: async (data: any) => saveSchedule(db,data),
     delete: async (id: number) => {
       await db.jadwal.delete(id)
       return { success: true }
@@ -200,15 +210,7 @@ const electronAPI: ElectronAPI = {
     list: async (kelasId: number) => {
       return db.kalender_akademik.where({ kelas_id: kelasId }).toArray()
     },
-    save: async (data: any) => {
-      const now = nowISO()
-      if (data.id) {
-        await db.kalender_akademik.update(data.id, { ...data })
-        return db.kalender_akademik.get(data.id)
-      }
-      const id = await db.kalender_akademik.add({ ...data, created_at: now })
-      return db.kalender_akademik.get(id)
-    },
+    save: async (data: any) => saveCalendar(db, data),
     delete: async (id: number) => {
       await db.kalender_akademik.delete(id)
       return { success: true }
@@ -334,12 +336,8 @@ const electronAPI: ElectronAPI = {
   },
   backup: {
     create: async () => {
-      const tables = ['guru', 'kelas', 'siswa', 'siswa_field_definitions', 'siswa_field_values', 'presensi', 'mata_pelajaran', 'penilaian_kolom', 'nilai', 'perilaku', 'jadwal', 'kalender_akademik', 'rencana_mengajar', 'jurnal_harian', 'catatan_guru', 'todo', 'dokumen_saya', 'perangkat_ajar_cache', 'pengaturan'] as const
-      const backup: Record<string, any[]> = {}
-      for (const t of tables) {
-        backup[t] = await (db as any)[t].toArray()
-      }
-      const blob = new Blob([JSON.stringify(backup)], { type: 'application/json' })
+      const text = await createBackupText(db)
+      const blob = new Blob([text], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -353,27 +351,18 @@ const electronAPI: ElectronAPI = {
         const input = document.createElement('input')
         input.type = 'file'
         input.accept = '.bgy,.json'
+        input.addEventListener('cancel', () => resolve({ success: false }), { once: true })
         input.onchange = async () => {
           const file = input.files?.[0]
           if (!file) { resolve({ success: false }); return }
           try {
             const text = await file.text()
-            const backup = JSON.parse(text)
-            await (db as any).transaction('rw', db.tables, async () => {
-              for (const table of db.tables) {
-                await (table as any).clear()
-              }
-              for (const [name, records] of Object.entries(backup)) {
-                if ((db as any)[name]) {
-                  for (const r of records as any[]) {
-                    await (db as any)[name].add(r)
-                  }
-                }
-              }
-            })
-            resolve({ success: true })
+            const restored = await restoreBackupText(db, text, (tables) => window.confirm(
+              `Cadangan berisi ${tables.kelas.length} kelas, ${tables.siswa.length} siswa, dan ${tables.dokumen_saya.length} dokumen.\n\nPemulihan mengganti seluruh data pada browser ini. Pastikan Anda sudah menyimpan cadangan data saat ini. Lanjutkan?`
+            ))
+            resolve({ success: restored })
           } catch (e) {
-            resolve({ success: false, error: 'File backup tidak valid' })
+            resolve({ success: false, error: e instanceof Error ? `${e.message} Pemulihan tidak dilakukan.` : 'Pemulihan gagal. Data saat ini tidak diubah.' })
           }
         }
         input.click()

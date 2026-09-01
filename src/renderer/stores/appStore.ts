@@ -1,3 +1,4 @@
+import {mayLeave} from '../../shared/unsaved-changes'
 import { create } from 'zustand'
 
 interface AppState {
@@ -7,9 +8,9 @@ interface AppState {
   setMode: (mode: 'login' | 'demo') => void
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set,get) => ({
   kelasAktifId: null,
   mode: null,
-  setKelasAktif: (id) => set({ kelasAktifId: id }),
+  setKelasAktif: (id) => { if(id===get().kelasAktifId)return; if(!mayLeave(message=>window.confirm(message),message=>window.alert(message)))return; set({kelasAktifId:id}) },
   setMode: (mode) => set({ mode }),
 }))
