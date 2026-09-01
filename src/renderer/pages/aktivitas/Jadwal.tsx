@@ -15,6 +15,8 @@ export default function Jadwal() {
   const [showSettings, setShowSettings] = useState(false)
   const [hariSekolah, setHariSekolah] = useState<5 | 6>(5)
   const [jumlahJam, setJumlahJam] = useState(10)
+  const [waktuJam, setWaktuJam] = useState<Record<number,{mulai:string;selesai:string}>>({})
+  const [istirahat, setIstirahat] = useState<number[]>([])
   const [editId, setEditId] = useState<number | null>(null)
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null)
   const [form, setForm] = useState({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' })
@@ -24,7 +26,7 @@ export default function Jadwal() {
     setMapelList(await window.electronAPI.mapel.list(kelasId))
   }
 
-  useEffect(() => { load(); db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setHariSekolah(JSON.parse(x.value).hariSekolah || 5) } catch {} }); db.pengaturan.get(`jadwal_${kelasId}`).then((x) => { if (x?.value) try { setJumlahJam(JSON.parse(x.value).jumlahJam || 10) } catch {} }) }, [kelasId])
+  useEffect(() => { load(); db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setHariSekolah(JSON.parse(x.value).hariSekolah || 5) } catch {} }); db.pengaturan.get(`jadwal_${kelasId}`).then((x) => { if (x?.value) try { const cfg=JSON.parse(x.value); setJumlahJam(cfg.jumlahJam||10); setWaktuJam(cfg.waktuJam||{}); setIstirahat(cfg.istirahat||[]) } catch {} }) }, [kelasId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -43,14 +45,17 @@ export default function Jadwal() {
     setShowForm(true)
   }
   const handleCell = (hari: number, jam: number, item?: JadwalType) => { if (item) return handleEdit(item); setEditId(null); setForm({ hari, jam_ke: jam, jam_mulai: '07:00', jam_selesai: '07:35', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' }); setShowForm(true) }
-  const saveSettings = async () => { await db.pengaturan.put({ key: `jadwal_${kelasId}`, value: JSON.stringify({ jumlahJam }), updated_at: new Date().toISOString() }); const p = await db.pengaturan.get(`presensi_${kelasId}`); let cfg: any = {}; if (p?.value) try { cfg = JSON.parse(p.value) } catch {}; await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify({ ...cfg, hariSekolah }), updated_at: new Date().toISOString() }); setShowSettings(false) }
+  const storeScheduleSettings = async (nextTimes=waktuJam,nextBreaks=istirahat) => db.pengaturan.put({ key:`jadwal_${kelasId}`,value:JSON.stringify({jumlahJam,waktuJam:nextTimes,istirahat:nextBreaks}),updated_at:new Date().toISOString() })
+  const saveSettings = async () => { await storeScheduleSettings(); const p = await db.pengaturan.get(`presensi_${kelasId}`); let cfg: any = {}; if (p?.value) try { cfg = JSON.parse(p.value) } catch {}; await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify({ ...cfg, hariSekolah }), updated_at: new Date().toISOString() }); setShowSettings(false) }
+  const saveTime=async(jam:number,key:'mulai'|'selesai',value:string)=>{const current=waktuJam[jam]||{mulai:data.find(i=>i.jam_ke===jam)?.jam_mulai||'07:00',selesai:data.find(i=>i.jam_ke===jam)?.jam_selesai||'07:35'};const next={...waktuJam,[jam]:{...current,[key]:value}};setWaktuJam(next);for(const item of data.filter(i=>i.jam_ke===jam))await window.electronAPI.jadwal.save({...item,jam_mulai:next[jam].mulai,jam_selesai:next[jam].selesai});await storeScheduleSettings(next,istirahat);await load();setToast({text:'Waktu tersimpan otomatis'})}
+  const toggleBreak=async(jam:number)=>{const making=!istirahat.includes(jam);if(making&&data.some(i=>i.jam_ke===jam)&&!window.confirm('Jadikan jam ini istirahat? Isi mapel pada baris ini akan dihapus.'))return;if(making){for(const item of data.filter(i=>i.jam_ke===jam))await window.electronAPI.jadwal.delete(item.id)}const next=making?[...istirahat,jam]:istirahat.filter(i=>i!==jam);setIstirahat(next);await storeScheduleSettings(waktuJam,next);await load();setToast({text:making?'Baris dijadikan istirahat':'Baris pelajaran diaktifkan'})}
 
   const getMapelName = (item: JadwalType) => item.nama_mapel_custom || mapelList.find((m) => m.id === item.mata_pelajaran_id)?.nama || '-'
   const setCell = async (hari: number, jam: number, value: string) => {
     const existing = data.find((item) => item.hari === hari && item.jam_ke === jam)
     try {
       if (!value) { if (existing?.id) await window.electronAPI.jadwal.delete(existing.id) }
-      else await window.electronAPI.jadwal.save({ kelas_id: kelasId, hari, jam_ke: jam, jam_mulai: existing?.jam_mulai || '07:00', jam_selesai: existing?.jam_selesai || '07:35', mata_pelajaran_id: Number(value), nama_mapel_custom: '', nama_guru: existing?.nama_guru || '', ruang: existing?.ruang || '', ...(existing?.id ? { id: existing.id } : {}) })
+      else await window.electronAPI.jadwal.save({ kelas_id: kelasId, hari, jam_ke: jam, jam_mulai: waktuJam[jam]?.mulai || existing?.jam_mulai || '07:00', jam_selesai: waktuJam[jam]?.selesai || existing?.jam_selesai || '07:35', mata_pelajaran_id: Number(value), nama_mapel_custom: '', nama_guru: existing?.nama_guru || '', ruang: existing?.ruang || '', ...(existing?.id ? { id: existing.id } : {}) })
       await load(); setToast({ text: 'Jadwal tersimpan otomatis' })
     } catch { setToast({ text: 'Jadwal gagal disimpan', error: true }) }
   }
@@ -105,8 +110,8 @@ export default function Jadwal() {
           <tbody>
             {Array.from({ length: jumlahJam }, (_, jam) => jam + 1).map((jam) => (
               <tr key={jam} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-3 py-2 text-xs font-semibold text-gray-500">Jam {jam}</td><td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{data.find((item)=>item.jam_ke===jam)?.jam_mulai || '07:00'} – {data.find((item)=>item.jam_ke===jam)?.jam_selesai || '07:35'}</td>
-                {HARI.slice(0, hariSekolah).map((_, hari) => {
+                <td className="px-3 py-2 text-xs font-semibold text-gray-500"><div>Jam {jam}</div><button onClick={()=>toggleBreak(jam)} className="mt-1 text-[10px] font-bold text-amber-600">{istirahat.includes(jam)?'Jadikan pelajaran':'Istirahat'}</button></td><td className="px-2 py-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="time" value={waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||'07:00'} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:e.target.value,selesai:waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||'07:35'}})} onBlur={(e)=>saveTime(jam,'mulai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/><span>–</span><input type="time" value={waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||'07:35'} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||'07:00',selesai:e.target.value}})} onBlur={(e)=>saveTime(jam,'selesai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/></div></td>
+                {istirahat.includes(jam)?<td colSpan={hariSekolah} className="border-l bg-amber-50 text-center text-xs font-bold uppercase tracking-wider text-amber-700">Istirahat</td>:HARI.slice(0, hariSekolah).map((_, hari) => {
                   const item = data.find((d) => d.hari === hari + 1 && d.jam_ke === jam)
                   return (
                     <td key={hari} className="px-2 py-2 text-xs border-l" style={{ borderColor: 'var(--border)' }}><select value={item?.mata_pelajaran_id || ''} onChange={(e)=>setCell(hari+1,jam,e.target.value)} className={`w-full rounded-lg border px-2 py-2 text-xs font-semibold outline-none ${item ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-400'}`}><option value="">— Kosong —</option>{mapelList.map((subject)=><option key={subject.id} value={subject.id}>{subject.nama}</option>)}</select></td>
