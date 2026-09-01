@@ -1,16 +1,19 @@
-import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CalendarDays, CheckCircle2, ChevronDown, Heart, History, Search, Sparkles, Trash2, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AlertCircle, CalendarDays, CheckCircle2, ChevronDown, ChevronLeft, ChevronRight, Heart, History, Search, Sparkles, Trash2, X } from 'lucide-react'
 import { useSiswaList } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
 import { todayISO } from '../../../../shared/utils'
 import type { Perilaku as PerilakuType } from '../../../../shared/types'
 import ConfirmDialog from '../../../components/ConfirmDialog'
+import { db } from '../../../../lib/db'
 
 const categories = {
   positif: ['Disiplin', 'Aktif Belajar', 'Membantu Teman', 'Tanggung Jawab', 'Kerja Sama', 'Prestasi'],
   perhatian: ['Terlambat', 'Tidak Mengerjakan Tugas', 'Mengganggu Kelas', 'Tidak Disiplin', 'Berkata Tidak Sopan', 'Lainnya'],
 }
 const initials = (name: string) => name.split(/\s+/).slice(0, 2).map((x) => x[0]).join('').toUpperCase()
+const addDays = (date: string, amount: number) => { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + amount); return d.toISOString().slice(0, 10) }
+const longDate = (date: string) => new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(`${date}T12:00:00`))
 
 export default function Perilaku() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
@@ -26,14 +29,19 @@ export default function Perilaku() {
   const [saving, setSaving] = useState(false)
   const [deleteItem, setDeleteItem] = useState<PerilakuType | null>(null)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [hariSekolah, setHariSekolah] = useState<5 | 6>(5)
+  const calendarRef = useRef<HTMLInputElement>(null)
 
   const load = async () => { const all = await window.electronAPI.perilaku.list(); const ids = new Set(siswa.map((s) => s.id)); setRecords(all.filter((r: PerilakuType) => ids.has(r.siswa_id))) }
   useEffect(() => { if (siswa.length) load() }, [siswa.length])
+  useEffect(() => { db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setHariSekolah(JSON.parse(x.value).hariSekolah || 5) } catch {} }) }, [kelasId])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3500); return () => clearTimeout(t) }, [toast])
   const nameOf = (id: number) => siswa.find((s) => s.id === id)?.nama || 'Siswa'
   const todayRecords = records.filter((r) => r.tanggal === tanggal)
   const filteredSiswa = siswa.filter((s) => s.nama.toLowerCase().includes(search.toLowerCase()))
   const history = records.filter((r) => (!filterJenis || r.jenis === filterJenis) && nameOf(r.siswa_id).toLowerCase().includes(search.toLowerCase()))
+  const selectedDay = new Date(`${tanggal}T12:00:00`).getDay()
+  const isSchoolDay = selectedDay >= 1 && selectedDay <= hariSekolah
 
   const openStudent = (id: number) => { setActiveId(activeId === id ? null : id); setForm({ jenis: 'positif', kategori: '', deskripsi: '', tindak_lanjut: '' }) }
   const save = async () => {
@@ -45,16 +53,17 @@ export default function Perilaku() {
   const remove = async () => { if (!deleteItem) return; try { await window.electronAPI.perilaku.delete(deleteItem.id); setDeleteItem(null); await load(); setToast({ type: 'success', text: 'Catatan berhasil dihapus.' }) } catch { setToast({ type: 'error', text: 'Catatan gagal dihapus.' }) } }
 
   return <div className="max-w-5xl mx-auto pb-16">
-    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4"><div className="flex rounded-xl bg-slate-200/70 p-1"><button onClick={() => setTab('hari')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'hari' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Catatan Hari Ini</button><button onClick={() => setTab('riwayat')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'riwayat' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Riwayat & Rekap</button></div><label className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 flex items-center gap-2 text-sm font-semibold"><CalendarDays size={17} className="text-emerald-600"/><input type="date" value={tanggal} onChange={(e) => setTanggal(e.target.value)} className="outline-none"/></label></div>
+    <div className="flex rounded-xl bg-slate-200/70 p-1 w-fit mb-4"><button onClick={() => setTab('hari')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'hari' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Catatan Hari Ini</button><button onClick={() => setTab('riwayat')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'riwayat' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Riwayat & Rekap</button></div>
+    {tab === 'hari' && <div className="rounded-2xl bg-white border border-slate-200 p-2.5 flex items-center justify-between mb-4"><button onClick={() => setTanggal(addDays(tanggal, -1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center"><ChevronLeft size={21}/></button><div className="text-center"><div className="font-extrabold capitalize">{longDate(tanggal)}</div><div className="text-xs text-slate-400">Catatan perilaku harian</div></div><div className="flex gap-2"><button onClick={() => calendarRef.current?.showPicker?.()} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center"><CalendarDays size={20}/></button><input ref={calendarRef} type="date" max={todayISO()} value={tanggal} onChange={(e) => e.target.value && setTanggal(e.target.value)} className="fixed -left-[9999px] opacity-0"/><button disabled={tanggal >= todayISO()} onClick={() => setTanggal(addDays(tanggal, 1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center disabled:opacity-35"><ChevronRight size={21}/></button></div></div>}
 
-    {tab === 'hari' ? <>
+    {tab === 'hari' ? <>{!isSchoolDay ? <div className="rounded-2xl bg-amber-50 border border-amber-200 text-center px-5 py-12"><CalendarDays size={34} className="mx-auto text-amber-500 mb-3"/><div className="font-extrabold text-amber-900">Hari Libur Sekolah</div><p className="text-sm text-amber-700 mt-1">Daftar siswa tidak ditampilkan karena tanggal ini bukan hari masuk sekolah.</p></div> : <>
       <div className="rounded-2xl bg-white border border-slate-200 p-4 mb-4"><div className="flex items-center gap-3"><Sparkles size={19} className="text-amber-500"/><div><div className="text-sm font-bold text-slate-800">Klik kartu siswa jika ingin membuat catatan</div><p className="text-xs text-slate-500 mt-1">Siswa tanpa kejadian tidak perlu diisi. Keterangan dan tindak lanjut bersifat opsional.</p></div></div></div>
       <div className="relative mb-4"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Cari siswa..." className="w-full field pl-9"/></div>
       {loading ? <div className="py-16 text-center text-slate-400">Memuat siswa...</div> : <div className="space-y-3">{filteredSiswa.map((s, index) => { const own = todayRecords.filter((r) => r.siswa_id === s.id); const open = activeId === s.id; return <div key={s.id} className={`rounded-2xl bg-white border overflow-hidden shadow-sm ${own.length ? 'border-l-4 border-l-emerald-500 border-slate-200' : 'border-slate-200'}`}><button onClick={() => openStudent(s.id)} className="w-full px-5 py-4 flex items-center gap-4 text-left"><div className="w-11 h-11 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 text-white grid place-items-center font-extrabold">{initials(s.nama)}</div><div className="flex-1"><div className="font-extrabold text-slate-900">{s.nama}</div><div className="text-sm text-slate-400 mt-0.5">No. {index + 1}</div></div>{own.length ? <div className="text-right"><span className="rounded-full bg-emerald-100 text-emerald-700 px-3 py-1.5 text-xs font-bold">{own.length} catatan</span><div className="text-xs text-slate-400 mt-1">Klik untuk tambah lagi</div></div> : <span className="rounded-full bg-slate-100 text-slate-500 px-3 py-1.5 text-xs font-bold">+ Catat</span>}</button>
         {own.length > 0 && <div className="px-5 pb-3 flex flex-wrap gap-2">{own.map((r) => <span key={r.id} className={`rounded-lg px-2.5 py-1.5 text-xs font-semibold ${r.jenis === 'positif' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>{r.kategori}</span>)}</div>}
         {open && <div className="border-t border-slate-100 bg-slate-50/70 p-5 space-y-4"><div className="flex gap-2"><button onClick={() => setForm({ ...form, jenis: 'positif', kategori: '' })} className={`rounded-xl px-4 py-2 text-sm font-bold ${form.jenis === 'positif' ? 'bg-emerald-600 text-white' : 'bg-white border text-slate-500'}`}>Positif</button><button onClick={() => setForm({ ...form, jenis: 'perhatian', kategori: '' })} className={`rounded-xl px-4 py-2 text-sm font-bold ${form.jenis === 'perhatian' ? 'bg-amber-500 text-white' : 'bg-white border text-slate-500'}`}>Perlu Perhatian</button></div><div><div className="text-xs font-bold text-slate-500 mb-2">Pilih kategori</div><div className="flex flex-wrap gap-2">{categories[form.jenis as keyof typeof categories].map((x) => <button key={x} onClick={() => setForm({ ...form, kategori: x })} className={`rounded-lg border px-3 py-2 text-xs font-semibold ${form.kategori === x ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'bg-white border-slate-200 text-slate-600'}`}>{x}</button>)}</div></div><textarea value={form.deskripsi} onChange={(e) => setForm({ ...form, deskripsi: e.target.value })} placeholder="Keterangan kejadian (opsional)" rows={2} className="field resize-none"/><input value={form.tindak_lanjut} onChange={(e) => setForm({ ...form, tindak_lanjut: e.target.value })} placeholder="Tindak lanjut (opsional)" className="field"/><div className="flex justify-end"><button onClick={save} disabled={saving || !form.kategori} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold disabled:opacity-40">{saving ? 'Menyimpan...' : 'Simpan Catatan'}</button></div></div>}
       </div>})}</div>}
-    </> : <HistoryView records={history} siswa={siswa} search={search} setSearch={setSearch} filter={filterJenis} setFilter={setFilterJenis} onDelete={setDeleteItem}/>} 
+    </>}</> : <HistoryView records={history} siswa={siswa} search={search} setSearch={setSearch} filter={filterJenis} setFilter={setFilterJenis} onDelete={setDeleteItem}/>} 
     <ConfirmDialog open={!!deleteItem} title="Hapus Catatan Perilaku" message={`Hapus catatan ${deleteItem?.kategori || ''} milik ${deleteItem ? nameOf(deleteItem.siswa_id) : ''}?`} onCancel={() => setDeleteItem(null)} onConfirm={remove}/>
     {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border bg-white px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'border-emerald-200 text-emerald-800' : 'border-red-200 text-red-800'}`}>{toast.type === 'success' ? <CheckCircle2 size={19}/> : <AlertCircle size={19}/>}<span>{toast.text}</span><button onClick={() => setToast(null)}><X size={15}/></button></div></div>}
   </div>
