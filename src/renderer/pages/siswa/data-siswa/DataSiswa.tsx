@@ -16,7 +16,7 @@ export default function DataSiswa() {
   const [fieldValues, setFieldValues] = useState<Record<number, Record<number, string>>>({})
   const [search, setSearch] = useState('')
   const [jkFilter, setJkFilter] = useState('')
-  const [sortBy, setSortBy] = useState('absen')
+  const [sortBy, setSortBy] = useState('nama')
   const [kelasLabel, setKelasLabel] = useState('Kelas aktif')
   const [formOpen, setFormOpen] = useState(false)
   const [editSiswa, setEditSiswa] = useState<Siswa | null>(null)
@@ -60,7 +60,7 @@ export default function DataSiswa() {
     const q = search.toLowerCase().trim()
     const cocok = !q || s.nama.toLowerCase().includes(q) || (s.nis && s.nis.includes(q)) || String(s.no_absen || '').includes(q)
     return cocok && (!jkFilter || s.jenis_kelamin === jkFilter)
-  }).sort((a, b) => sortBy === 'nama' ? a.nama.localeCompare(b.nama) : sortBy === 'terbaru' ? b.id - a.id : (a.no_absen || 9999) - (b.no_absen || 9999))
+  }).sort((a, b) => sortBy === 'nama' ? a.nama.localeCompare(b.nama, 'id') : b.id - a.id)
   const isFiltering = search.trim() !== '' || jkFilter !== ''
   const laki = siswa.filter((s) => s.jenis_kelamin === 'L').length
   const perempuan = siswa.filter((s) => s.jenis_kelamin === 'P').length
@@ -134,7 +134,7 @@ export default function DataSiswa() {
           )}
         </div>
         <SelectWrap><select value={jkFilter} onChange={(e) => setJkFilter(e.target.value)} className="appearance-none rounded-xl pl-3 pr-9 py-2.5 text-sm border border-slate-200 bg-slate-50 text-slate-600 focus:bg-white focus:border-emerald-500 outline-none"><option value="">Semua JK</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></SelectWrap>
-        <SelectWrap><select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="appearance-none rounded-xl pl-3 pr-9 py-2.5 text-sm border border-slate-200 bg-slate-50 text-slate-600 focus:bg-white focus:border-emerald-500 outline-none"><option value="absen">Urut No. Absen</option><option value="nama">Urut Nama</option><option value="terbaru">Siswa Terbaru</option></select></SelectWrap>
+        <SelectWrap><select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="appearance-none rounded-xl pl-3 pr-9 py-2.5 text-sm border border-slate-200 bg-slate-50 text-slate-600 focus:bg-white focus:border-emerald-500 outline-none"><option value="nama">Urut A–Z</option><option value="terbaru">Siswa Terbaru</option></select></SelectWrap>
         <div className="md:ml-auto text-xs font-semibold text-slate-500 whitespace-nowrap">{isFiltering ? `${filtered.length} dari ${siswa.length}` : `${siswa.length} siswa`}</div>
       </div>
 
@@ -143,7 +143,7 @@ export default function DataSiswa() {
         <table className="w-full min-w-[760px] text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider bg-slate-50 text-slate-500 border-b border-slate-200">
-              <th className="px-5 py-3.5 text-left font-bold whitespace-nowrap">No. Absen</th>
+              <th className="px-5 py-3.5 text-left font-bold whitespace-nowrap">No.</th>
               <th className="px-6 py-3.5 text-left font-bold">Nama</th>
               <th className="px-6 py-3.5 text-left font-bold">NIS</th>
               <th className="px-6 py-3.5 text-left font-bold">JK</th>
@@ -156,7 +156,7 @@ export default function DataSiswa() {
           <tbody>
             {filtered.map((s, i) => (
               <tr key={s.id} className={`border-b border-slate-100 hover:bg-emerald-50/60 transition-colors ${i % 2 ? 'bg-slate-50/60' : 'bg-white'}`}>
-                <td className="px-5 py-3.5 font-bold text-slate-600">{s.no_absen || <span className="text-amber-500" title="Nomor absen belum diisi">—</span>}</td>
+                <td className="px-5 py-3.5 font-bold text-slate-600">{i + 1}</td>
                 <td className="px-6 py-3.5 font-semibold text-slate-800">{s.nama}</td>
                 <td className="px-6 py-3.5" style={{ color: 'var(--text-light)' }}>{s.nis || '-'}</td>
                 <td className="px-6 py-3.5">{s.jenis_kelamin || '-'}</td>
@@ -214,7 +214,7 @@ export default function DataSiswa() {
         <KelolaField
           kelasId={kelasId}
           onClose={() => { setFieldOpen(false); reloadFields() }}
-          onChanged={() => { setFieldOpen(false); reloadFields(); setToast({ type: 'success', text: 'Kolom data siswa berhasil diperbarui.' }) }}
+          onChanged={() => { reloadFields(); setToast({ type: 'success', text: 'Kolom data siswa berhasil diperbarui.' }) }}
         />
       )}
 
@@ -235,7 +235,7 @@ export default function DataSiswa() {
         onCancel={() => setHapus({ open: false, siswa: null })}
         onConfirm={handleHapus}
       />
-      {toast && <div className={`fixed right-5 bottom-5 z-[500] flex items-center gap-3 rounded-xl border px-4 py-3 shadow-lg text-sm font-semibold ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>{toast.type === 'success' ? <CheckCircle2 size={19}/> : <AlertCircle size={19}/>}<span>{toast.text}</span><button onClick={() => setToast(null)} className="ml-2 opacity-60 hover:opacity-100"><X size={15}/></button></div>}
+      {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'bg-white border-emerald-200 text-emerald-800' : 'bg-white border-red-200 text-red-800'}`}>{toast.type === 'success' ? <span className="w-8 h-8 rounded-full bg-emerald-100 grid place-items-center"><CheckCircle2 size={18}/></span> : <span className="w-8 h-8 rounded-full bg-red-100 grid place-items-center"><AlertCircle size={18}/></span>}<span>{toast.text}</span><button onClick={() => setToast(null)} className="ml-3 opacity-50 hover:opacity-100"><X size={15}/></button></div></div>}
     </div>
   )
 }

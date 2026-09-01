@@ -15,7 +15,6 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
     nama: '',
     nis: '',
     jenis_kelamin: '',
-    no_absen: '',
   })
   const [custom, setCustom] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(false)
@@ -27,7 +26,6 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
         nama: siswa.nama,
         nis: siswa.nis || '',
         jenis_kelamin: siswa.jenis_kelamin || '',
-        no_absen: siswa.no_absen?.toString() || '',
       })
       ;(async () => {
         const vals = await window.electronAPI.fieldVal.get(siswa.id)
@@ -50,7 +48,6 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
         nama: form.nama,
         nis: form.nis || null,
         jenis_kelamin: form.jenis_kelamin || null,
-        no_absen: form.no_absen ? parseInt(form.no_absen) : null,
       }
 
       let saved: Siswa
@@ -113,7 +110,7 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="sm:col-span-2">
-            <label className="text-sm font-medium text-gray-700 block mb-1">NIS</label>
+            <label className="text-sm font-medium text-gray-700 block mb-1">NIS <span className="text-slate-400 font-normal">(Opsional)</span></label>
             <input
               value={form.nis}
               onChange={(e) => setForm({ ...form, nis: e.target.value })}
@@ -121,8 +118,8 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
               style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
             />
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">JK</label>
+          <div className="sm:col-span-2">
+            <label className="text-sm font-medium text-gray-700 block mb-1">Jenis Kelamin <span className="text-slate-400 font-normal">(Opsional)</span></label>
             <select
               value={form.jenis_kelamin}
               onChange={(e) => setForm({ ...form, jenis_kelamin: e.target.value })}
@@ -134,23 +131,13 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
               <option value="P">Perempuan</option>
             </select>
           </div>
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">No. Absen</label>
-            <input
-              type="number"
-              value={form.no_absen}
-              onChange={(e) => setForm({ ...form, no_absen: e.target.value })}
-              className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-              style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-            />
-          </div>
         </div>
 
         {fields.map((f) => (
           <div key={f.id}>
             <label className="text-sm font-medium text-gray-700 block mb-1">
               {f.nama_field}
-              {f.wajib ? <span className="text-red-500"> *</span> : null}
+              {f.wajib ? <span className="text-red-500"> *</span> : <span className="text-slate-400 font-normal"> (Opsional)</span>}
             </label>
             {f.tipe === 'dropdown' ? (
               <select

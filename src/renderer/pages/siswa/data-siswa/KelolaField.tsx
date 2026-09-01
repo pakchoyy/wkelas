@@ -17,6 +17,7 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
   const [editField, setEditField] = useState<SiswaFieldDefinition | null>(null)
   const [form, setForm] = useState({ nama_field: '', slug: '', tipe: 'teks', pilihan: '', wajib: false, urutan: 0 })
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const [hapus, setHapus] = useState<{ open: boolean; field: SiswaFieldDefinition | null }>({ open: false, field: null })
 
   useEffect(() => {
@@ -66,10 +67,15 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
 
   const handleHapus = async () => {
     if (!hapus.field) return
-    await window.electronAPI.fieldDef.delete(hapus.field.id)
-    setHapus({ open: false, field: null })
-    reload()
-    onChanged()
+    setDeleting(true)
+    try {
+      await window.electronAPI.fieldDef.delete(hapus.field.id)
+      setHapus({ open: false, field: null })
+      await reload()
+      onChanged()
+    } finally {
+      setDeleting(false)
+    }
   }
 
   const resetForm = () => {
@@ -82,6 +88,11 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
         <p className="text-xs" style={{ color: 'var(--text-light)' }}>
           Tambahkan informasi yang ingin dicatat untuk setiap siswa, misalnya agama, alamat, atau nomor telepon orang tua.
         </p>
+
+        {!showForm && <div className="rounded-xl bg-slate-50 border border-slate-200 p-3">
+          <div className="text-xs font-bold text-slate-600 mb-2">Saran kolom yang umum dipakai</div>
+          <div className="flex flex-wrap gap-2">{['NISN', 'Agama', 'Alamat', 'Nama Orang Tua', 'No. HP Orang Tua'].map((nama) => <button key={nama} onClick={() => { setEditField(null); setForm({ nama_field: nama, slug: '', tipe: 'teks', pilihan: '', wajib: false, urutan: 0 }); setShowForm(true) }} className="rounded-lg bg-white border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 hover:border-emerald-300 hover:text-emerald-700">+ {nama}</button>)}</div>
+        </div>}
 
         <button
           onClick={() => { setEditField(null); resetForm(); setShowForm(true) }}
@@ -113,10 +124,10 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
             </button>
             <button
               onClick={() => confirmHapus(f)}
-              className="p-1 hover:text-red-600 transition-colors"
+              className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-slate-500 hover:text-red-700 hover:bg-red-50 transition-colors"
               title="Hapus"
             >
-              <Trash2 size={15} />
+              <Trash2 size={14} /> Hapus
             </button>
           </div>
         ))}
@@ -189,7 +200,7 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
         open={hapus.open}
         title="Hapus Kolom"
         message={`Hapus kolom "${hapus.field?.nama_field}"? Semua nilainya akan ikut terhapus.`}
-        confirmText="Hapus"
+        confirmText={deleting ? 'Menghapus...' : 'Hapus'}
         onCancel={() => setHapus({ open: false, field: null })}
         onConfirm={handleHapus}
       />
