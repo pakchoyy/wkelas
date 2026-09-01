@@ -1,22 +1,20 @@
 import { useState } from 'react'
 import { User, BookOpen, ShieldCheck, RefreshCw, Database, Download, Upload, CheckCircle, AlertCircle } from 'lucide-react'
 
-type TabPengaturan = 'profil' | 'tahun-ajaran' | 'backup' | 'lisensi' | 'versi'
+type TabPengaturan = 'profil' | 'tahun-ajaran' | 'backup'
 
 export default function Pengaturan() {
   const [tab, setTab] = useState<TabPengaturan>('profil')
 
   const tabs = [
-    { id: 'profil' as const, icon: User, label: 'Profil' },
-    { id: 'tahun-ajaran' as const, icon: BookOpen, label: 'Tahun Ajaran' },
-    { id: 'backup' as const, icon: Database, label: 'Backup & Restore' },
-    { id: 'lisensi' as const, icon: ShieldCheck, label: 'Lisensi' },
-    { id: 'versi' as const, icon: RefreshCw, label: 'Versi & Update' },
+    { id: 'profil' as const, icon: User, label: 'Sekolah & Guru' },
+    { id: 'tahun-ajaran' as const, icon: BookOpen, label: 'Kelas & Semester' },
+    { id: 'backup' as const, icon: Database, label: 'Data & Cadangan' },
   ]
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Pengaturan</h2>
+      <div className="mb-4"><h2 className="text-xl font-bold">Pengaturan</h2><p className="mt-1 text-sm text-slate-500">Kelola identitas sekolah, periode kelas, dan keamanan data.</p></div>
 
       <div className="flex gap-1 mb-4 rounded-xl p-1 overflow-x-auto" style={{ background: '#f1f5f9' }}>
         {tabs.map((t) => (
@@ -30,8 +28,6 @@ export default function Pengaturan() {
         {tab === 'profil' && <ProfilTab />}
         {tab === 'tahun-ajaran' && <TahunAjaranTab />}
         {tab === 'backup' && <BackupTab />}
-        {tab === 'lisensi' && <LisensiTab />}
-        {tab === 'versi' && <VersiTab />}
       </div>
     </div>
   )

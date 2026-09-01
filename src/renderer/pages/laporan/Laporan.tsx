@@ -12,6 +12,13 @@ export default function Laporan() {
   const [periodeMulai, setPeriodeMulai] = useState('')
   const [periodeSelesai, setPeriodeSelesai] = useState('')
   const [data, setData] = useState<any[]>([])
+  const filtered = data.filter((item) => (!periodeMulai || item.tanggal >= periodeMulai) && (!periodeSelesai || item.tanggal <= periodeSelesai))
+
+  const exportExcel = async () => {
+    const XLSX = await import('xlsx')
+    const sheet = XLSX.utils.json_to_sheet(filtered)
+    const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, tab); XLSX.writeFile(workbook, `laporan-${tab}.xlsx`)
+  }
 
   const tabs: { id: TabLaporan; label: string }[] = [
     { id: 'presensi', label: 'Presensi' },
@@ -38,7 +45,7 @@ export default function Laporan() {
 
   return (
     <div>
-      <h2 className="text-xl font-bold mb-4">Laporan</h2>
+      <div className="mb-4"><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div>
 
       <div className="flex gap-1 mb-4 rounded-xl p-1" style={{ background: '#f1f5f9' }}>
         {tabs.map((t) => (
@@ -53,8 +60,8 @@ export default function Laporan() {
         <span className="text-xs text-gray-400">s/d</span>
         <input type="date" value={periodeSelesai} onChange={(e) => setPeriodeSelesai(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} />
         <div className="flex gap-2 ml-auto">
-          <button className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> PDF</button>
-          <button className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><Printer size={16} /> Cetak</button>
+          <button onClick={exportExcel} disabled={!filtered.length} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> Excel</button>
+          <button onClick={()=>window.print()} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><Printer size={16} /> Cetak / PDF</button>
         </div>
       </div>
 
@@ -74,14 +81,14 @@ export default function Laporan() {
             </tr>
           </thead>
           <tbody>
-            {tab === 'presensi' && data.map((r: any) => (
+            {tab === 'presensi' && filtered.map((r: any) => (
               <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-4 py-2">{r.tanggal}</td>
                 <td className="px-4 py-2">{r.siswa_nama}</td>
                 <td className="px-4 py-2"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full text-white ${r.status === 'S' ? 'bg-blue-500' : r.status === 'I' ? 'bg-amber-500' : 'bg-red-500'}`}>{r.status}</span></td>
               </tr>
             ))}
-            {tab === 'perilaku' && data.map((r: any) => (
+            {tab === 'perilaku' && filtered.map((r: any) => (
               <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-4 py-2">{r.tanggal}</td>
                 <td className="px-4 py-2">{r.siswa_nama}</td>
@@ -89,7 +96,7 @@ export default function Laporan() {
                 <td className="px-4 py-2 text-xs">{r.deskripsi}</td>
               </tr>
             ))}
-            {tab === 'jurnal' && data.map((r: any) => (
+            {tab === 'jurnal' && filtered.map((r: any) => (
               <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-4 py-2">{r.tanggal}</td>
                 <td className="px-4 py-2">{r.mata_pelajaran || '-'}</td>
@@ -99,7 +106,7 @@ export default function Laporan() {
             {tab === 'nilai' && (
               <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={3}>Buka menu Siswa → Penilaian untuk input dan lihat nilai</td></tr>
             )}
-            {data.length === 0 && tab !== 'nilai' && (
+            {filtered.length === 0 && tab !== 'nilai' && (
               <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={5}>Belum ada data</td></tr>
             )}
           </tbody>
