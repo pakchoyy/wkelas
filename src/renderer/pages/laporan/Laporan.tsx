@@ -42,6 +42,7 @@ export default function Laporan() {
       }
       return Array.from(rows.values())
     }
+    if (tab === 'jurnal') return [...filtered].sort((a, b) => `${a.tanggal}-${a.jam_ke || ''}`.localeCompare(`${b.tanggal}-${b.jam_ke || ''}`))
     return filtered
   }, [filtered, siswa, tab])
 
@@ -87,7 +88,7 @@ export default function Laporan() {
   }, [tab, kelasId, siswa])
 
   return (
-    <div><style>{`@media print{aside,header,button,.no-print{display:none!important}main{overflow:visible!important;padding:0!important}.report{box-shadow:none!important;border:1px solid #999!important}body{background:white!important}}`}</style>
+    <div><style>{`@media print{aside,header,button,.no-print{display:none!important}main{overflow:visible!important;padding:0!important}.report{box-shadow:none!important;border:1px solid #999!important}.report .overflow-x-auto{overflow:visible!important}.report table{min-width:0!important;font-size:9px!important}.report th,.report td{padding:5px!important}body{background:white!important}}`}</style>
       <div className="mb-4 no-print"><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div>
       <div className="report mb-4 rounded-xl border border-slate-200 bg-white p-4 text-center"><h1 className="font-extrabold uppercase">Laporan {tabs.find(item=>item.id===tab)?.label}</h1><p className="mt-1 text-sm font-semibold">{identity.sekolah}</p><p className="mt-1 text-xs text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun} · Wali Kelas: {identity.guru}</p></div>
 
@@ -110,14 +111,13 @@ export default function Laporan() {
       </div>
 
       <div className="report rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}><div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">{tab === 'presensi' ? `${reportRows.length} siswa dalam rekap` : `${reportRows.length} data ditemukan`}</div>
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className={`w-full text-sm ${tab === 'jurnal' ? 'min-w-[980px]' : ''}`}>
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
               {tab!=='nilai'&&tab!=='presensi'&&tab!=='perilaku'&&<th className="px-4 py-3 text-left">Tanggal</th>}
               {tab === 'presensi' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Hadir</th><th className="px-3 py-3 text-center">Sakit</th><th className="px-3 py-3 text-center">Izin</th><th className="px-3 py-3 text-center">Alpa</th><th className="px-3 py-3 text-center">Terlambat</th><th className="px-3 py-3 text-center">Total</th><th className="px-3 py-3 text-center">Kehadiran</th></>}
               {tab === 'perilaku' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Positif</th><th className="px-3 py-3 text-center">Perlu Perhatian</th><th className="px-4 py-3 text-left">Catatan Terakhir</th><th className="px-4 py-3 text-left">Tindak Lanjut</th></>}
-              {tab === 'jurnal' && <th className="px-4 py-3 text-left">Mapel</th>}
-              {tab === 'jurnal' && <th className="px-4 py-3 text-left">Materi</th>}
+              {tab === 'jurnal' && <><th className="px-3 py-3 text-center">Jam</th><th className="px-3 py-3 text-left">Mapel</th><th className="px-3 py-3 text-left">Materi</th><th className="px-3 py-3 text-left">Kegiatan Pembelajaran</th><th className="px-3 py-3 text-left">Kendala</th><th className="px-3 py-3 text-left">Refleksi</th></>}
               {tab === 'nilai' && <><th className="px-4 py-3 text-left">Mata Pelajaran</th><th className="px-4 py-3 text-left">Siswa</th><th className="px-4 py-3 text-center">Harian</th><th className="px-4 py-3 text-center">UTS</th><th className="px-4 py-3 text-center">UAS</th><th className="px-4 py-3 text-center">Nilai Akhir</th></>}
               {tab === 'kalender' && <><th className="px-4 py-3 text-left">Kegiatan</th><th className="px-4 py-3 text-left">Jenis</th></>}
             </tr>
@@ -138,11 +138,15 @@ export default function Laporan() {
                 <td className="px-4 py-2.5 text-xs text-slate-600">{r.tindak_lanjut}</td>
               </tr>
             ))}
-            {tab === 'jurnal' && filtered.map((r: any) => (
-              <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-4 py-2">{r.tanggal}</td>
-                <td className="px-4 py-2">{r.mata_pelajaran || '-'}</td>
-                <td className="px-4 py-2 text-xs">{r.materi || '-'}</td>
+            {tab === 'jurnal' && reportRows.map((r: any, index: number) => (
+              <tr key={r.id} className={`border-t border-slate-100 align-top ${index % 2 ? 'bg-slate-50/60' : ''}`}>
+                <td className="whitespace-nowrap px-4 py-2.5 font-semibold text-slate-700">{r.tanggal}</td>
+                <td className="px-3 py-2.5 text-center">{r.jam_ke || '—'}</td>
+                <td className="px-3 py-2.5 font-semibold">{r.mata_pelajaran || 'Umum'}</td>
+                <td className="px-3 py-2.5 text-xs text-slate-700">{r.materi || '—'}</td>
+                <td className="px-3 py-2.5 text-xs text-slate-600">{r.kegiatan || '—'}</td>
+                <td className="px-3 py-2.5 text-xs text-slate-600">{r.kendala || '—'}</td>
+                <td className="px-3 py-2.5 text-xs text-slate-600">{r.refleksi || '—'}</td>
               </tr>
             ))}
             {tab === 'nilai' && filtered.map((r:any,index:number)=><tr key={`${r.mata_pelajaran}-${r.siswa_nama}-${index}`} className="border-t border-slate-100"><td className="px-4 py-2 font-semibold">{r.mata_pelajaran}</td><td className="px-4 py-2">{r.siswa_nama}</td><td className="px-4 py-2 text-center">{r.rata_harian}</td><td className="px-4 py-2 text-center">{r.uts}</td><td className="px-4 py-2 text-center">{r.uas}</td><td className="px-4 py-2 text-center font-extrabold text-emerald-700">{r.nilai_akhir}</td></tr>)}
@@ -151,7 +155,7 @@ export default function Laporan() {
               <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={8}>Belum ada data</td></tr>
             )}
           </tbody>
-        </table>
+        </table></div>
       </div>
     </div>
   )
