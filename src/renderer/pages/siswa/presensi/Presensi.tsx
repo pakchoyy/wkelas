@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, BarChart3, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Info, Lightbulb, Save, Settings2, X } from 'lucide-react'
 import { useSiswaList } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
@@ -55,6 +55,7 @@ export default function Presensi() {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [showSettings, setShowSettings] = useState(false)
   const [rekapRecords, setRekapRecords] = useState<any[]>([])
+  const calendarRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (!kelasId || !tanggal) return; ;(async () => {
     const res = await window.electronAPI.presensi.get(kelasId, tanggal)
@@ -84,31 +85,32 @@ export default function Presensi() {
   }
 
   const saveSettings = async (next: Settings) => { setSettings(next); await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify(next), updated_at: new Date().toISOString() }); setShowSettings(false); setToast({ type: 'success', text: 'Pengaturan presensi berhasil disimpan.' }) }
+  const toggleAutoHadir = async () => { const next = { ...settings, autoHadir: !settings.autoHadir }; setSettings(next); await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify(next), updated_at: new Date().toISOString() }) }
   return <div className="max-w-5xl mx-auto pb-24">
     <div className="flex items-center justify-between mb-4"><div className="flex rounded-xl bg-slate-200/70 p-1"><button onClick={() => setTab('harian')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'harian' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Presensi Harian</button><button onClick={() => setTab('rekap')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'rekap' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Rekap Semester</button></div><button onClick={() => setShowSettings(true)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 flex gap-2 items-center"><Settings2 size={16}/>Pengaturan</button></div>
     {tab === 'rekap' ? <Rekap siswa={siswa} records={rekapRecords} settings={settings} setSettings={setSettings}/> : <>
     <div className="rounded-2xl bg-white border border-slate-200 p-2.5 flex items-center justify-between mb-4">
       <button onClick={() => setTanggal(addDays(tanggal, -1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50"><ChevronLeft size={21}/></button>
       <div className="text-center"><h1 className="font-extrabold text-slate-900 capitalize">{longDate(tanggal)}</h1><p className="text-xs text-slate-400 mt-0.5">Presensi harian kelas</p></div>
-      <div className="flex gap-2"><label className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50 cursor-pointer relative"><CalendarDays size={20}/><input type="date" max={todayISO()} value={tanggal} onChange={(e) => e.target.value && setTanggal(e.target.value)} className="absolute inset-0 opacity-0 cursor-pointer"/></label><button disabled={tanggal >= todayISO()} onClick={() => setTanggal(addDays(tanggal, 1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50 disabled:opacity-35"><ChevronRight size={21}/></button></div>
+      <div className="flex gap-2"><button onClick={() => calendarRef.current?.showPicker?.()} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50" title="Pilih tanggal"><CalendarDays size={20}/></button><input ref={calendarRef} type="date" max={todayISO()} value={tanggal} onChange={(e) => e.target.value && setTanggal(e.target.value)} className="fixed -left-[9999px] opacity-0"/><button disabled={tanggal >= todayISO()} onClick={() => setTanggal(addDays(tanggal, 1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50 disabled:opacity-35"><ChevronRight size={21}/></button></div>
     </div>
 
     <div className="grid grid-cols-2 sm:grid-cols-5 rounded-2xl bg-white border border-slate-200 mb-4 overflow-hidden">{STATUS.map((st) => <div key={st} className="flex items-center justify-center gap-2 px-3 py-3.5 border-b sm:border-b-0 sm:border-r last:border-r-0 border-slate-100"><span className={`w-2.5 h-2.5 rounded-full ${config[st].dot}`}/><span className="text-sm text-slate-600">{config[st].label}</span><strong className="text-slate-900">{counts[st]}</strong></div>)}</div>
 
     <div className="rounded-2xl bg-white border border-slate-200 p-4 mb-4 text-sm">
       <div className="flex gap-2 items-center text-slate-600"><Lightbulb size={17} className="text-amber-500"/><strong className="text-slate-800">Klik kartu siswa</strong><span>untuk mengubah status kehadiran.</span></div>
-      <div className="flex gap-2 items-center mt-3 pt-3 border-t border-slate-100"><Info size={17} className="text-blue-500"/><span className="text-slate-600">Auto Hadir: <strong className={settings.autoHadir ? 'text-emerald-700' : 'text-slate-500'}>{settings.autoHadir ? 'AKTIF' : 'NONAKTIF'}</strong>.</span><button onClick={() => setShowSettings(true)} className="ml-auto text-emerald-700 font-bold hover:underline">Ubah</button></div>
+      <div className="flex gap-2 items-center mt-3 pt-3 border-t border-slate-100"><Info size={17} className="text-blue-500"/><span className="text-slate-600">Auto Hadir: <strong className={settings.autoHadir ? 'text-emerald-700' : 'text-slate-500'}>{settings.autoHadir ? 'AKTIF' : 'NONAKTIF'}</strong>.</span><button onClick={toggleAutoHadir} role="switch" aria-checked={settings.autoHadir} className={`ml-auto w-12 h-7 rounded-full p-1 transition ${settings.autoHadir ? 'bg-emerald-600' : 'bg-slate-300'}`}><span className={`block w-5 h-5 rounded-full bg-white shadow transition ${settings.autoHadir ? 'translate-x-5' : ''}`}/></button></div>
     </div>
 
-    {!isSchoolDay && <div className="rounded-xl bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 mb-4 text-sm font-semibold">Tanggal ini bukan hari sekolah berdasarkan pengaturan. Presensi tidak dapat disimpan.</div>}
+    {!isSchoolDay && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-center px-5 py-12 mb-4"><CalendarDays size={34} className="mx-auto text-amber-500 mb-3"/><div className="font-extrabold text-amber-900">Hari Libur Sekolah</div><p className="text-sm text-amber-700 mt-1">Tidak ada daftar presensi karena tanggal ini bukan hari masuk sekolah.</p></div>}
 
-    {loading ? <div className="py-16 text-center text-slate-400">Memuat siswa...</div> : siswa.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><div className="font-bold text-slate-700">Belum ada siswa</div><p className="text-sm text-slate-400 mt-1">Tambahkan siswa terlebih dahulu melalui menu Data Siswa.</p></div> : <div className="space-y-3">{siswa.map((s, index) => {
+    {isSchoolDay && (loading ? <div className="py-16 text-center text-slate-400">Memuat siswa...</div> : siswa.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><div className="font-bold text-slate-700">Belum ada siswa</div><p className="text-sm text-slate-400 mt-1">Tambahkan siswa terlebih dahulu melalui menu Data Siswa.</p></div> : <div className="space-y-3">{siswa.map((s, index) => {
       const st = getStatus(s.id); const open = activeId === s.id
       return <div key={s.id} className={`rounded-2xl bg-white border border-slate-200 border-l-4 ${st ? config[st].line : 'border-l-slate-300'} overflow-hidden transition shadow-sm hover:shadow-md`}>
         <button onClick={() => setActiveId(open ? null : s.id)} className="w-full px-5 py-4 flex items-center gap-4 text-left"><div className="w-11 h-11 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 text-white grid place-items-center font-extrabold">{initials(s.nama)}</div><div className="flex-1 min-w-0"><div className="font-extrabold text-slate-900 truncate">{s.nama}</div><div className="text-sm text-slate-400 mt-0.5">No. {index + 1}</div></div>{st ? <span className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${config[st].soft} ${config[st].text}`}>{config[st].label}</span> : <span className="rounded-full px-3.5 py-1.5 text-sm font-bold bg-slate-100 text-slate-500">Belum diisi</span>}</button>
         {open && <div className="px-5 pb-4 pt-1 border-t border-slate-100 bg-slate-50/60"><div className="text-xs font-bold text-slate-500 mb-2.5">Pilih status kehadiran</div><div className="flex flex-wrap gap-2">{STATUS.map((option) => <button key={option} onClick={() => setStatus(s.id, option)} className={`rounded-xl px-3.5 py-2 text-xs font-bold border transition ${st === option ? `${config[option].soft} ${config[option].text} border-current` : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>{config[option].label}</button>)}</div>{st && st !== 'H' && <input value={keteranganMap[s.id] || ''} onChange={(e) => setKeteranganMap((m) => ({ ...m, [s.id]: e.target.value }))} placeholder="Keterangan (opsional), misalnya demam atau izin keluarga" className="field mt-3"/>}</div>}
       </div>
-    })}</div>}
+    })}</div>)}
 
     {siswa.length > 0 && <div className="fixed bottom-5 right-6 z-40"><button onClick={save} disabled={saving || !isSchoolDay} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3.5 font-bold shadow-xl flex items-center gap-2 disabled:opacity-50"><Save size={18}/>{saving ? 'Menyimpan...' : 'Simpan Presensi'}</button></div>}</>}
     {showSettings && <SettingsModal value={settings} onClose={() => setShowSettings(false)} onSave={saveSettings}/>} 
