@@ -46,6 +46,14 @@ export default function Jadwal() {
   const saveSettings = async () => { await db.pengaturan.put({ key: `jadwal_${kelasId}`, value: JSON.stringify({ jumlahJam }), updated_at: new Date().toISOString() }); const p = await db.pengaturan.get(`presensi_${kelasId}`); let cfg: any = {}; if (p?.value) try { cfg = JSON.parse(p.value) } catch {}; await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify({ ...cfg, hariSekolah }), updated_at: new Date().toISOString() }); setShowSettings(false) }
 
   const getMapelName = (item: JadwalType) => item.nama_mapel_custom || mapelList.find((m) => m.id === item.mata_pelajaran_id)?.nama || '-'
+  const setCell = async (hari: number, jam: number, value: string) => {
+    const existing = data.find((item) => item.hari === hari && item.jam_ke === jam)
+    try {
+      if (!value) { if (existing?.id) await window.electronAPI.jadwal.delete(existing.id) }
+      else await window.electronAPI.jadwal.save({ kelas_id: kelasId, hari, jam_ke: jam, jam_mulai: existing?.jam_mulai || '07:00', jam_selesai: existing?.jam_selesai || '07:35', mata_pelajaran_id: Number(value), nama_mapel_custom: '', nama_guru: existing?.nama_guru || '', ruang: existing?.ruang || '', ...(existing?.id ? { id: existing.id } : {}) })
+      await load(); setToast({ text: 'Jadwal tersimpan otomatis' })
+    } catch { setToast({ text: 'Jadwal gagal disimpan', error: true }) }
+  }
 
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(null), 3000); return () => clearTimeout(timer) }, [toast])
 
@@ -90,28 +98,18 @@ export default function Jadwal() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
-              <th className="px-3 py-3 text-left">Jam</th>
+              <th className="px-3 py-3 text-left">Jam</th><th className="px-3 py-3 text-left">Waktu</th>
               {HARI.slice(0, hariSekolah).map((h, i) => <th key={i} className="px-3 py-3 text-left">{h}</th>)}
             </tr>
           </thead>
           <tbody>
             {Array.from({ length: jumlahJam }, (_, jam) => jam + 1).map((jam) => (
               <tr key={jam} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-3 py-2 text-xs font-semibold text-gray-500">Jam {jam}</td>
+                <td className="px-3 py-2 text-xs font-semibold text-gray-500">Jam {jam}</td><td className="px-3 py-2 text-xs text-slate-500 whitespace-nowrap">{data.find((item)=>item.jam_ke===jam)?.jam_mulai || '07:00'} – {data.find((item)=>item.jam_ke===jam)?.jam_selesai || '07:35'}</td>
                 {HARI.slice(0, hariSekolah).map((_, hari) => {
                   const item = data.find((d) => d.hari === hari + 1 && d.jam_ke === jam)
                   return (
-                    <td key={hari} className="px-3 py-2 text-xs border-l cursor-pointer hover:bg-gray-50" style={{ borderColor: 'var(--border)' }}
-                      onClick={() => handleCell(hari + 1, jam, item)}>
-                      {item ? (
-                        <div>
-                          <span className="font-semibold text-[#0ea5a0]">{getMapelName(item)}</span>
-                          <div className="text-gray-400">{item.jam_mulai}-{item.jam_selesai}</div>
-                        </div>
-                      ) : (
-                        <span className="text-gray-300 group-hover:text-emerald-600">+ Isi</span>
-                      )}
-                    </td>
+                    <td key={hari} className="px-2 py-2 text-xs border-l" style={{ borderColor: 'var(--border)' }}><select value={item?.mata_pelajaran_id || ''} onChange={(e)=>setCell(hari+1,jam,e.target.value)} className={`w-full rounded-lg border px-2 py-2 text-xs font-semibold outline-none ${item ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-400'}`}><option value="">— Kosong —</option>{mapelList.map((subject)=><option key={subject.id} value={subject.id}>{subject.nama}</option>)}</select></td>
                   )
                 })}
               </tr>

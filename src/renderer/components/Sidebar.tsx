@@ -10,6 +10,7 @@ const groups = [
     { to: '/siswa/perilaku', icon: AlertTriangle, label: 'Perilaku' },
   ] },
   { label: 'Aktivitas Mengajar', icon: BookOpen, children: [
+    { to: '/aktivitas/mapel', icon: BookOpen, label: 'Mata Pelajaran' },
     { to: '/aktivitas/jadwal', icon: Calendar, label: 'Jadwal' },
     { to: '/aktivitas/rencana', icon: BookOpen, label: 'Rencana Mengajar' },
     { to: '/aktivitas/jurnal', icon: ClipboardList, label: 'Jurnal Harian' },

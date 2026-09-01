@@ -7,6 +7,7 @@ import Presensi from './pages/siswa/presensi/Presensi'
 import Penilaian from './pages/siswa/penilaian/Penilaian'
 import Perilaku from './pages/siswa/perilaku/Perilaku'
 import Jadwal from './pages/aktivitas/Jadwal'
+import MataPelajaran from './pages/aktivitas/MataPelajaran'
 import Rencana from './pages/aktivitas/Rencana'
 import Kalender from './pages/aktivitas/Kalender'
 import Jurnal from './pages/aktivitas/Jurnal'
@@ -28,6 +29,7 @@ export default function App() {
           <Route path="/siswa/penilaian" element={<Penilaian />} />
           <Route path="/siswa/perilaku" element={<Perilaku />} />
           <Route path="/aktivitas/jadwal" element={<Jadwal />} />
+          <Route path="/aktivitas/mapel" element={<MataPelajaran />} />
           <Route path="/aktivitas/rencana" element={<Rencana />} />
           <Route path="/aktivitas/kalender" element={<Kalender />} />
           <Route path="/aktivitas/jurnal" element={<Jurnal />} />

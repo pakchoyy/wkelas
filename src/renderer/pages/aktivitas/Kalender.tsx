@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { CalendarDays, Plus, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 import type { KalenderAkademik } from '../../../shared/types'
+import { db } from '../../../lib/db'
 
 const JENIS_WARNA: Record<string, string> = { libur_nasional: '#dc2626', libur_sekolah: '#d97706', ujian: '#2563eb', rapat: '#7c3aed', kegiatan: '#0ea5a0', lainnya: '#6b7280' }
 
@@ -11,9 +12,12 @@ export default function Kalender() {
   const [data, setData] = useState<KalenderAkademik[]>([])
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ tanggal_mulai: todayISO(), tanggal_selesai: '', judul: '', jenis: 'kegiatan', deskripsi: '' })
+  const [period, setPeriod] = useState({ mulai: '2026-07-01', akhir: '2026-12-31', hariSekolah: 5 })
 
   const load = async () => { setData(await window.electronAPI.kalender.list(kelasId)) }
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); Promise.all([db.kelas.get(kelasId), db.pengaturan.get(`presensi_${kelasId}`)]).then(([kelas, setting]) => { let cfg:any={}; if(setting?.value) try{cfg=JSON.parse(setting.value)}catch{}; const semester=kelas?.semester||1; setPeriod({ mulai: semester===1 ? cfg.s1Mulai||'2026-07-01' : cfg.s2Mulai||'2027-01-01', akhir: semester===1 ? cfg.s1Akhir||'2026-12-31' : cfg.s2Akhir||'2027-06-30', hariSekolah: cfg.hariSekolah||5 }) }) }, [kelasId])
+
+  const effectiveDays = (() => { let count=0; const cursor=new Date(`${period.mulai}T12:00:00`); const end=new Date(`${period.akhir}T12:00:00`); while(cursor<=end){ const day=cursor.getDay(); const iso=cursor.toISOString().slice(0,10); const holiday=data.some((item)=>['libur_nasional','libur_sekolah'].includes(item.jenis)&&iso>=item.tanggal_mulai&&iso<=(item.tanggal_selesai||item.tanggal_mulai)); if(day>=1&&day<=period.hariSekolah&&!holiday) count++; cursor.setDate(cursor.getDate()+1) } return count })()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,6 +33,8 @@ export default function Kalender() {
         <h2 className="text-xl font-bold">Kalender Akademik</h2>
         <button onClick={() => setShowForm(true)} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}><Plus size={16} /> Tambah</button>
       </div>
+
+      <div className="grid gap-4 mb-5 lg:grid-cols-[1fr_260px]"><div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex items-center gap-2 font-bold"><CalendarDays size={18} className="text-emerald-600"/>Batas Waktu Semester</div><div className="grid gap-3 md:grid-cols-3"><label className="text-xs font-bold text-slate-500">Mulai Semester<input type="date" value={period.mulai} onChange={(e)=>setPeriod({...period,mulai:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Akhir Semester<input type="date" value={period.akhir} onChange={(e)=>setPeriod({...period,akhir:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Sistem Hari Sekolah<select value={period.hariSekolah} onChange={(e)=>setPeriod({...period,hariSekolah:Number(e.target.value)})} className="field mt-1.5"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label></div><p className="mt-3 text-xs text-slate-400">Periode mengikuti pengaturan Presensi. Perubahan hari sekolah disimpan melalui menu Pengaturan Presensi.</p></div><div className="rounded-2xl bg-indigo-900 p-5 text-white"><div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Hari Efektif Belajar</div><div className="mt-4 text-4xl font-extrabold">{effectiveDays}</div><div className="mt-1 text-xs text-indigo-200">hari setelah akhir pekan dan hari libur</div></div></div>
 
       <div className="space-y-3">
         {data.map((item) => (
