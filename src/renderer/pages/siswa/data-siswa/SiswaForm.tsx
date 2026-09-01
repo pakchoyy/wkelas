@@ -19,6 +19,7 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
   })
   const [custom, setCustom] = useState<Record<number, string>>({})
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (siswa) {
@@ -42,6 +43,7 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
+    setError('')
     try {
       const data = {
         kelas_id: kelasId,
@@ -63,6 +65,8 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
       }
 
       onSaved()
+    } catch {
+      setError('Data siswa gagal disimpan. Periksa kembali isian lalu coba lagi.')
     } finally {
       setLoading(false)
     }
@@ -95,6 +99,7 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
       }
     >
       <form id="siswa-form" onSubmit={handleSubmit} className="space-y-4">
+        {error && <div className="rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-sm text-red-700">{error}</div>}
         <div>
           <label className="text-sm font-medium text-gray-700 block mb-1">Nama <span className="text-red-500">*</span></label>
           <input

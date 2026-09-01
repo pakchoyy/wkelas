@@ -77,10 +77,10 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
   }
 
   return (
-    <Modal title="Kelola Kolom Tambahan" onClose={onClose}>
+    <Modal title="Atur Kolom Data Siswa" onClose={onClose}>
       <div className="space-y-3">
         <p className="text-xs" style={{ color: 'var(--text-light)' }}>
-          Kolom tambahan otomatis muncul di formulir dan tabel Data Siswa.
+          Tambahkan informasi yang ingin dicatat untuk setiap siswa, misalnya agama, alamat, atau nomor telepon orang tua.
         </p>
 
         <button

@@ -13,7 +13,7 @@ interface Props {
   fields: SiswaFieldDefinition[]
   kelasId: number
   onClose: () => void
-  onImported: () => void
+  onImported: (result: ImportResult) => void
 }
 
 export default function ImportData({ fields, kelasId, onClose, onImported }: Props) {
@@ -60,7 +60,7 @@ export default function ImportData({ fields, kelasId, onClose, onImported }: Pro
   }
 
   const handleDone = () => {
-    onImported()
+    if (result) onImported(result)
     onClose()
   }
 

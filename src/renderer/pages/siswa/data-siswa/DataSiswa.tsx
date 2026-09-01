@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Upload, Settings2, Search, Pencil, Archive, X, Users } from 'lucide-react'
+import { Plus, Upload, Settings2, Search, Pencil, Trash2, X, Users, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react'
 import { db } from '../../../../lib/db'
 import { useSiswaList, useFieldDefs } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
@@ -23,6 +23,7 @@ export default function DataSiswa() {
   const [fieldOpen, setFieldOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)
   const [hapus, setHapus] = useState<{ open: boolean; siswa: Siswa | null }>({ open: false, siswa: null })
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
     if (siswa.length === 0) return
@@ -45,9 +46,15 @@ export default function DataSiswa() {
 
   useEffect(() => {
     db.kelas.get(kelasId).then((kelas) => {
-      if (kelas) setKelasLabel(`${kelas.nama_kelas} · ${kelas.tahun_ajaran} · Semester ${kelas.semester}`)
+      if (kelas) setKelasLabel(`${/^kelas\s/i.test(kelas.nama_kelas) ? kelas.nama_kelas : `Kelas ${kelas.nama_kelas}`} · ${kelas.tahun_ajaran} · Semester ${kelas.semester}`)
     })
   }, [kelasId])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = setTimeout(() => setToast(null), 3500)
+    return () => clearTimeout(timer)
+  }, [toast])
 
   const filtered = siswa.filter((s) => {
     const q = search.toLowerCase().trim()
@@ -67,9 +74,15 @@ export default function DataSiswa() {
 
   const handleHapus = async () => {
     if (!hapus.siswa) return
-    await window.electronAPI.siswa.delete(hapus.siswa.id)
-    setHapus({ open: false, siswa: null })
-    reload()
+    const nama = hapus.siswa.nama
+    try {
+      await window.electronAPI.siswa.delete(hapus.siswa.id)
+      setHapus({ open: false, siswa: null })
+      reload()
+      setToast({ type: 'success', text: `${nama} berhasil dihapus dari daftar siswa.` })
+    } catch {
+      setToast({ type: 'error', text: `Gagal menghapus ${nama}. Silakan coba lagi.` })
+    }
   }
 
   return (
@@ -85,7 +98,7 @@ export default function DataSiswa() {
             onClick={() => setFieldOpen(true)}
             className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
           >
-            <Settings2 size={16} /> Kolom Tambahan
+            <Settings2 size={16} /> Atur Kolom Data
           </button>
           <button
             onClick={() => setImportOpen(true)}
@@ -120,8 +133,8 @@ export default function DataSiswa() {
             </button>
           )}
         </div>
-        <select value={jkFilter} onChange={(e) => setJkFilter(e.target.value)} className="rounded-xl px-3 py-2.5 text-sm border border-slate-200 bg-white text-slate-600"><option value="">Semua JK</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select>
-        <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="rounded-xl px-3 py-2.5 text-sm border border-slate-200 bg-white text-slate-600"><option value="absen">Urut No. Absen</option><option value="nama">Urut Nama</option><option value="terbaru">Siswa Terbaru</option></select>
+        <SelectWrap><select value={jkFilter} onChange={(e) => setJkFilter(e.target.value)} className="appearance-none rounded-xl pl-3 pr-9 py-2.5 text-sm border border-slate-200 bg-slate-50 text-slate-600 focus:bg-white focus:border-emerald-500 outline-none"><option value="">Semua JK</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></SelectWrap>
+        <SelectWrap><select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="appearance-none rounded-xl pl-3 pr-9 py-2.5 text-sm border border-slate-200 bg-slate-50 text-slate-600 focus:bg-white focus:border-emerald-500 outline-none"><option value="absen">Urut No. Absen</option><option value="nama">Urut Nama</option><option value="terbaru">Siswa Terbaru</option></select></SelectWrap>
         <div className="md:ml-auto text-xs font-semibold text-slate-500 whitespace-nowrap">{isFiltering ? `${filtered.length} dari ${siswa.length}` : `${siswa.length} siswa`}</div>
       </div>
 
@@ -142,7 +155,7 @@ export default function DataSiswa() {
           </thead>
           <tbody>
             {filtered.map((s, i) => (
-              <tr key={s.id} className="border-b border-slate-100 bg-white hover:bg-emerald-50/40 transition-colors">
+              <tr key={s.id} className={`border-b border-slate-100 hover:bg-emerald-50/60 transition-colors ${i % 2 ? 'bg-slate-50/60' : 'bg-white'}`}>
                 <td className="px-5 py-3.5 font-bold text-slate-600">{s.no_absen || <span className="text-amber-500" title="Nomor absen belum diisi">—</span>}</td>
                 <td className="px-6 py-3.5 font-semibold text-slate-800">{s.nama}</td>
                 <td className="px-6 py-3.5" style={{ color: 'var(--text-light)' }}>{s.nis || '-'}</td>
@@ -161,9 +174,9 @@ export default function DataSiswa() {
                   </button>
                   <button
                     onClick={() => confirmHapus(s)}
-                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-amber-700 hover:bg-amber-50 transition-colors ml-1.5"
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-slate-500 hover:text-red-700 hover:bg-red-50 transition-colors ml-1.5"
                   >
-                    <Archive size={13} /> Arsipkan
+                    <Trash2 size={13} /> Hapus
                   </button>
                 </td>
               </tr>
@@ -193,7 +206,7 @@ export default function DataSiswa() {
           fields={fields}
           kelasId={kelasId}
           onClose={() => { setFormOpen(false); setEditSiswa(null) }}
-          onSaved={() => { setFormOpen(false); setEditSiswa(null); reload() }}
+          onSaved={() => { const editing = !!editSiswa; setFormOpen(false); setEditSiswa(null); reload(); setToast({ type: 'success', text: editing ? 'Data siswa berhasil diperbarui.' : 'Siswa baru berhasil ditambahkan.' }) }}
         />
       )}
 
@@ -201,7 +214,7 @@ export default function DataSiswa() {
         <KelolaField
           kelasId={kelasId}
           onClose={() => { setFieldOpen(false); reloadFields() }}
-          onChanged={() => { setFieldOpen(false); reloadFields() }}
+          onChanged={() => { setFieldOpen(false); reloadFields(); setToast({ type: 'success', text: 'Kolom data siswa berhasil diperbarui.' }) }}
         />
       )}
 
@@ -210,18 +223,23 @@ export default function DataSiswa() {
           fields={fields}
           kelasId={kelasId}
           onClose={() => setImportOpen(false)}
-          onImported={reload}
+          onImported={(result) => { reload(); setToast(result.ok > 0 ? { type: 'success', text: `${result.ok} siswa berhasil diimpor${result.gagal ? `, ${result.gagal} gagal.` : '.'}` } : { type: 'error', text: 'Tidak ada data siswa yang berhasil diimpor.' }) }}
         />
       )}
 
       <ConfirmDialog
         open={hapus.open}
-        title="Arsipkan Siswa"
-        message={`Arsipkan ${hapus.siswa?.nama}? Siswa tidak akan tampil di daftar aktif.`}
-        confirmText="Arsipkan"
+        title="Hapus Siswa"
+        message={`Hapus ${hapus.siswa?.nama} dari daftar siswa? Tindakan ini akan menyembunyikan datanya dari kelas aktif.`}
+        confirmText="Hapus"
         onCancel={() => setHapus({ open: false, siswa: null })}
         onConfirm={handleHapus}
       />
+      {toast && <div className={`fixed right-5 bottom-5 z-[500] flex items-center gap-3 rounded-xl border px-4 py-3 shadow-lg text-sm font-semibold ${toast.type === 'success' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>{toast.type === 'success' ? <CheckCircle2 size={19}/> : <AlertCircle size={19}/>}<span>{toast.text}</span><button onClick={() => setToast(null)} className="ml-2 opacity-60 hover:opacity-100"><X size={15}/></button></div>}
     </div>
   )
+}
+
+function SelectWrap({ children }: { children: React.ReactNode }) {
+  return <div className="relative inline-flex">{children}<ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /></div>
 }
