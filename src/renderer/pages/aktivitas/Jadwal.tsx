@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
+import { Plus, Settings2, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import type { Jadwal as JadwalType, MataPelajaran } from '../../../shared/types'
+import { db } from '../../../lib/db'
+import Modal from '../../components/Modal'
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
 
@@ -10,6 +12,9 @@ export default function Jadwal() {
   const [data, setData] = useState<JadwalType[]>([])
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([])
   const [showForm, setShowForm] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
+  const [hariSekolah, setHariSekolah] = useState<5 | 6>(5)
+  const [jumlahJam, setJumlahJam] = useState(10)
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' })
 
@@ -18,7 +23,7 @@ export default function Jadwal() {
     setMapelList(await window.electronAPI.mapel.list(kelasId))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load(); db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setHariSekolah(JSON.parse(x.value).hariSekolah || 5) } catch {} }); db.pengaturan.get(`jadwal_${kelasId}`).then((x) => { if (x?.value) try { setJumlahJam(JSON.parse(x.value).jumlahJam || 10) } catch {} }) }, [kelasId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -34,6 +39,8 @@ export default function Jadwal() {
     setForm({ hari: item.hari, jam_ke: item.jam_ke, jam_mulai: item.jam_mulai, jam_selesai: item.jam_selesai, mata_pelajaran_id: item.mata_pelajaran_id?.toString() || '', nama_mapel_custom: item.nama_mapel_custom || '', nama_guru: item.nama_guru || '', ruang: item.ruang || '' })
     setShowForm(true)
   }
+  const handleCell = (hari: number, jam: number, item?: JadwalType) => { if (item) return handleEdit(item); setEditId(null); setForm({ hari, jam_ke: jam, jam_mulai: '07:00', jam_selesai: '07:35', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' }); setShowForm(true) }
+  const saveSettings = async () => { await db.pengaturan.put({ key: `jadwal_${kelasId}`, value: JSON.stringify({ jumlahJam }), updated_at: new Date().toISOString() }); const p = await db.pengaturan.get(`presensi_${kelasId}`); let cfg: any = {}; if (p?.value) try { cfg = JSON.parse(p.value) } catch {}; await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify({ ...cfg, hariSekolah }), updated_at: new Date().toISOString() }); setShowSettings(false) }
 
   const getMapelName = (item: JadwalType) => item.nama_mapel_custom || mapelList.find((m) => m.id === item.mata_pelajaran_id)?.nama || '-'
 
@@ -41,9 +48,9 @@ export default function Jadwal() {
     <div>
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-xl font-bold">Jadwal Pelajaran</h2>
-        <button onClick={() => { setEditId(null); setForm({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' }); setShowForm(true) }}
+        <button onClick={() => setShowSettings(true)}
           className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
-          <Plus size={16} /> Tambah
+          <Settings2 size={16} /> Pengaturan
         </button>
       </div>
 
@@ -52,25 +59,25 @@ export default function Jadwal() {
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
               <th className="px-3 py-3 text-left">Jam</th>
-              {HARI.slice(0, 5).map((h, i) => <th key={i} className="px-3 py-3 text-left">{h}</th>)}
+              {HARI.slice(0, hariSekolah).map((h, i) => <th key={i} className="px-3 py-3 text-left">{h}</th>)}
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: 10 }, (_, jam) => jam + 1).map((jam) => (
+            {Array.from({ length: jumlahJam }, (_, jam) => jam + 1).map((jam) => (
               <tr key={jam} className="border-t" style={{ borderColor: 'var(--border)' }}>
                 <td className="px-3 py-2 text-xs font-semibold text-gray-500">Jam {jam}</td>
-                {HARI.slice(0, 5).map((_, hari) => {
+                {HARI.slice(0, hariSekolah).map((_, hari) => {
                   const item = data.find((d) => d.hari === hari + 1 && d.jam_ke === jam)
                   return (
                     <td key={hari} className="px-3 py-2 text-xs border-l cursor-pointer hover:bg-gray-50" style={{ borderColor: 'var(--border)' }}
-                      onClick={() => item && handleEdit(item)}>
+                      onClick={() => handleCell(hari + 1, jam, item)}>
                       {item ? (
                         <div>
                           <span className="font-semibold text-[#0ea5a0]">{getMapelName(item)}</span>
                           <div className="text-gray-400">{item.jam_mulai}-{item.jam_selesai}</div>
                         </div>
                       ) : (
-                        <span className="text-gray-300">-</span>
+                        <span className="text-gray-300 group-hover:text-emerald-600">+ Isi</span>
                       )}
                     </td>
                   )
@@ -80,6 +87,8 @@ export default function Jadwal() {
           </tbody>
         </table>
       </div>
+
+      {showSettings && <Modal title="Pengaturan Jadwal" onClose={() => setShowSettings(false)} footer={<button onClick={saveSettings} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold">Simpan Pengaturan</button>}><div className="space-y-4"><label className="text-sm font-bold block">Hari sekolah<select value={hariSekolah} onChange={(e) => setHariSekolah(Number(e.target.value) as 5|6)} className="field mt-2"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label><label className="text-sm font-bold block">Jumlah jam pelajaran per hari<input type="number" min={1} max={16} value={jumlahJam} onChange={(e) => setJumlahJam(Math.max(1, Math.min(16, Number(e.target.value))))} className="field mt-2"/></label><p className="text-xs text-slate-500">Klik kotak kosong pada tabel untuk langsung mengisi mata pelajaran. Pengaturan hari sekolah juga digunakan oleh Presensi dan Perilaku.</p></div></Modal>}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">

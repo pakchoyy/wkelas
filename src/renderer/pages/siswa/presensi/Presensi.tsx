@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { AlertCircle, BarChart3, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Info, Lightbulb, Save, Settings2, X } from 'lucide-react'
 import { useSiswaList } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
@@ -55,7 +55,6 @@ export default function Presensi() {
   const [settings, setSettings] = useState<Settings>(defaultSettings)
   const [showSettings, setShowSettings] = useState(false)
   const [rekapRecords, setRekapRecords] = useState<any[]>([])
-  const calendarRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => { if (!kelasId || !tanggal) return; ;(async () => {
     const res = await window.electronAPI.presensi.get(kelasId, tanggal)
@@ -91,7 +90,7 @@ export default function Presensi() {
     <div className="rounded-2xl bg-white border border-slate-200 p-2.5 flex items-center justify-between mb-4">
       <button onClick={() => setTanggal(addDays(tanggal, -1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50"><ChevronLeft size={21}/></button>
       <div className="text-center"><h1 className="font-extrabold text-slate-900 capitalize">{longDate(tanggal)}</h1><p className="text-xs text-slate-400 mt-0.5">Presensi harian kelas</p></div>
-      <div className="flex gap-2"><button onClick={() => calendarRef.current?.showPicker?.()} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50" title="Pilih tanggal"><CalendarDays size={20}/></button><input ref={calendarRef} type="date" max={todayISO()} value={tanggal} onChange={(e) => e.target.value && setTanggal(e.target.value)} className="fixed -left-[9999px] opacity-0"/><button disabled={tanggal >= todayISO()} onClick={() => setTanggal(addDays(tanggal, 1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50 disabled:opacity-35"><ChevronRight size={21}/></button></div>
+      <div className="flex gap-2"><label className="h-11 rounded-xl border border-slate-200 flex items-center gap-2 px-3 hover:bg-slate-50 cursor-pointer"><CalendarDays size={18}/><input type="date" max={todayISO()} value={tanggal} onChange={(e) => e.target.value && setTanggal(e.target.value)} className="outline-none bg-transparent text-xs cursor-pointer"/></label><button disabled={tanggal >= todayISO()} onClick={() => setTanggal(addDays(tanggal, 1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50 disabled:opacity-35"><ChevronRight size={21}/></button></div>
     </div>
 
     <div className="grid grid-cols-2 sm:grid-cols-5 rounded-2xl bg-white border border-slate-200 mb-4 overflow-hidden">{STATUS.map((st) => <div key={st} className="flex items-center justify-center gap-2 px-3 py-3.5 border-b sm:border-b-0 sm:border-r last:border-r-0 border-slate-100"><span className={`w-2.5 h-2.5 rounded-full ${config[st].dot}`}/><span className="text-sm text-slate-600">{config[st].label}</span><strong className="text-slate-900">{counts[st]}</strong></div>)}</div>
