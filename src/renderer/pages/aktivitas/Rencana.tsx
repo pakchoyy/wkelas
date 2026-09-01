@@ -60,16 +60,18 @@ export default function Rencana() {
   const [form, setForm] = useState<FormState>(emptyForm())
   const [showForm, setShowForm] = useState(false)
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null)
+  const [holidays, setHolidays] = useState<any[]>([])
 
   const load = async () => {
-    const [plans, schedules, subjects] = await Promise.all([
+    const [plans, schedules, subjects, calendar] = await Promise.all([
       window.electronAPI.rencana.list(kelasId),
       window.electronAPI.jadwal.list(kelasId),
-      window.electronAPI.mapel.list(kelasId)
+      window.electronAPI.mapel.list(kelasId), window.electronAPI.kalender.list(kelasId)
     ])
     setData(plans)
     setJadwal(schedules)
     setMapel(subjects)
+    setHolidays(calendar)
   }
 
   useEffect(() => {
@@ -201,6 +203,7 @@ export default function Rencana() {
           const dateISO = toISO(date)
           const slots = jadwal.filter((item) => item.hari === dayIndex + 1).sort((a, b) => a.jam_ke - b.jam_ke)
           const isToday = dateISO === todayISO()
+          const holiday = holidays.find((item) => ['libur_nasional','libur_sekolah'].includes(item.jenis) && dateISO >= item.tanggal_mulai && dateISO <= (item.tanggal_selesai || item.tanggal_mulai))
           return (
             <section key={dateISO} className={`min-h-[330px] overflow-hidden rounded-2xl border ${isToday ? 'border-emerald-400' : 'border-slate-200'} ${['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
               <header className={`border-b px-4 py-3 ${isToday ? 'bg-emerald-600 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
@@ -211,7 +214,7 @@ export default function Rencana() {
                 <span className={`text-xs ${isToday ? 'text-emerald-50' : 'text-slate-500'}`}>{date.getDate()} {BULAN[date.getMonth()]}</span>
               </header>
               <div className="space-y-2 p-3">
-                {slots.map((slot) => {
+                {holiday ? <div className="flex min-h-[190px] flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 text-center"><CalendarDays size={26} className="mb-2 text-amber-500"/><p className="text-sm font-bold text-amber-800">{holiday.judul}</p><p className="mt-1 text-xs text-amber-600">Tidak ada rencana mengajar pada hari libur.</p></div> : slots.map((slot) => {
                   const plan = findPlan(dateISO, slot)
                   return (
                     <button key={slot.id} onClick={() => openPlan(dateISO, slot, plan)} className="w-full rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md" style={{ borderColor: 'var(--border)' }}>
@@ -226,7 +229,7 @@ export default function Rencana() {
                     </button>
                   )
                 })}
-                {slots.length === 0 && <div className="flex min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-center"><BookOpen size={26} className="mb-2 text-slate-300" /><p className="text-xs font-semibold text-slate-400">Belum ada jadwal pelajaran</p><p className="mt-1 text-[11px] text-slate-400">Isi terlebih dahulu di menu Jadwal.</p></div>}
+                {!holiday && slots.length === 0 && <div className="flex min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-center"><BookOpen size={26} className="mb-2 text-slate-300" /><p className="text-xs font-semibold text-slate-400">Belum ada jadwal pelajaran</p><p className="mt-1 text-[11px] text-slate-400">Isi terlebih dahulu di menu Jadwal.</p></div>}
               </div>
             </section>
           )

@@ -57,8 +57,10 @@ export default function Presensi() {
   const [loadedDate, setLoadedDate] = useState('')
   const [showSettings, setShowSettings] = useState(false)
   const [rekapRecords, setRekapRecords] = useState<any[]>([])
+  const [holidays, setHolidays] = useState<any[]>([])
 
   useEffect(() => { if (!kelasId || !tanggal) return; ;(async () => {
+    setHolidays(await window.electronAPI.kalender.list(kelasId))
     const res = await window.electronAPI.presensi.get(kelasId, tanggal)
     const sm: Record<number, Status> = {}; const km: Record<number, string> = {}
     for (const r of res) { sm[r.siswa_id] = r.status as Status; km[r.siswa_id] = r.keterangan || '' }
@@ -83,7 +85,8 @@ export default function Presensi() {
   }
   const counts = Object.fromEntries(STATUS.map((st) => [st, siswa.filter((s) => getStatus(s.id) === st).length])) as Record<Status, number>
   const selectedDay = new Date(`${tanggal}T12:00:00`).getDay()
-  const isSchoolDay = selectedDay >= 1 && selectedDay <= settings.hariSekolah
+  const holiday = holidays.find((item) => ['libur_nasional','libur_sekolah'].includes(item.jenis) && tanggal >= item.tanggal_mulai && tanggal <= (item.tanggal_selesai || item.tanggal_mulai))
+  const isSchoolDay = selectedDay >= 1 && selectedDay <= settings.hariSekolah && !holiday
 
   useEffect(() => {
     if (!settingsLoaded || loadedDate !== tanggal || !settings.autoHadir || !isSchoolDay || siswa.length === 0) return
@@ -115,7 +118,7 @@ export default function Presensi() {
       <div className="flex gap-2 items-center mt-3 pt-3 border-t border-slate-100 text-emerald-700"><Cloud size={17} className={saving ? 'animate-pulse' : ''}/><strong>{saving ? 'Sedang menyimpan...' : 'Tersimpan otomatis'}</strong><span className="text-slate-500">setiap kali status atau keterangan diubah.</span></div>
     </div>
 
-    {!isSchoolDay && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-center px-5 py-12 mb-4"><CalendarDays size={34} className="mx-auto text-amber-500 mb-3"/><div className="font-extrabold text-amber-900">Hari Libur Sekolah</div><p className="text-sm text-amber-700 mt-1">Tidak ada daftar presensi karena tanggal ini bukan hari masuk sekolah.</p></div>}
+    {!isSchoolDay && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-center px-5 py-12 mb-4"><CalendarDays size={34} className="mx-auto text-amber-500 mb-3"/><div className="font-extrabold text-amber-900">{holiday?.judul || 'Hari Libur Sekolah'}</div><p className="text-sm text-amber-700 mt-1">Tidak ada daftar presensi karena tanggal ini bukan hari efektif belajar.</p></div>}
 
     {isSchoolDay && (loading ? <div className="py-16 text-center text-slate-400">Memuat siswa...</div> : siswa.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><div className="font-bold text-slate-700">Belum ada siswa</div><p className="text-sm text-slate-400 mt-1">Tambahkan siswa terlebih dahulu melalui menu Data Siswa.</p></div> : <div className="space-y-3">{siswa.map((s, index) => {
       const st = getStatus(s.id); const open = activeId === s.id

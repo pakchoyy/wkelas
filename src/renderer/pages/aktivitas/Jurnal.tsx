@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Download, Pencil, Plus, Trash2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Download, Pencil, Plus, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
@@ -8,6 +8,9 @@ import Modal from '../../components/Modal'
 type Form = { tanggal: string; jam_ke: string; mata_pelajaran: string; materi: string; kegiatan: string; kendala: string; refleksi: string }
 const blank = (): Form => ({ tanggal: todayISO(), jam_ke: '', mata_pelajaran: '', materi: '', kegiatan: '', kendala: '', refleksi: '' })
 const dateLabel = (value: string) => new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(`${value}T12:00:00`))
+const monday = (value: string) => { const date=new Date(`${value}T12:00:00`); const day=date.getDay()||7; date.setDate(date.getDate()-day+1); return date }
+const iso = (date: Date) => date.toISOString().slice(0,10)
+const shift = (date: Date, days: number) => { const next=new Date(date); next.setDate(next.getDate()+days); return next }
 
 export default function Jurnal() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
@@ -18,8 +21,12 @@ export default function Jurnal() {
   const [editId, setEditId] = useState<number | null>(null)
   const [form, setForm] = useState<Form>(blank())
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null)
+  const [weekAnchor, setWeekAnchor] = useState(todayISO())
+  const [jadwal, setJadwal] = useState<any[]>([])
+  const [mapel, setMapel] = useState<any[]>([])
+  const [holidays, setHolidays] = useState<any[]>([])
 
-  const load = async () => setData(await window.electronAPI.jurnal.list(kelasId))
+  const load = async () => { const [journals,schedules,subjects,calendar]=await Promise.all([window.electronAPI.jurnal.list(kelasId),window.electronAPI.jadwal.list(kelasId),window.electronAPI.mapel.list(kelasId),window.electronAPI.kalender.list(kelasId)]); setData(journals); setJadwal(schedules); setMapel(subjects); setHolidays(calendar) }
   useEffect(() => {
     load()
     db.kelas.get(kelasId).then(async (kelas) => {
@@ -32,6 +39,9 @@ export default function Jurnal() {
 
   const rows = useMemo(() => data.filter((item) => item.tanggal?.startsWith(month)).sort((a, b) => a.tanggal.localeCompare(b.tanggal) || String(a.jam_ke || '').localeCompare(String(b.jam_ke || ''))), [data, month])
   const monthName = new Intl.DateTimeFormat('id-ID', { month: 'long', year: 'numeric' }).format(new Date(`${month}-01T12:00:00`))
+  const weekStart=monday(weekAnchor)
+  const isHoliday=(date:string)=>holidays.some((item)=>['libur_nasional','libur_sekolah'].includes(item.jenis)&&date>=item.tanggal_mulai&&date<=(item.tanggal_selesai||item.tanggal_mulai))
+  const weeklyRows=jadwal.flatMap((slot)=>{ const tanggal=iso(shift(weekStart,slot.hari-1)); if(isHoliday(tanggal)) return []; const subject=slot.nama_mapel_custom||mapel.find((item)=>item.id===slot.mata_pelajaran_id)?.nama||'Pelajaran'; const journal=data.find((item)=>item.tanggal===tanggal&&String(item.jam_ke)===String(slot.jam_ke)); return [{slot,tanggal,subject,journal}] }).sort((a,b)=>a.tanggal.localeCompare(b.tanggal)||a.slot.jam_ke-b.slot.jam_ke)
   const openNew = () => { setEditId(null); setForm({ ...blank(), tanggal: month === todayISO().slice(0, 7) ? todayISO() : `${month}-01` }); setShowForm(true) }
   const openEdit = (item: any) => { setEditId(item.id); setForm({ tanggal: item.tanggal || todayISO(), jam_ke: item.jam_ke || '', mata_pelajaran: item.mata_pelajaran || '', materi: item.materi || '', kegiatan: item.kegiatan || '', kendala: item.kendala || '', refleksi: item.refleksi || '' }); setShowForm(true) }
 
@@ -42,6 +52,7 @@ export default function Jurnal() {
   }
   const remove = async () => { if (!editId || !window.confirm('Hapus jurnal ini?')) return; await window.electronAPI.jurnal.delete(editId); setShowForm(false); await load(); setToast({ text: 'Jurnal berhasil dihapus' }) }
   const quickSave = async (item: any, field: 'materi' | 'kegiatan' | 'kendala' | 'refleksi', value: string) => { if ((item[field] || '') === value) return; await window.electronAPI.jurnal.save({ ...item, [field]: value }); await load(); setToast({ text: 'Jurnal tersimpan otomatis' }) }
+  const quickWeeklySave = async (row:any, field:'materi'|'kegiatan', value:string) => { if((row.journal?.[field]||'')===value)return; await window.electronAPI.jurnal.save({ kelas_id:kelasId,tanggal:row.tanggal,jam_ke:String(row.slot.jam_ke),mata_pelajaran:row.subject,materi:row.journal?.materi||'',kegiatan:row.journal?.kegiatan||'',kendala:row.journal?.kendala||'',refleksi:row.journal?.refleksi||'',...(row.journal?.id?{id:row.journal.id}:{}),[field]:value }); await load(); setToast({text:'Jurnal tersimpan otomatis'}) }
 
   const exportExcel = async () => {
     const XLSX = await import('xlsx')
@@ -55,6 +66,7 @@ export default function Jurnal() {
     <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-extrabold text-slate-900">Jurnal Harian Mengajar</h2><p className="mt-1 text-sm text-slate-500">Dokumentasi pembelajaran dan bahan laporan guru.</p></div><div className="flex gap-2"><button onClick={exportExcel} disabled={!rows.length} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 disabled:opacity-40"><Download size={17}/>Ekspor Excel</button><button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17}/>Tambah Jurnal</button></div></div>
 
     <section className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><strong className="text-slate-800">{identity.sekolah}</strong><span className="text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun}</span><span className="lg:ml-auto text-slate-500">Wali Kelas: <strong className="text-slate-700">{identity.guru}</strong></span></section>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="flex items-center justify-between border-b border-slate-200 p-3"><button onClick={()=>setWeekAnchor(iso(shift(weekStart,-7)))} className="rounded-lg border p-2"><ChevronLeft size={18}/></button><div className="text-center"><div className="text-xs font-bold uppercase text-emerald-600">Input Mingguan dari Jadwal</div><div className="font-bold">{dateLabel(iso(weekStart))} – {dateLabel(iso(shift(weekStart,6)))}</div></div><button onClick={()=>setWeekAnchor(iso(shift(weekStart,7)))} className="rounded-lg border p-2"><ChevronRight size={18}/></button></div><div className="overflow-x-auto"><table className="w-full min-w-[850px] text-xs"><thead><tr className="bg-slate-50 text-slate-500"><th className="px-3 py-3 text-left">Hari / Tanggal</th><th className="px-3 py-3">Jam</th><th className="px-3 py-3 text-left">Mata Pelajaran</th><th className="px-3 py-3 text-left">Materi</th><th className="px-3 py-3 text-left">Kegiatan Pembelajaran</th></tr></thead><tbody>{weeklyRows.map((row)=><tr key={`${row.tanggal}-${row.slot.id}`} className="border-t border-slate-100"><td className="px-3 py-2 font-semibold capitalize">{dateLabel(row.tanggal)}</td><td className="px-3 py-2 text-center">{row.slot.jam_ke}</td><td className="px-3 py-2 font-bold">{row.subject}</td><td className="px-2 py-2"><input key={`${row.journal?.id}-m`} defaultValue={row.journal?.materi||''} onBlur={(e)=>quickWeeklySave(row,'materi',e.target.value)} placeholder="Isi materi" className="field !py-2 text-xs"/></td><td className="px-2 py-2"><input key={`${row.journal?.id}-k`} defaultValue={row.journal?.kegiatan||''} onBlur={(e)=>quickWeeklySave(row,'kegiatan',e.target.value)} placeholder="Isi kegiatan" className="field !py-2 text-xs"/></td></tr>)}</tbody></table></div>{weeklyRows.length===0&&<div className="py-10 text-center text-sm text-slate-400">Belum ada Jadwal pada minggu ini.</div>}<div className="border-t bg-emerald-50 px-4 py-2 text-xs text-emerald-700">Materi dan kegiatan tersimpan otomatis saat berpindah kolom. Hari libur tidak dibuatkan baris jurnal.</div></section>
     <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-white p-3"><div><div className="text-xs font-bold uppercase tracking-wider text-slate-400">Periode Laporan</div><div className="mt-0.5 font-bold capitalize text-slate-800">{monthName}</div></div><input type="month" value={month} onChange={(event) => setMonth(event.target.value)} className="field !w-auto" /></div>
 
     <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-xs"><thead><tr className="bg-slate-100 text-slate-600"><th className="px-2 py-3">No.</th><th className="px-3 py-3 text-left">Hari / Tanggal</th><th className="px-2 py-3">Jam</th><th className="px-3 py-3 text-left">Mata Pelajaran</th><th className="px-3 py-3 text-left">Materi</th><th className="px-3 py-3 text-left">Kegiatan Pembelajaran</th><th className="px-3 py-3 text-left">Kendala / Refleksi</th><th className="px-2 py-3">Aksi</th></tr></thead><tbody>{rows.map((item, index) => <tr key={item.id} className={`${index % 2 ? 'bg-slate-50/70' : 'bg-white'} border-t border-slate-100 align-top hover:bg-emerald-50/40`}><td className="px-2 py-3 text-center text-slate-400">{index + 1}</td><td className="px-3 py-3 font-semibold capitalize text-slate-700">{dateLabel(item.tanggal)}</td><td className="px-2 py-3 text-center">{item.jam_ke || '—'}</td><td className="px-3 py-3 font-bold text-slate-700">{item.mata_pelajaran || 'Umum'}</td><td className="px-2 py-2"><input defaultValue={item.materi || ''} onBlur={(e)=>quickSave(item,'materi',e.target.value)} placeholder="Isi materi" className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-xs outline-none hover:border-slate-200 focus:border-emerald-400 focus:bg-white"/></td><td className="px-2 py-2"><textarea defaultValue={item.kegiatan || ''} onBlur={(e)=>quickSave(item,'kegiatan',e.target.value)} placeholder="Isi kegiatan" rows={2} className="w-full resize-none rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-xs outline-none hover:border-slate-200 focus:border-emerald-400 focus:bg-white"/></td><td className="px-3 py-3 text-slate-600">{item.kendala && <div><strong>Kendala:</strong> {item.kendala}</div>}{item.refleksi && <div className="mt-1"><strong>Refleksi:</strong> {item.refleksi}</div>}{!item.kendala && !item.refleksi && '—'}</td><td className="px-2 py-3 text-center"><button onClick={() => openEdit(item)} className="rounded-lg p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700"><Pencil size={15}/></button></td></tr>)}</tbody></table></div>{rows.length === 0 && <div className="py-16 text-center"><div className="font-bold text-slate-600">Belum ada jurnal pada bulan ini</div><p className="mt-1 text-sm text-slate-400">Tambahkan jurnal atau buat dari Rencana Mengajar.</p></div>}</div>
