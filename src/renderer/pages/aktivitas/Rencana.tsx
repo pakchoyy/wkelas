@@ -1,99 +1,263 @@
-import { useState, useEffect } from 'react'
-import { Plus, Trash2 } from 'lucide-react'
-import { useAppStore } from '../../stores/appStore'
+import { useEffect, useMemo, useState } from 'react'
+import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Plus, Trash2 } from 'lucide-react'
+import type { Jadwal, MataPelajaran, RencanaMengajar } from '../../../shared/types'
 import { todayISO } from '../../../shared/utils'
-import type { RencanaMengajar, MataPelajaran } from '../../../shared/types'
+import { db } from '../../../lib/db'
+import Modal from '../../components/Modal'
+import { useAppStore } from '../../stores/appStore'
+
+const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+
+type FormState = {
+  tanggal: string
+  mata_pelajaran_id: string
+  topik: string
+  tujuan_pembelajaran: string
+  kegiatan: string
+  media: string
+  penilaian: string
+  catatan: string
+  status: string
+}
+
+const emptyForm = (tanggal = todayISO()): FormState => ({
+  tanggal, mata_pelajaran_id: '', topik: '', tujuan_pembelajaran: '', kegiatan: '',
+  media: '', penilaian: '', catatan: '', status: 'draft'
+})
+
+const toISO = (date: Date) => {
+  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  return local.toISOString().slice(0, 10)
+}
+
+const fromISO = (value: string) => {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
+}
+
+const mondayOf = (value: string) => {
+  const date = fromISO(value)
+  const day = date.getDay() || 7
+  date.setDate(date.getDate() - day + 1)
+  return date
+}
+
+const addDays = (date: Date, amount: number) => {
+  const next = new Date(date)
+  next.setDate(next.getDate() + amount)
+  return next
+}
 
 export default function Rencana() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
   const [data, setData] = useState<RencanaMengajar[]>([])
-  const [mapelList, setMapelList] = useState<MataPelajaran[]>([])
+  const [jadwal, setJadwal] = useState<Jadwal[]>([])
+  const [mapel, setMapel] = useState<MataPelajaran[]>([])
+  const [hariSekolah, setHariSekolah] = useState<5 | 6>(5)
+  const [anchorDate, setAnchorDate] = useState(todayISO())
+  const [editing, setEditing] = useState<RencanaMengajar | null>(null)
+  const [selectedJadwal, setSelectedJadwal] = useState<Jadwal | null>(null)
+  const [form, setForm] = useState<FormState>(emptyForm())
   const [showForm, setShowForm] = useState(false)
-  const [editId, setEditId] = useState<number | null>(null)
-  const [form, setForm] = useState({ tanggal: todayISO(), mata_pelajaran_id: '', topik: '', tujuan_pembelajaran: '', kegiatan: '', media: '', penilaian: '', catatan: '', status: 'draft' })
+  const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null)
 
   const load = async () => {
-    setData(await window.electronAPI.rencana.list(kelasId))
-    setMapelList(await window.electronAPI.mapel.list(kelasId))
+    const [plans, schedules, subjects] = await Promise.all([
+      window.electronAPI.rencana.list(kelasId),
+      window.electronAPI.jadwal.list(kelasId),
+      window.electronAPI.mapel.list(kelasId)
+    ])
+    setData(plans)
+    setJadwal(schedules)
+    setMapel(subjects)
   }
 
-  useEffect(() => { load() }, [])
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await window.electronAPI.rencana.save({ ...form, kelas_id: kelasId, id: editId, mata_pelajaran_id: form.mata_pelajaran_id ? parseInt(form.mata_pelajaran_id) : null })
-    setShowForm(false); setEditId(null)
+  useEffect(() => {
     load()
+    db.pengaturan.get(`presensi_${kelasId}`).then((item) => {
+      if (!item?.value) return
+      try { setHariSekolah(JSON.parse(item.value).hariSekolah || 5) } catch {}
+    })
+  }, [kelasId])
+
+  useEffect(() => {
+    if (!toast) return
+    const timer = window.setTimeout(() => setToast(null), 2600)
+    return () => window.clearTimeout(timer)
+  }, [toast])
+
+  const weekStart = useMemo(() => mondayOf(anchorDate), [anchorDate])
+  const days = useMemo(() => Array.from({ length: hariSekolah }, (_, index) => addDays(weekStart, index)), [weekStart, hariSekolah])
+  const weekEnd = days[days.length - 1]
+  const weekLabel = weekStart.getMonth() === weekEnd.getMonth()
+    ? `${weekStart.getDate()}–${weekEnd.getDate()} ${BULAN[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`
+    : `${weekStart.getDate()} ${BULAN[weekStart.getMonth()]} – ${weekEnd.getDate()} ${BULAN[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`
+
+  const mapelName = (item?: Jadwal | null, mapelId?: number) =>
+    item?.nama_mapel_custom || mapel.find((subject) => subject.id === (item?.mata_pelajaran_id || mapelId))?.nama || 'Pelajaran'
+
+  const findPlan = (date: string, schedule: Jadwal) => data.find((plan) =>
+    plan.tanggal === date && schedule.mata_pelajaran_id
+      ? plan.mata_pelajaran_id === schedule.mata_pelajaran_id
+      : plan.tanggal === date && !plan.mata_pelajaran_id
+  )
+
+  const openPlan = (date: string, schedule: Jadwal, plan?: RencanaMengajar) => {
+    setSelectedJadwal(schedule)
+    setEditing(plan || null)
+    setForm(plan ? {
+      tanggal: plan.tanggal,
+      mata_pelajaran_id: plan.mata_pelajaran_id?.toString() || '',
+      topik: plan.topik || '',
+      tujuan_pembelajaran: plan.tujuan_pembelajaran || '',
+      kegiatan: plan.kegiatan || '',
+      media: plan.media || '',
+      penilaian: plan.penilaian || '',
+      catatan: plan.catatan || '',
+      status: plan.status || 'draft'
+    } : { ...emptyForm(date), mata_pelajaran_id: schedule.mata_pelajaran_id?.toString() || '' })
+    setShowForm(true)
   }
 
-  const handleToggleStatus = async (item: RencanaMengajar) => {
-    await window.electronAPI.rencana.save({ ...item, status: item.status === 'selesai' ? 'draft' : 'selesai' })
-    load()
+  const savePlan = async (event: React.FormEvent) => {
+    event.preventDefault()
+    try {
+      await window.electronAPI.rencana.save({
+        ...form,
+        id: editing?.id,
+        kelas_id: kelasId,
+        mata_pelajaran_id: form.mata_pelajaran_id ? Number(form.mata_pelajaran_id) : null
+      })
+      setShowForm(false)
+      await load()
+      setToast({ message: editing ? 'Rencana berhasil diperbarui' : 'Rencana berhasil disimpan' })
+    } catch {
+      setToast({ message: 'Rencana gagal disimpan', error: true })
+    }
   }
+
+  const removePlan = async () => {
+    if (!editing || !window.confirm('Hapus rencana mengajar ini?')) return
+    await window.electronAPI.rencana.delete(editing.id)
+    setShowForm(false)
+    await load()
+    setToast({ message: 'Rencana berhasil dihapus' })
+  }
+
+  const createJournal = async () => {
+    if (!editing) return
+    try {
+      await window.electronAPI.jurnal.save({
+        kelas_id: kelasId,
+        tanggal: form.tanggal,
+        jam_ke: selectedJadwal?.jam_ke?.toString() || '',
+        mata_pelajaran: mapelName(selectedJadwal, editing.mata_pelajaran_id),
+        materi: form.topik,
+        kegiatan: form.kegiatan,
+        kendala: '',
+        refleksi: form.catatan
+      })
+      setShowForm(false)
+      setToast({ message: 'Draft Jurnal berhasil dibuat' })
+    } catch {
+      setToast({ message: 'Draft Jurnal gagal dibuat', error: true })
+    }
+  }
+
+  const statusStyle = (status: string) => status === 'selesai'
+    ? 'bg-emerald-100 text-emerald-700'
+    : status === 'ditunda' ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
 
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
+    <div className="space-y-4">
+      {toast && <div className={`fixed left-1/2 top-20 z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.message}</div>}
+
+      <div>
         <h2 className="text-xl font-bold">Rencana Mengajar</h2>
-        <button onClick={() => { setEditId(null); setForm({ tanggal: todayISO(), mata_pelajaran_id: '', topik: '', tujuan_pembelajaran: '', kegiatan: '', media: '', penilaian: '', catatan: '', status: 'draft' }); setShowForm(true) }}
-          className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
-          <Plus size={16} /> Tambah
-        </button>
+        <p className="mt-1 text-sm text-slate-500">Isi rencana langsung dari jadwal pelajaran minggu ini.</p>
       </div>
 
-      <div className="space-y-3">
-        {data.map((item) => (
-          <div key={item.id} className="rounded-xl p-4 cursor-pointer hover:shadow-md transition-shadow" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}
-            onClick={() => { setEditId(item.id); setForm({ tanggal: item.tanggal, mata_pelajaran_id: item.mata_pelajaran_id?.toString() || '', topik: item.topik, tujuan_pembelajaran: item.tujuan_pembelajaran || '', kegiatan: item.kegiatan || '', media: item.media || '', penilaian: item.penilaian || '', catatan: item.catatan || '', status: item.status }); setShowForm(true) }}>
-            <div className="flex items-start justify-between mb-2">
-              <div>
-                <span className="text-sm font-semibold">{item.topik}</span>
-                <span className="text-xs ml-2 text-gray-400">{item.tanggal}</span>
-              </div>
-              <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${item.status === 'selesai' ? 'text-green-700 bg-green-50' : 'text-amber-700 bg-amber-50'}`}>
-                {item.status}
-              </span>
-            </div>
-            {item.mata_pelajaran_id && <span className="text-xs text-[#0ea5a0]">{mapelList.find((m) => m.id === item.mata_pelajaran_id)?.nama}</span>}
-          </div>
-        ))}
-        {data.length === 0 && <p className="text-sm text-center py-8 text-gray-400">Belum ada rencana mengajar</p>}
-      </div>
-
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg rounded-2xl" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow-lg)' }}>
-            <div className="flex items-center justify-between px-4 py-3 border-b"><h3 className="text-sm font-bold">{editId ? 'Edit' : 'Tambah'} Rencana</h3><button onClick={() => setShowForm(false)} className="p-1 hover:bg-gray-100 rounded-lg">✕</button></div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-3 max-h-[75vh] overflow-y-auto">
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-medium text-gray-700 block mb-1">Tanggal</label><input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
-                <div><label className="text-xs font-medium text-gray-700 block mb-1">Mapel</label>
-                  <select value={form.mata_pelajaran_id} onChange={(e) => setForm({ ...form, mata_pelajaran_id: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}>
-                    <option value="">Pilih...</option>
-                    {mapelList.map((m) => <option key={m.id} value={m.id}>{m.nama}</option>)}
-                  </select></div>
-              </div>
-              <div><label className="text-xs font-medium text-gray-700 block mb-1">Topik</label><input value={form.topik} onChange={(e) => setForm({ ...form, topik: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} required /></div>
-              <div><label className="text-xs font-medium text-gray-700 block mb-1">Tujuan Pembelajaran</label><textarea value={form.tujuan_pembelajaran} onChange={(e) => setForm({ ...form, tujuan_pembelajaran: e.target.value })} rows={2} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
-              <div><label className="text-xs font-medium text-gray-700 block mb-1">Kegiatan</label><textarea value={form.kegiatan} onChange={(e) => setForm({ ...form, kegiatan: e.target.value })} rows={2} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
-              <div className="grid grid-cols-2 gap-3">
-                <div><label className="text-xs font-medium text-gray-700 block mb-1">Media</label><input value={form.media} onChange={(e) => setForm({ ...form, media: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
-                <div><label className="text-xs font-medium text-gray-700 block mb-1">Penilaian</label><input value={form.penilaian} onChange={(e) => setForm({ ...form, penilaian: e.target.value })} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
-              </div>
-              <div><label className="text-xs font-medium text-gray-700 block mb-1">Catatan</label><textarea value={form.catatan} onChange={(e) => setForm({ ...form, catatan: e.target.value })} rows={2} className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => handleToggleStatus({ id: editId! } as any)} className="rounded-xl px-4 py-2 text-sm font-semibold border border-gray-200">
-                  Toggle Status
-                </button>
-              </div>
-              <div className="flex gap-3 justify-end pt-2">
-                <button type="button" onClick={() => setShowForm(false)} className="rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}>Batal</button>
-                <button type="submit" className="rounded-xl px-6 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Simpan</button>
-              </div>
-            </form>
-          </div>
+      <div className="flex items-center justify-between rounded-2xl border bg-white p-3" style={{ borderColor: 'var(--border)', boxShadow: 'var(--shadow)' }}>
+        <button onClick={() => setAnchorDate(toISO(addDays(weekStart, -7)))} className="rounded-xl border p-3 text-slate-700 hover:bg-slate-50" style={{ borderColor: 'var(--border)' }} title="Minggu sebelumnya"><ChevronLeft size={20} /></button>
+        <div className="text-center">
+          <div className="text-xs font-bold uppercase tracking-wider text-emerald-600">Rencana Mingguan</div>
+          <div className="mt-1 text-base font-bold text-slate-900">{weekLabel}</div>
         </div>
-      )}
+        <div className="flex gap-2">
+          <label className="relative flex cursor-pointer items-center rounded-xl border p-3 text-slate-700 hover:bg-slate-50" style={{ borderColor: 'var(--border)' }} title="Pilih tanggal">
+            <CalendarDays size={20} />
+            <input type="date" value={anchorDate} onChange={(event) => setAnchorDate(event.target.value)} className="absolute inset-0 cursor-pointer opacity-0" aria-label="Pilih tanggal" />
+          </label>
+          <button onClick={() => setAnchorDate(toISO(addDays(weekStart, 7)))} className="rounded-xl border p-3 text-slate-700 hover:bg-slate-50" style={{ borderColor: 'var(--border)' }} title="Minggu berikutnya"><ChevronRight size={20} /></button>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between rounded-xl border bg-white px-4 py-3 text-sm" style={{ borderColor: 'var(--border)' }}>
+        <span className="text-slate-600"><strong className="text-slate-800">Cara cepat:</strong> klik kotak jadwal, lalu isi topik. Bagian lainnya boleh dikosongkan.</span>
+        {toISO(weekStart) !== toISO(mondayOf(todayISO())) && <button onClick={() => setAnchorDate(todayISO())} className="font-bold text-emerald-600">Ke minggu ini</button>}
+      </div>
+
+      <div className="grid gap-3 overflow-x-auto pb-2" style={{ gridTemplateColumns: `repeat(${hariSekolah}, minmax(210px, 1fr))` }}>
+        {days.map((date, dayIndex) => {
+          const dateISO = toISO(date)
+          const slots = jadwal.filter((item) => item.hari === dayIndex + 1).sort((a, b) => a.jam_ke - b.jam_ke)
+          const isToday = dateISO === todayISO()
+          return (
+            <section key={dateISO} className={`min-h-[360px] overflow-hidden rounded-2xl border ${isToday ? 'border-emerald-400' : 'border-slate-200'} bg-slate-50`}>
+              <header className={`border-b px-4 py-3 ${isToday ? 'bg-emerald-600 text-white' : 'bg-white text-slate-800'}`}>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold">{HARI[dayIndex]}</span>
+                  {isToday && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">HARI INI</span>}
+                </div>
+                <span className={`text-xs ${isToday ? 'text-emerald-50' : 'text-slate-500'}`}>{date.getDate()} {BULAN[date.getMonth()]}</span>
+              </header>
+              <div className="space-y-2 p-3">
+                {slots.map((slot) => {
+                  const plan = findPlan(dateISO, slot)
+                  return (
+                    <button key={slot.id} onClick={() => openPlan(dateISO, slot, plan)} className="w-full rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md" style={{ borderColor: 'var(--border)' }}>
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div>
+                          <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jam {slot.jam_ke} · {slot.jam_mulai}–{slot.jam_selesai}</div>
+                          <div className="mt-1 text-sm font-bold text-slate-800">{mapelName(slot)}</div>
+                        </div>
+                        {plan ? <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${statusStyle(plan.status)}`}>{plan.status || 'draft'}</span> : <Plus size={16} className="text-emerald-600" />}
+                      </div>
+                      {plan ? <><div className="text-sm font-semibold text-slate-700">{plan.topik}</div>{plan.tujuan_pembelajaran && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{plan.tujuan_pembelajaran}</div>}</> : <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">+ Isi rencana</div>}
+                    </button>
+                  )
+                })}
+                {slots.length === 0 && <div className="flex min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-center"><BookOpen size={26} className="mb-2 text-slate-300" /><p className="text-xs font-semibold text-slate-400">Belum ada jadwal pelajaran</p><p className="mt-1 text-[11px] text-slate-400">Isi terlebih dahulu di menu Jadwal.</p></div>}
+              </div>
+            </section>
+          )
+        })}
+      </div>
+
+      {showForm && <Modal title={`${editing ? 'Edit' : 'Isi'} Rencana · ${mapelName(selectedJadwal, Number(form.mata_pelajaran_id))}`} onClose={() => setShowForm(false)} maxWidth="max-w-2xl" footer={<>
+        {editing && <button onClick={removePlan} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16} /> Hapus</button>}
+        {editing && <button onClick={createJournal} className="flex items-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-bold text-emerald-700"><ClipboardCheck size={16} /> Buat Draft Jurnal</button>}
+        <button type="submit" form="rencana-form" className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Simpan Rencana</button>
+      </>}>
+        <form id="rencana-form" onSubmit={savePlan} className="space-y-4">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <label className="text-xs font-bold text-slate-600">Tanggal<input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} className="field mt-1.5" required /></label>
+            <label className="text-xs font-bold text-slate-600 sm:col-span-2">Mata pelajaran<select value={form.mata_pelajaran_id} onChange={(e) => setForm({ ...form, mata_pelajaran_id: e.target.value })} className="field mt-1.5"><option value="">Tanpa mata pelajaran</option>{mapel.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</select></label>
+          </div>
+          <label className="block text-xs font-bold text-slate-600">Topik / materi <span className="text-red-500">*</span><input value={form.topik} onChange={(e) => setForm({ ...form, topik: e.target.value })} className="field mt-1.5" placeholder="Contoh: Penjumlahan dua angka" required /></label>
+          <label className="block text-xs font-bold text-slate-600">Tujuan pembelajaran <span className="font-normal text-slate-400">(opsional)</span><textarea value={form.tujuan_pembelajaran} onChange={(e) => setForm({ ...form, tujuan_pembelajaran: e.target.value })} className="field mt-1.5" rows={2} placeholder="Siswa mampu..." /></label>
+          <label className="block text-xs font-bold text-slate-600">Kegiatan pembelajaran <span className="font-normal text-slate-400">(opsional)</span><textarea value={form.kegiatan} onChange={(e) => setForm({ ...form, kegiatan: e.target.value })} className="field mt-1.5" rows={3} placeholder="Pembukaan, kegiatan inti, penutup..." /></label>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="text-xs font-bold text-slate-600">Media <span className="font-normal text-slate-400">(opsional)</span><input value={form.media} onChange={(e) => setForm({ ...form, media: e.target.value })} className="field mt-1.5" placeholder="Buku, video, LKPD..." /></label>
+            <label className="text-xs font-bold text-slate-600">Penilaian <span className="font-normal text-slate-400">(opsional)</span><input value={form.penilaian} onChange={(e) => setForm({ ...form, penilaian: e.target.value })} className="field mt-1.5" placeholder="Observasi, kuis..." /></label>
+          </div>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <label className="text-xs font-bold text-slate-600">Catatan <span className="font-normal text-slate-400">(opsional)</span><textarea value={form.catatan} onChange={(e) => setForm({ ...form, catatan: e.target.value })} className="field mt-1.5" rows={2} /></label>
+            <label className="text-xs font-bold text-slate-600">Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="field mt-1.5"><option value="draft">Draft</option><option value="selesai">Selesai</option><option value="ditunda">Ditunda</option></select></label>
+          </div>
+        </form>
+      </Modal>}
     </div>
   )
 }
