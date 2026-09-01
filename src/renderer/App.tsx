@@ -10,7 +10,6 @@ import Jadwal from './pages/aktivitas/Jadwal'
 import Rencana from './pages/aktivitas/Rencana'
 import Kalender from './pages/aktivitas/Kalender'
 import Jurnal from './pages/aktivitas/Jurnal'
-import Catatan from './pages/aktivitas/Catatan'
 import ToDo from './pages/aktivitas/ToDo'
 import PerangkatAjar from './pages/perangkat-ajar/PerangkatAjar'
 import Laporan from './pages/laporan/Laporan'
@@ -32,7 +31,6 @@ export default function App() {
           <Route path="/aktivitas/rencana" element={<Rencana />} />
           <Route path="/aktivitas/kalender" element={<Kalender />} />
           <Route path="/aktivitas/jurnal" element={<Jurnal />} />
-          <Route path="/aktivitas/catatan" element={<Catatan />} />
           <Route path="/aktivitas/todo" element={<ToDo />} />
           <Route path="/perangkat-ajar" element={<PerangkatAjar />} />
           <Route path="/laporan" element={<Laporan />} />
