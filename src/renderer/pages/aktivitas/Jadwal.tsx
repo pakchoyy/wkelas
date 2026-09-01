@@ -6,6 +6,11 @@ import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+const defaultTime = (jam: number) => {
+  const start = 7 * 60 + (jam - 1) * 40
+  const format = (value: number) => `${String(Math.floor(value / 60)).padStart(2, '0')}:${String(value % 60).padStart(2, '0')}`
+  return { mulai: format(start), selesai: format(start + 35) }
+}
 
 export default function Jadwal() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
@@ -26,7 +31,7 @@ export default function Jadwal() {
     setMapelList((await window.electronAPI.mapel.list(kelasId)).filter((item:any)=>item.is_aktif!==0))
   }
 
-  useEffect(() => { load(); db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setHariSekolah(JSON.parse(x.value).hariSekolah || 5) } catch {} }); db.pengaturan.get(`jadwal_${kelasId}`).then((x) => { if (x?.value) try { const cfg=JSON.parse(x.value); setJumlahJam(cfg.jumlahJam||10); setWaktuJam(cfg.waktuJam||{}); setIstirahat(cfg.istirahat||[]) } catch {} }) }, [kelasId])
+  useEffect(() => { load(); db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setHariSekolah(JSON.parse(x.value).hariSekolah || 5) } catch {} }); db.pengaturan.get(`jadwal_${kelasId}`).then((x) => { if (x?.value) try { const cfg=JSON.parse(x.value); const total=cfg.jumlahJam||10; setJumlahJam(total); setWaktuJam(cfg.waktuJam||{}); const breaks=Array.isArray(cfg.istirahat) ? cfg.istirahat.filter((jam:number) => jam >= 1 && jam <= total) : []; setIstirahat(breaks.length >= total ? [] : breaks) } catch {} }) }, [kelasId])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -44,7 +49,7 @@ export default function Jadwal() {
     setForm({ hari: item.hari, jam_ke: item.jam_ke, jam_mulai: item.jam_mulai, jam_selesai: item.jam_selesai, mata_pelajaran_id: item.mata_pelajaran_id?.toString() || '', nama_mapel_custom: item.nama_mapel_custom || '', nama_guru: item.nama_guru || '', ruang: item.ruang || '' })
     setShowForm(true)
   }
-  const handleCell = (hari: number, jam: number, item?: JadwalType) => { if (item) return handleEdit(item); setEditId(null); setForm({ hari, jam_ke: jam, jam_mulai: '07:00', jam_selesai: '07:35', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' }); setShowForm(true) }
+  const handleCell = (hari: number, jam: number, item?: JadwalType) => { if (item) return handleEdit(item); setEditId(null); setForm({ hari, jam_ke: jam, ...defaultTime(jam), mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' }); setShowForm(true) }
   const storeScheduleSettings = async (nextTimes=waktuJam,nextBreaks=istirahat) => db.pengaturan.put({ key:`jadwal_${kelasId}`,value:JSON.stringify({jumlahJam,waktuJam:nextTimes,istirahat:nextBreaks}),updated_at:new Date().toISOString() })
   const saveSettings = async () => { await storeScheduleSettings(); const p = await db.pengaturan.get(`presensi_${kelasId}`); let cfg: any = {}; if (p?.value) try { cfg = JSON.parse(p.value) } catch {}; await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify({ ...cfg, hariSekolah }), updated_at: new Date().toISOString() }); setShowSettings(false) }
   const saveTime=async(jam:number,key:'mulai'|'selesai',value:string)=>{const current=waktuJam[jam]||{mulai:data.find(i=>i.jam_ke===jam)?.jam_mulai||'07:00',selesai:data.find(i=>i.jam_ke===jam)?.jam_selesai||'07:35'};const next={...waktuJam,[jam]:{...current,[key]:value}};setWaktuJam(next);for(const item of data.filter(i=>i.jam_ke===jam))await window.electronAPI.jadwal.save({...item,jam_mulai:next[jam].mulai,jam_selesai:next[jam].selesai});await storeScheduleSettings(next,istirahat);await load();setToast({text:'Waktu tersimpan otomatis'})}
@@ -110,7 +115,7 @@ export default function Jadwal() {
           <tbody>
             {Array.from({ length: jumlahJam }, (_, jam) => jam + 1).map((jam) => (
               <tr key={jam} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-3 py-2 text-xs font-semibold text-gray-500"><div>Jam {jam}</div><button onClick={()=>toggleBreak(jam)} className="mt-1 text-[10px] font-bold text-amber-600">{istirahat.includes(jam)?'Jadikan pelajaran':'Istirahat'}</button></td><td className="px-2 py-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="time" value={waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||'07:00'} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:e.target.value,selesai:waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||'07:35'}})} onBlur={(e)=>saveTime(jam,'mulai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/><span>–</span><input type="time" value={waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||'07:35'} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||'07:00',selesai:e.target.value}})} onBlur={(e)=>saveTime(jam,'selesai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/></div></td>
+                <td className="px-3 py-2 text-xs font-semibold text-gray-500"><div>Jam {jam}</div><button onClick={()=>toggleBreak(jam)} className="mt-1 text-[10px] font-bold text-amber-600" title="Menandai seluruh hari pada jam ini sebagai istirahat">{istirahat.includes(jam)?'Batalkan istirahat':'Istirahat semua hari'}</button></td><td className="px-2 py-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="time" value={waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||defaultTime(jam).mulai} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:e.target.value,selesai:waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||defaultTime(jam).selesai}})} onBlur={(e)=>saveTime(jam,'mulai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/><span>–</span><input type="time" value={waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||defaultTime(jam).selesai} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||defaultTime(jam).mulai,selesai:e.target.value}})} onBlur={(e)=>saveTime(jam,'selesai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/></div></td>
                 {istirahat.includes(jam)?<td colSpan={hariSekolah} className="border-l bg-amber-50 text-center text-xs font-bold uppercase tracking-wider text-amber-700">Istirahat</td>:HARI.slice(0, hariSekolah).map((_, hari) => {
                   const item = data.find((d) => d.hari === hari + 1 && d.jam_ke === jam)
                   return (
@@ -123,7 +128,7 @@ export default function Jadwal() {
         </table>
       </div>
 
-      {showSettings && <Modal title="Pengaturan Jadwal" onClose={() => setShowSettings(false)} footer={<button onClick={saveSettings} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold">Simpan Pengaturan</button>}><div className="space-y-4"><label className="text-sm font-bold block">Hari sekolah<select value={hariSekolah} onChange={(e) => setHariSekolah(Number(e.target.value) as 5|6)} className="field mt-2"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label><label className="text-sm font-bold block">Jumlah jam pelajaran per hari<input type="number" min={1} max={16} value={jumlahJam} onChange={(e) => setJumlahJam(Math.max(1, Math.min(16, Number(e.target.value))))} className="field mt-2"/></label><p className="text-xs text-slate-500">Klik kotak kosong pada tabel untuk langsung mengisi mata pelajaran. Pengaturan hari sekolah juga digunakan oleh Presensi dan Perilaku.</p></div></Modal>}
+      {showSettings && <Modal title="Pengaturan Jadwal" onClose={() => setShowSettings(false)} footer={<button onClick={saveSettings} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold">Simpan Pengaturan</button>}><div className="space-y-4"><label className="text-sm font-bold block">Hari sekolah<select value={hariSekolah} onChange={(e) => setHariSekolah(Number(e.target.value) as 5|6)} className="field mt-2"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label><label className="text-sm font-bold block">Jumlah jam pelajaran per hari<input type="number" min={1} max={16} value={jumlahJam} onChange={(e) => setJumlahJam(Math.max(1, Math.min(16, Number(e.target.value))))} className="field mt-2"/></label><p className="text-xs text-slate-500">Pilih mata pelajaran pada setiap kotak. Tombol <strong>Istirahat semua hari</strong> hanya dipakai bila seluruh kelas istirahat pada jam tersebut; satu kali klik akan menghapus mapel pada baris itu.</p></div></Modal>}
 
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
