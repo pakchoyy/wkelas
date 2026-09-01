@@ -17,13 +17,12 @@ type FormState = {
   kegiatan: string
   media: string
   penilaian: string
-  catatan: string
   status: string
 }
 
 const emptyForm = (tanggal = todayISO()): FormState => ({
   tanggal, mata_pelajaran_id: '', topik: '', tujuan_pembelajaran: '', kegiatan: '',
-  media: '', penilaian: '', catatan: '', status: 'draft'
+  media: '', penilaian: '', status: 'draft'
 })
 
 const toISO = (date: Date) => {
@@ -114,7 +113,6 @@ export default function Rencana() {
       kegiatan: plan.kegiatan || '',
       media: plan.media || '',
       penilaian: plan.penilaian || '',
-      catatan: plan.catatan || '',
       status: plan.status || 'draft'
     } : { ...emptyForm(date), mata_pelajaran_id: schedule.mata_pelajaran_id?.toString() || '' })
     setShowForm(true)
@@ -156,7 +154,7 @@ export default function Rencana() {
         materi: form.topik,
         kegiatan: form.kegiatan,
         kendala: '',
-        refleksi: form.catatan
+        refleksi: ''
       })
       setShowForm(false)
       setToast({ message: 'Draft Jurnal berhasil dibuat' })
@@ -224,7 +222,7 @@ export default function Rencana() {
                         </div>
                         {plan ? <span className={`rounded-full px-2 py-1 text-[10px] font-bold uppercase ${statusStyle(plan.status)}`}>{plan.status || 'draft'}</span> : <Plus size={16} className="text-emerald-600" />}
                       </div>
-                      {plan ? <><div className="text-sm font-semibold text-slate-700">{plan.topik}</div>{plan.tujuan_pembelajaran && <div className="mt-1 line-clamp-2 text-xs text-slate-500">{plan.tujuan_pembelajaran}</div>}</> : <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">+ Isi rencana</div>}
+                      {plan ? <><div className="text-sm font-semibold text-slate-700">{plan.topik}</div>{plan.kegiatan && <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600"><span className="font-bold text-slate-700">Kegiatan: </span>{plan.kegiatan}</div>}</> : <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">+ Isi rencana</div>}
                     </button>
                   )
                 })}
@@ -252,10 +250,7 @@ export default function Rencana() {
             <label className="text-xs font-bold text-slate-600">Media <span className="font-normal text-slate-400">(opsional)</span><input value={form.media} onChange={(e) => setForm({ ...form, media: e.target.value })} className="field mt-1.5" placeholder="Buku, video, LKPD..." /></label>
             <label className="text-xs font-bold text-slate-600">Penilaian <span className="font-normal text-slate-400">(opsional)</span><input value={form.penilaian} onChange={(e) => setForm({ ...form, penilaian: e.target.value })} className="field mt-1.5" placeholder="Observasi, kuis..." /></label>
           </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="text-xs font-bold text-slate-600">Catatan <span className="font-normal text-slate-400">(opsional)</span><textarea value={form.catatan} onChange={(e) => setForm({ ...form, catatan: e.target.value })} className="field mt-1.5" rows={2} /></label>
-            <label className="text-xs font-bold text-slate-600">Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="field mt-1.5"><option value="draft">Draft</option><option value="selesai">Selesai</option><option value="ditunda">Ditunda</option></select></label>
-          </div>
+          <label className="block text-xs font-bold text-slate-600">Status<select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className="field mt-1.5"><option value="draft">Draft</option><option value="selesai">Selesai</option><option value="ditunda">Ditunda</option></select></label>
         </form>
       </Modal>}
     </div>
