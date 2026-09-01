@@ -30,7 +30,7 @@ export default function Jadwal() {
     e.preventDefault()
     try {
       if (!form.mata_pelajaran_id && !form.nama_mapel_custom.trim()) throw new Error('Mata pelajaran wajib diisi')
-      await window.electronAPI.jadwal.save({ ...form, kelas_id: kelasId, id: editId, mata_pelajaran_id: form.mata_pelajaran_id ? parseInt(form.mata_pelajaran_id) : null })
+      await window.electronAPI.jadwal.save({ ...form, kelas_id: kelasId, ...(editId ? { id: editId } : {}), mata_pelajaran_id: form.mata_pelajaran_id ? parseInt(form.mata_pelajaran_id) : null })
       setShowForm(false); setEditId(null)
       setForm({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' })
       await load(); setToast({ text: 'Jadwal berhasil disimpan' })
