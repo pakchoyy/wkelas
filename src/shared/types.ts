@@ -46,6 +46,7 @@ export interface SiswaFieldDefinition {
   pilihan?: string
   wajib: number
   urutan: number
+  is_aktif?: number
   created_at: string
   updated_at: string
 }

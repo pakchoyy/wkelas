@@ -23,7 +23,7 @@ export default function Jadwal() {
 
   const load = async () => {
     setData(await window.electronAPI.jadwal.list(kelasId))
-    setMapelList(await window.electronAPI.mapel.list(kelasId))
+    setMapelList((await window.electronAPI.mapel.list(kelasId)).filter((item:any)=>item.is_aktif!==0))
   }
 
   useEffect(() => { load(); db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setHariSekolah(JSON.parse(x.value).hariSekolah || 5) } catch {} }); db.pengaturan.get(`jadwal_${kelasId}`).then((x) => { if (x?.value) try { const cfg=JSON.parse(x.value); setJumlahJam(cfg.jumlahJam||10); setWaktuJam(cfg.waktuJam||{}); setIstirahat(cfg.istirahat||[]) } catch {} }) }, [kelasId])

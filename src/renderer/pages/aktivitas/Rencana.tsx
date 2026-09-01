@@ -70,7 +70,7 @@ export default function Rencana() {
     ])
     setData(plans)
     setJadwal(schedules)
-    setMapel(subjects)
+    setMapel(subjects.filter((item:any)=>item.is_aktif!==0))
     setHolidays(calendar)
   }
 

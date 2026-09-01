@@ -41,8 +41,9 @@ export default function Penilaian() {
 
   const loadMapel = useCallback(async () => {
     const list = await window.electronAPI.mapel.list(kelasId)
-    setMapelList(list)
-    setMapelId((current) => current && list.some((m) => m.id === current) ? current : list[0]?.id || null)
+    const active=list.filter((item:any)=>item.is_aktif!==0)
+    setMapelList(active)
+    setMapelId((current) => current && active.some((m) => m.id === current) ? current : active[0]?.id || null)
   }, [kelasId])
   const loadKomponen = useCallback(async () => { if (!mapelId) { setKomponen([]); return }; setKomponen(await window.electronAPI.kolom.list(mapelId)) }, [mapelId])
   const ensureFixedScores = useCallback(async () => {

@@ -1,132 +1,33 @@
-import { useState } from 'react'
-import { User, BookOpen, ShieldCheck, RefreshCw, Database, Download, Upload, CheckCircle, AlertCircle } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Upload } from 'lucide-react'
+import { db } from '../../../lib/db'
+import { useAppStore } from '../../stores/appStore'
 
-type TabPengaturan = 'profil' | 'tahun-ajaran' | 'backup'
+type Tab = 'profil' | 'kelas' | 'backup'
 
 export default function Pengaturan() {
-  const [tab, setTab] = useState<TabPengaturan>('profil')
+  const kelasId = useAppStore((s) => s.kelasAktifId) || 1
+  const [tab, setTab] = useState<Tab>('profil')
+  const [kelas, setKelas] = useState<any>(null)
+  const [guru, setGuru] = useState<any>(null)
+  const [toast, setToast] = useState('')
+  const load = async () => { const k=await db.kelas.get(kelasId); setKelas(k||null); setGuru(k?.guru_id ? await db.guru.get(k.guru_id) : null) }
+  useEffect(()=>{load()},[kelasId])
+  useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2800);return()=>clearTimeout(timer)},[toast])
+  const saveProfile=async(e:React.FormEvent)=>{e.preventDefault();if(!guru?.id)return;await db.guru.update(guru.id,{nama:guru.nama,nip:guru.nip,nama_sekolah:guru.nama_sekolah,updated_at:new Date().toISOString()});setToast('Identitas sekolah dan guru berhasil disimpan')}
+  const saveClass=async(e:React.FormEvent)=>{e.preventDefault();if(!kelas?.id)return;await db.kelas.update(kelas.id,{nama_kelas:kelas.nama_kelas,tingkat:kelas.tingkat,tahun_ajaran:kelas.tahun_ajaran,semester:Number(kelas.semester),updated_at:new Date().toISOString()});if(guru?.id)await db.guru.update(guru.id,{tahun_ajaran_aktif:kelas.tahun_ajaran,semester_aktif:Number(kelas.semester),updated_at:new Date().toISOString()});setToast('Kelas dan semester berhasil disimpan')}
 
-  const tabs = [
-    { id: 'profil' as const, icon: User, label: 'Sekolah & Guru' },
-    { id: 'tahun-ajaran' as const, icon: BookOpen, label: 'Kelas & Semester' },
-    { id: 'backup' as const, icon: Database, label: 'Data & Cadangan' },
-  ]
-
-  return (
-    <div>
-      <div className="mb-4"><h2 className="text-xl font-bold">Pengaturan</h2><p className="mt-1 text-sm text-slate-500">Kelola identitas sekolah, periode kelas, dan keamanan data.</p></div>
-
-      <div className="flex gap-1 mb-4 rounded-xl p-1 overflow-x-auto" style={{ background: '#f1f5f9' }}>
-        {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg whitespace-nowrap transition-all ${tab === t.id ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
-            <t.icon size={16} /> {t.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="rounded-xl p-6" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}>
-        {tab === 'profil' && <ProfilTab />}
-        {tab === 'tahun-ajaran' && <TahunAjaranTab />}
-        {tab === 'backup' && <BackupTab />}
-      </div>
+  const tabs=[{id:'profil' as Tab,label:'Sekolah & Guru',icon:School},{id:'kelas' as Tab,label:'Kelas & Semester',icon:BookOpen},{id:'backup' as Tab,label:'Data & Cadangan',icon:Database}]
+  return <div className="mx-auto max-w-4xl space-y-4">
+    {toast&&<div className="fixed left-1/2 top-20 z-[100] -translate-x-1/2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl">{toast}</div>}
+    <div><h2 className="text-xl font-extrabold">Pengaturan</h2><p className="mt-1 text-sm text-slate-500">Data di sini digunakan pada Dashboard, Jurnal, dan laporan.</p></div>
+    <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-200/70 p-1 w-fit">{tabs.map((item)=><button key={item.id} onClick={()=>setTab(item.id)} className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold ${tab===item.id?'bg-white text-emerald-700 shadow-sm':'text-slate-500'}`}><item.icon size={16}/>{item.label}</button>)}</div>
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      {tab==='profil'&&<form onSubmit={saveProfile} className="space-y-4"><div><h3 className="font-extrabold">Identitas Sekolah dan Guru</h3><p className="mt-1 text-xs text-slate-400">Akan ditampilkan pada kop jurnal dan laporan.</p></div><label className="block text-sm font-bold">Nama sekolah<input required value={guru?.nama_sekolah||''} onChange={(e)=>setGuru({...guru,nama_sekolah:e.target.value})} className="field mt-1.5"/></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama wali kelas<input required value={guru?.nama||''} onChange={(e)=>setGuru({...guru,nama:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">NIP <span className="font-normal text-slate-400">(opsional)</span><input value={guru?.nip||''} onChange={(e)=>setGuru({...guru,nip:e.target.value})} className="field mt-1.5"/></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Identitas</button></form>}
+      {tab==='kelas'&&<form onSubmit={saveClass} className="space-y-4"><div><h3 className="font-extrabold">Kelas dan Periode Akademik</h3><p className="mt-1 text-xs text-slate-400">Mengubah tingkat kelas akan menyesuaikan rekomendasi mata pelajaran.</p></div><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama kelas<input required value={kelas?.nama_kelas||''} onChange={(e)=>setKelas({...kelas,nama_kelas:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">Tingkat kelas<select value={kelas?.tingkat||'1'} onChange={(e)=>setKelas({...kelas,tingkat:e.target.value})} className="field mt-1.5">{[1,2,3,4,5,6].map(n=><option key={n} value={n}>Kelas {n}</option>)}</select></label><label className="text-sm font-bold">Tahun ajaran<input required value={kelas?.tahun_ajaran||''} onChange={(e)=>setKelas({...kelas,tahun_ajaran:e.target.value})} className="field mt-1.5" placeholder="2026/2027"/></label><label className="text-sm font-bold">Semester<select value={kelas?.semester||1} onChange={(e)=>setKelas({...kelas,semester:Number(e.target.value)})} className="field mt-1.5"><option value={1}>Semester 1 (Ganjil)</option><option value={2}>Semester 2 (Genap)</option></select></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Kelas</button></form>}
+      {tab==='backup'&&<Backup/>}
     </div>
-  )
+  </div>
 }
 
-function ProfilTab() {
-  return (
-    <div className="space-y-4 max-w-md">
-      <h3 className="text-sm font-bold">Profil Guru</h3>
-      <p className="text-xs text-gray-400">Edit profil — data tersimpan di SQLite lokal.</p>
-      {['Nama', 'NIP', 'Sekolah', 'Mata Pelajaran'].map((label) => (
-        <div key={label}>
-          <label className="text-xs font-medium text-gray-700 block mb-1">{label}</label>
-          <input className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} placeholder={label} />
-        </div>
-      ))}
-      <button className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Simpan</button>
-    </div>
-  )
-}
-
-function TahunAjaranTab() {
-  return (
-    <div className="space-y-4 max-w-md">
-      <h3 className="text-sm font-bold">Tahun Ajaran</h3>
-      <div><label className="text-xs font-medium text-gray-700 block mb-1">Tahun Ajaran</label>
-        <select className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}>
-          <option>2025/2026</option>
-          <option>2026/2027</option>
-        </select></div>
-      <div><label className="text-xs font-medium text-gray-700 block mb-1">Semester</label>
-        <select className="w-full rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}>
-          <option value={1}>Ganjil</option>
-          <option value={2}>Genap</option>
-        </select></div>
-      <button className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Simpan</button>
-    </div>
-  )
-}
-
-function BackupTab() {
-  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
-
-  const handleBackup = async () => {
-    setMsg(null)
-    const res = await window.electronAPI.backup.create()
-    if (res.success) setMsg({ ok: true, text: `Backup tersimpan: ${res.path}` })
-    else setMsg({ ok: false, text: 'Backup dibatalkan' })
-  }
-
-  const handleRestore = async () => {
-    setMsg(null)
-    if (!confirm('Restore akan menimpa semua data saat ini. Lanjutkan?')) return
-    const res = await window.electronAPI.backup.restore()
-    if (res.success) { setMsg({ ok: true, text: 'Restore berhasil. Reload aplikasi...' }); setTimeout(() => window.location.reload(), 1500) }
-    else setMsg({ ok: false, text: res.error || 'Restore dibatalkan' })
-  }
-
-  return (
-    <div className="space-y-4 max-w-md">
-      <h3 className="text-sm font-bold">Backup & Restore</h3>
-      <p className="text-xs text-gray-400">Backup seluruh data ke file .bgy terenkripsi.</p>
-      <div className="flex gap-3">
-        <button onClick={handleBackup} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
-          <Download size={16} /> Buat Backup
-        </button>
-        <button onClick={handleRestore} className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}>
-          <Upload size={16} /> Restore
-        </button>
-      </div>
-      {msg && (
-        <div className={`flex items-center gap-2 text-sm ${msg.ok ? 'text-green-700' : 'text-red-600'}`}>
-          {msg.ok ? <CheckCircle size={16} /> : <AlertCircle size={16} />} {msg.text}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function LisensiTab() {
-  return (
-    <div className="space-y-4 max-w-md">
-      <h3 className="text-sm font-bold">Lisensi</h3>
-      <div className="rounded-lg p-3 bg-green-50 border border-green-200 text-sm text-green-800">
-        Status: Aktif
-      </div>
-      <div><label className="text-xs font-medium text-gray-700 block mb-1">Kode Lisensi</label>
-        <input className="w-full rounded-lg px-3 py-2 text-sm border font-mono" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} placeholder="Masukkan kode lisensi" /></div>
-      <button className="rounded-xl px-6 py-2.5 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Aktifkan</button>
-    </div>
-  )
-}
-
-function VersiTab() {
-  return (
-    <div className="space-y-4 max-w-md">
-      <h3 className="text-sm font-bold">Versi & Update</h3>
-      <div className="text-sm">Versi saat ini: <strong>1.0.0</strong></div>
-      <p className="text-xs text-gray-400">Aplikasi Anda sudah yang terbaru.</p>
-    </div>
-  )
-}
+function Backup(){const[msg,setMsg]=useState<{ok:boolean;text:string}|null>(null);const create=async()=>{const result=await window.electronAPI.backup.create();setMsg(result.success?{ok:true,text:`Cadangan tersimpan: ${result.path}`}:{ok:false,text:'Pembuatan cadangan dibatalkan'})};const restore=async()=>{if(!window.confirm('Pemulihan akan menimpa data saat ini. Lanjutkan?'))return;const result=await window.electronAPI.backup.restore();if(result.success){setMsg({ok:true,text:'Data berhasil dipulihkan. Aplikasi akan dimuat ulang.'});setTimeout(()=>window.location.reload(),1300)}else setMsg({ok:false,text:result.error||'Pemulihan dibatalkan'})};return <div className="space-y-4"><div><h3 className="font-extrabold">Data & Cadangan</h3><p className="mt-1 text-xs text-slate-400">Simpan salinan seluruh data sebelum melakukan perubahan besar.</p></div><div className="grid gap-3 md:grid-cols-2"><button onClick={create} className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left text-emerald-800"><Download size={20}/><span><strong className="block">Buat Cadangan</strong><small>Simpan data ke file .bgy</small></span></button><button onClick={restore} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left text-slate-700"><Upload size={20}/><span><strong className="block">Pulihkan Data</strong><small>Pilih file cadangan sebelumnya</small></span></button></div>{msg&&<div className={`flex items-center gap-2 rounded-xl p-3 text-sm font-semibold ${msg.ok?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-700'}`}>{msg.ok?<CheckCircle size={17}/>:<AlertCircle size={17}/>} {msg.text}</div>}</div>}

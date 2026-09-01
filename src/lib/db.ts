@@ -6,7 +6,7 @@ export interface Siswa { id?: number; kelas_id: number; nama: string; nis?: stri
 export interface SiswaFieldDef { id?: number; kelas_id: number; nama_field: string; slug: string; tipe: string; pilihan?: string; wajib: number; urutan: number; created_at: string; updated_at: string }
 export interface SiswaFieldVal { id?: number; siswa_id: number; field_id: number; nilai?: string; updated_at: string }
 export interface Presensi { id?: number; siswa_id: number; kelas_id: number; tanggal: string; status: string; keterangan?: string; created_at: string; updated_at: string }
-export interface MataPelajaran { id?: number; kelas_id: number; nama: string; kode?: string; urutan: number; created_at: string }
+export interface MataPelajaran { id?: number; kelas_id: number; nama: string; kode?: string; urutan: number; is_aktif?: number; created_at: string }
 export interface PenilaianKolom { id?: number; mata_pelajaran_id: number; label: string; bobot: number; tanggal?: string; urutan: number; catatan?: string; created_at: string; updated_at: string }
 export interface Nilai { id?: number; siswa_id: number; kolom_id: number; nilai?: number; catatan?: string; created_at: string; updated_at: string }
 export interface Perilaku { id?: number; siswa_id: number; tanggal: string; jenis: string; kategori?: string; deskripsi: string; tindak_lanjut?: string; created_at: string; updated_at: string }
