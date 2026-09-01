@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { FileDown, Printer } from 'lucide-react'
 import { useSiswaList } from '../../hooks/useSiswa'
 import { useAppStore } from '../../stores/appStore'
@@ -15,10 +15,23 @@ export default function Laporan() {
   const [data, setData] = useState<any[]>([])
   const [identity,setIdentity]=useState({sekolah:'-',kelas:'-',semester:'-',tahun:'-',guru:'-'})
   const filtered = tab==='nilai' ? data : data.filter((item) => {const date=item.tanggal||item.tanggal_mulai;return (!periodeMulai || date >= periodeMulai) && (!periodeSelesai || date <= periodeSelesai)})
+  const reportRows = useMemo(() => {
+    if (tab !== 'presensi') return filtered
+    const rows = new Map<number, any>()
+    for (const student of siswa) rows.set(student.id, { siswa_nama: student.nama, hadir: 0, sakit: 0, izin: 0, alpa: 0, terlambat: 0, total_hari: 0, persentase_kehadiran: '—' })
+    for (const record of filtered) {
+      const row = rows.get(record.siswa_id)
+      if (!row) continue
+      const key = record.status === 'H' ? 'hadir' : record.status === 'S' ? 'sakit' : record.status === 'I' ? 'izin' : record.status === 'T' ? 'terlambat' : 'alpa'
+      row[key] += 1
+      row.total_hari += 1
+    }
+    return Array.from(rows.values()).map((row) => ({ ...row, persentase_kehadiran: row.total_hari ? `${Math.round(((row.hadir + row.terlambat) / row.total_hari) * 100)}%` : '—' }))
+  }, [filtered, siswa, tab])
 
   const exportExcel = async () => {
     const XLSX = await import('xlsx')
-    const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',periodeMulai||'Semua','s/d',periodeSelesai||'Semua'],[],...XLSX.utils.sheet_to_json<any[]>(XLSX.utils.json_to_sheet(filtered),{header:1})]
+    const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',periodeMulai||'Semua','s/d',periodeSelesai||'Semua'],[],...XLSX.utils.sheet_to_json<any[]>(XLSX.utils.json_to_sheet(reportRows),{header:1})]
     const sheet = XLSX.utils.aoa_to_sheet(report)
     const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, tab); XLSX.writeFile(workbook, `laporan-${tab}.xlsx`)
   }
@@ -75,18 +88,17 @@ export default function Laporan() {
         <span className="text-xs text-gray-400">s/d</span>
         <input type="date" value={periodeSelesai} onChange={(e) => setPeriodeSelesai(e.target.value)} className="rounded-lg px-3 py-2 text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} />
         <div className="flex gap-2 ml-auto">
-          <button onClick={exportExcel} disabled={!filtered.length} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> Excel</button>
+          <button onClick={exportExcel} disabled={!reportRows.length} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> Excel</button>
           <button onClick={()=>window.print()} className="flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><Printer size={16} /> Cetak / PDF</button>
         </div>
       </div>
 
-      <div className="report rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}><div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">{filtered.length} data ditemukan</div>
+      <div className="report rounded-xl overflow-hidden" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}><div className="border-b border-slate-100 bg-slate-50 px-4 py-2 text-xs font-semibold text-slate-500">{tab === 'presensi' ? `${reportRows.length} siswa dalam rekap` : `${reportRows.length} data ditemukan`}</div>
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
-              {tab!=='nilai'&&<th className="px-4 py-3 text-left">Tanggal</th>}
-              {tab === 'presensi' && <th className="px-4 py-3 text-left">Siswa</th>}
-              {tab === 'presensi' && <th className="px-4 py-3 text-left">Status</th>}
+              {tab!=='nilai'&&tab!=='presensi'&&<th className="px-4 py-3 text-left">Tanggal</th>}
+              {tab === 'presensi' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Hadir</th><th className="px-3 py-3 text-center">Sakit</th><th className="px-3 py-3 text-center">Izin</th><th className="px-3 py-3 text-center">Alpa</th><th className="px-3 py-3 text-center">Terlambat</th><th className="px-3 py-3 text-center">Total</th><th className="px-3 py-3 text-center">Kehadiran</th></>}
               {tab === 'perilaku' && <th className="px-4 py-3 text-left">Siswa</th>}
               {tab === 'perilaku' && <th className="px-4 py-3 text-left">Jenis</th>}
               {tab === 'perilaku' && <th className="px-4 py-3 text-left">Deskripsi</th>}
@@ -97,11 +109,10 @@ export default function Laporan() {
             </tr>
           </thead>
           <tbody>
-            {tab === 'presensi' && filtered.map((r: any) => (
-              <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-4 py-2">{r.tanggal}</td>
-                <td className="px-4 py-2">{r.siswa_nama}</td>
-                <td className="px-4 py-2"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full text-white ${r.status === 'H'?'bg-emerald-500':r.status === 'S' ? 'bg-blue-500' : r.status === 'I' ? 'bg-amber-500' : 'bg-red-500'}`}>{r.status}</span></td>
+            {tab === 'presensi' && reportRows.map((r: any) => (
+              <tr key={r.siswa_nama} className="border-t border-slate-100 even:bg-slate-50/60">
+                <td className="px-4 py-2.5 font-semibold text-slate-700">{r.siswa_nama}</td>
+                <td className="px-3 py-2.5 text-center font-bold text-emerald-700">{r.hadir}</td><td className="px-3 py-2.5 text-center text-blue-700">{r.sakit}</td><td className="px-3 py-2.5 text-center text-amber-700">{r.izin}</td><td className="px-3 py-2.5 text-center text-red-700">{r.alpa}</td><td className="px-3 py-2.5 text-center text-orange-700">{r.terlambat}</td><td className="px-3 py-2.5 text-center">{r.total_hari}</td><td className="px-3 py-2.5 text-center"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">{r.persentase_kehadiran}</span></td>
               </tr>
             ))}
             {tab === 'perilaku' && filtered.map((r: any) => (
@@ -121,8 +132,8 @@ export default function Laporan() {
             ))}
             {tab === 'nilai' && filtered.map((r:any,index:number)=><tr key={`${r.mata_pelajaran}-${r.siswa_nama}-${index}`} className="border-t border-slate-100"><td className="px-4 py-2 font-semibold">{r.mata_pelajaran}</td><td className="px-4 py-2">{r.siswa_nama}</td><td className="px-4 py-2 text-center">{r.rata_harian}</td><td className="px-4 py-2 text-center">{r.uts}</td><td className="px-4 py-2 text-center">{r.uas}</td><td className="px-4 py-2 text-center font-extrabold text-emerald-700">{r.nilai_akhir}</td></tr>)}
             {tab==='kalender'&&filtered.map((r:any)=><tr key={r.id} className="border-t border-slate-100"><td className="px-4 py-2">{r.tanggal_mulai}{r.tanggal_selesai?` – ${r.tanggal_selesai}`:''}</td><td className="px-4 py-2 font-semibold">{r.judul}</td><td className="px-4 py-2 capitalize">{r.jenis.replace('_',' ')}</td></tr>)}
-            {filtered.length === 0 && (
-              <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={5}>Belum ada data</td></tr>
+            {reportRows.length === 0 && (
+              <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={8}>Belum ada data</td></tr>
             )}
           </tbody>
         </table>
