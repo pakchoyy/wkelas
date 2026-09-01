@@ -108,6 +108,9 @@ const electronAPI: ElectronAPI = {
       return db.mata_pelajaran.get(id)
     },
     delete: async (id: number) => {
+      const koloms = await db.penilaian_kolom.where({ mata_pelajaran_id: id }).toArray()
+      const kolomIds = koloms.map((k) => k.id!).filter(Boolean)
+      if (kolomIds.length > 0) await db.nilai.where('kolom_id').anyOf(kolomIds).delete()
       await db.mata_pelajaran.delete(id)
       await db.penilaian_kolom.where({ mata_pelajaran_id: id }).delete()
       return { success: true }
