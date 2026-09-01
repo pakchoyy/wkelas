@@ -1,17 +1,40 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertCircle, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Info, Lightbulb, Save, X } from 'lucide-react'
+import { AlertCircle, BarChart3, CalendarDays, CheckCircle2, ChevronLeft, ChevronRight, Info, Lightbulb, Save, Settings2, X } from 'lucide-react'
 import { useSiswaList } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
 import { todayISO } from '../../../../shared/utils'
+import { db } from '../../../../lib/db'
+import Modal from '../../../components/Modal'
 
 const STATUS = ['H', 'S', 'I', 'A', 'T'] as const
 type Status = typeof STATUS[number]
+type Settings = { autoHadir: boolean; hariSekolah: 5 | 6; semester: 1 | 2; s1Mulai: string; s1Akhir: string; s2Mulai: string; s2Akhir: string }
+const defaultSettings: Settings = { autoHadir: true, hariSekolah: 5, semester: 1, s1Mulai: '2026-07-01', s1Akhir: '2026-12-31', s2Mulai: '2027-01-01', s2Akhir: '2027-06-30' }
 const config: Record<Status, { label: string; dot: string; soft: string; text: string; line: string }> = {
   H: { label: 'Hadir', dot: 'bg-emerald-500', soft: 'bg-emerald-100', text: 'text-emerald-700', line: 'border-l-emerald-500' },
   S: { label: 'Sakit', dot: 'bg-blue-500', soft: 'bg-blue-100', text: 'text-blue-700', line: 'border-l-blue-500' },
   I: { label: 'Izin', dot: 'bg-amber-500', soft: 'bg-amber-100', text: 'text-amber-700', line: 'border-l-amber-500' },
   A: { label: 'Alpa', dot: 'bg-red-500', soft: 'bg-red-100', text: 'text-red-700', line: 'border-l-red-500' },
   T: { label: 'Terlambat', dot: 'bg-orange-500', soft: 'bg-orange-100', text: 'text-orange-700', line: 'border-l-orange-500' },
+}
+
+function SettingsModal({ value, onClose, onSave }: { value: Settings; onClose: () => void; onSave: (v: Settings) => void }) {
+  const [form, setForm] = useState(value)
+  return <Modal title="Pengaturan Presensi" onClose={onClose} maxWidth="max-w-lg" footer={<><button onClick={onClose} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Batal</button><button onClick={() => onSave(form)} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold">Simpan Pengaturan</button></>}><div className="space-y-5">
+    <div className="rounded-xl border border-slate-200 p-4 flex items-center"><div><div className="font-bold text-sm">Auto Hadir</div><p className="text-xs text-slate-500 mt-1">Siswa otomatis dianggap hadir sampai statusnya diubah.</p></div><button onClick={() => setForm({ ...form, autoHadir: !form.autoHadir })} className={`ml-auto w-12 h-7 rounded-full p-1 transition ${form.autoHadir ? 'bg-emerald-600' : 'bg-slate-300'}`}><span className={`block w-5 h-5 rounded-full bg-white shadow transition ${form.autoHadir ? 'translate-x-5' : ''}`}/></button></div>
+    <label className="text-sm font-bold text-slate-700 block">Hari sekolah<select value={form.hariSekolah} onChange={(e) => setForm({ ...form, hariSekolah: Number(e.target.value) as 5|6 })} className="field mt-2"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label>
+    {[1,2].map((sem) => <div key={sem} className="rounded-xl bg-slate-50 border border-slate-200 p-4"><div className="font-bold text-sm mb-3">Semester {sem}</div><div className="grid grid-cols-2 gap-3"><label className="text-xs font-semibold">Tanggal mulai<input type="date" value={sem === 1 ? form.s1Mulai : form.s2Mulai} onChange={(e) => setForm({ ...form, [sem === 1 ? 's1Mulai' : 's2Mulai']: e.target.value })} className="field mt-1"/></label><label className="text-xs font-semibold">Tanggal akhir<input type="date" value={sem === 1 ? form.s1Akhir : form.s2Akhir} onChange={(e) => setForm({ ...form, [sem === 1 ? 's1Akhir' : 's2Akhir']: e.target.value })} className="field mt-1"/></label></div></div>)}
+  </div></Modal>
+}
+
+function Rekap({ siswa, records, settings, setSettings }: { siswa: any[]; records: any[]; settings: Settings; setSettings: (v: Settings) => void }) {
+  const start = settings.semester === 1 ? settings.s1Mulai : settings.s2Mulai
+  const end = settings.semester === 1 ? settings.s1Akhir : settings.s2Akhir
+  const filtered = records.filter((r) => r.tanggal >= start && r.tanggal <= end)
+  const totalHari = new Set(filtered.map((r) => r.tanggal)).size
+  return <div><div className="rounded-2xl bg-white border border-slate-200 p-4 mb-4 flex items-center"><BarChart3 size={20} className="text-emerald-600 mr-3"/><div><div className="font-extrabold">Rekap Presensi Semester {settings.semester}</div><div className="text-xs text-slate-500 mt-1">{start} sampai {end} · {totalHari} hari tercatat</div></div><select value={settings.semester} onChange={(e) => setSettings({ ...settings, semester: Number(e.target.value) as 1|2 })} className="ml-auto field !w-auto"><option value={1}>Semester 1</option><option value={2}>Semester 2</option></select></div>
+    <div className="rounded-2xl bg-white border border-slate-200 overflow-x-auto"><table className="w-full text-sm min-w-[700px]"><thead><tr className="bg-slate-50 text-xs uppercase text-slate-500 border-b border-slate-200"><th className="px-4 py-3 text-left">No.</th><th className="px-4 py-3 text-left">Nama Siswa</th>{STATUS.map((s) => <th key={s} className="px-4 py-3 text-center">{config[s].label}</th>)}<th className="px-4 py-3 text-center">Kehadiran</th></tr></thead><tbody>{siswa.map((s, i) => { const own = filtered.filter((r) => r.siswa_id === s.id); const c = Object.fromEntries(STATUS.map((st) => [st, own.filter((r) => r.status === st).length])) as Record<Status,number>; const pct = own.length ? Math.round(c.H / own.length * 100) : 0; return <tr key={s.id} className={`${i%2?'bg-slate-50/60':'bg-white'} border-b border-slate-100`}><td className="px-4 py-3">{i+1}</td><td className="px-4 py-3 font-bold">{s.nama}</td>{STATUS.map((st) => <td key={st} className={`px-4 py-3 text-center font-semibold ${config[st].text}`}>{c[st]}</td>)}<td className="px-4 py-3 text-center font-extrabold text-emerald-700">{pct}%</td></tr>})}</tbody></table></div>
+  </div>
 }
 
 function addDays(date: string, amount: number) { const d = new Date(`${date}T12:00:00`); d.setDate(d.getDate() + amount); return d.toISOString().slice(0, 10) }
@@ -28,6 +51,10 @@ export default function Presensi() {
   const [activeId, setActiveId] = useState<number | null>(null)
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
+  const [tab, setTab] = useState<'harian' | 'rekap'>('harian')
+  const [settings, setSettings] = useState<Settings>(defaultSettings)
+  const [showSettings, setShowSettings] = useState(false)
+  const [rekapRecords, setRekapRecords] = useState<any[]>([])
 
   useEffect(() => { if (!kelasId || !tanggal) return; ;(async () => {
     const res = await window.electronAPI.presensi.get(kelasId, tanggal)
@@ -36,22 +63,30 @@ export default function Presensi() {
     setStatusMap(sm); setKeteranganMap(km); setActiveId(null)
   })() }, [kelasId, tanggal])
   useEffect(() => { if (!toast) return; const t = setTimeout(() => setToast(null), 3500); return () => clearTimeout(t) }, [toast])
+  useEffect(() => { db.pengaturan.get(`presensi_${kelasId}`).then((x) => { if (x?.value) try { setSettings({ ...defaultSettings, ...JSON.parse(x.value) }) } catch {} }) }, [kelasId])
+  useEffect(() => { if (tab === 'rekap') window.electronAPI.presensi.listByKelas(kelasId).then(setRekapRecords) }, [tab, kelasId])
 
-  const getStatus = (id: number) => statusMap[id] || 'H'
+  const getStatus = (id: number): Status | null => statusMap[id] || (settings.autoHadir ? 'H' : null)
   const setStatus = (id: number, status: Status) => { setStatusMap((m) => ({ ...m, [id]: status })); if (status === 'H') setKeteranganMap((m) => ({ ...m, [id]: '' })) }
   const counts = Object.fromEntries(STATUS.map((st) => [st, siswa.filter((s) => getStatus(s.id) === st).length])) as Record<Status, number>
+  const selectedDay = new Date(`${tanggal}T12:00:00`).getDay()
+  const isSchoolDay = selectedDay >= 1 && selectedDay <= settings.hariSekolah
   const hadirkanSemua = () => { setStatusMap(Object.fromEntries(siswa.map((s) => [s.id, 'H']))); setKeteranganMap({}); setToast({ type: 'success', text: 'Semua siswa ditandai hadir. Tekan Simpan Presensi untuk menyimpan.' }) }
 
   const save = async () => {
+    if (siswa.some((s) => !getStatus(s.id))) { setToast({ type: 'error', text: 'Masih ada siswa yang belum dipilih statusnya.' }); return }
     setSaving(true)
     try {
-      await window.electronAPI.presensi.save(siswa.map((s) => ({ siswa_id: s.id, kelas_id: kelasId, tanggal, status: getStatus(s.id), keterangan: keteranganMap[s.id] || undefined })))
+      await window.electronAPI.presensi.save(siswa.map((s) => ({ siswa_id: s.id, kelas_id: kelasId, tanggal, status: getStatus(s.id)!, keterangan: keteranganMap[s.id] || undefined })))
       setToast({ type: 'success', text: `Presensi ${longDate(tanggal)} berhasil disimpan.` })
     } catch { setToast({ type: 'error', text: 'Presensi gagal disimpan. Silakan coba lagi.' }) }
     finally { setSaving(false) }
   }
 
+  const saveSettings = async (next: Settings) => { setSettings(next); await db.pengaturan.put({ key: `presensi_${kelasId}`, value: JSON.stringify(next), updated_at: new Date().toISOString() }); setShowSettings(false); setToast({ type: 'success', text: 'Pengaturan presensi berhasil disimpan.' }) }
   return <div className="max-w-5xl mx-auto pb-24">
+    <div className="flex items-center justify-between mb-4"><div className="flex rounded-xl bg-slate-200/70 p-1"><button onClick={() => setTab('harian')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'harian' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Presensi Harian</button><button onClick={() => setTab('rekap')} className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === 'rekap' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}>Rekap Semester</button></div><button onClick={() => setShowSettings(true)} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-600 flex gap-2 items-center"><Settings2 size={16}/>Pengaturan</button></div>
+    {tab === 'rekap' ? <Rekap siswa={siswa} records={rekapRecords} settings={settings} setSettings={setSettings}/> : <>
     <div className="rounded-2xl bg-white border border-slate-200 p-2.5 flex items-center justify-between mb-4">
       <button onClick={() => setTanggal(addDays(tanggal, -1))} className="w-11 h-11 rounded-xl border border-slate-200 grid place-items-center hover:bg-slate-50"><ChevronLeft size={21}/></button>
       <div className="text-center"><h1 className="font-extrabold text-slate-900 capitalize">{longDate(tanggal)}</h1><p className="text-xs text-slate-400 mt-0.5">Presensi harian kelas</p></div>
@@ -62,18 +97,21 @@ export default function Presensi() {
 
     <div className="rounded-2xl bg-white border border-slate-200 p-4 mb-4 text-sm">
       <div className="flex gap-2 items-center text-slate-600"><Lightbulb size={17} className="text-amber-500"/><strong className="text-slate-800">Klik kartu siswa</strong><span>untuk mengubah status kehadiran.</span></div>
-      <div className="flex gap-2 items-center mt-3 pt-3 border-t border-slate-100"><Info size={17} className="text-blue-500"/><span className="text-slate-600">Semua siswa otomatis dianggap <strong className="text-emerald-700">Hadir</strong>.</span><button onClick={hadirkanSemua} className="ml-auto text-emerald-700 font-bold hover:underline">Hadirkan Semua</button></div>
+      <div className="flex gap-2 items-center mt-3 pt-3 border-t border-slate-100"><Info size={17} className="text-blue-500"/><span className="text-slate-600">Auto Hadir: <strong className={settings.autoHadir ? 'text-emerald-700' : 'text-slate-500'}>{settings.autoHadir ? 'AKTIF' : 'NONAKTIF'}</strong>.</span><button onClick={() => setShowSettings(true)} className="ml-auto text-emerald-700 font-bold hover:underline">Ubah</button></div>
     </div>
+
+    {!isSchoolDay && <div className="rounded-xl bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 mb-4 text-sm font-semibold">Tanggal ini bukan hari sekolah berdasarkan pengaturan. Presensi tidak dapat disimpan.</div>}
 
     {loading ? <div className="py-16 text-center text-slate-400">Memuat siswa...</div> : siswa.length === 0 ? <div className="rounded-2xl border border-dashed border-slate-300 bg-white py-16 text-center"><div className="font-bold text-slate-700">Belum ada siswa</div><p className="text-sm text-slate-400 mt-1">Tambahkan siswa terlebih dahulu melalui menu Data Siswa.</p></div> : <div className="space-y-3">{siswa.map((s, index) => {
       const st = getStatus(s.id); const open = activeId === s.id
-      return <div key={s.id} className={`rounded-2xl bg-white border border-slate-200 border-l-4 ${config[st].line} overflow-hidden transition shadow-sm hover:shadow-md`}>
-        <button onClick={() => setActiveId(open ? null : s.id)} className="w-full px-5 py-4 flex items-center gap-4 text-left"><div className="w-11 h-11 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 text-white grid place-items-center font-extrabold">{initials(s.nama)}</div><div className="flex-1 min-w-0"><div className="font-extrabold text-slate-900 truncate">{s.nama}</div><div className="text-sm text-slate-400 mt-0.5">No. {index + 1}</div></div><span className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${config[st].soft} ${config[st].text}`}>{config[st].label}</span></button>
-        {open && <div className="px-5 pb-4 pt-1 border-t border-slate-100 bg-slate-50/60"><div className="text-xs font-bold text-slate-500 mb-2.5">Pilih status kehadiran</div><div className="flex flex-wrap gap-2">{STATUS.map((option) => <button key={option} onClick={() => setStatus(s.id, option)} className={`rounded-xl px-3.5 py-2 text-xs font-bold border transition ${st === option ? `${config[option].soft} ${config[option].text} border-current` : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>{config[option].label}</button>)}</div>{st !== 'H' && <input value={keteranganMap[s.id] || ''} onChange={(e) => setKeteranganMap((m) => ({ ...m, [s.id]: e.target.value }))} placeholder="Keterangan (opsional), misalnya demam atau izin keluarga" className="field mt-3"/>}</div>}
+      return <div key={s.id} className={`rounded-2xl bg-white border border-slate-200 border-l-4 ${st ? config[st].line : 'border-l-slate-300'} overflow-hidden transition shadow-sm hover:shadow-md`}>
+        <button onClick={() => setActiveId(open ? null : s.id)} className="w-full px-5 py-4 flex items-center gap-4 text-left"><div className="w-11 h-11 rounded-full bg-gradient-to-br from-teal-500 to-cyan-700 text-white grid place-items-center font-extrabold">{initials(s.nama)}</div><div className="flex-1 min-w-0"><div className="font-extrabold text-slate-900 truncate">{s.nama}</div><div className="text-sm text-slate-400 mt-0.5">No. {index + 1}</div></div>{st ? <span className={`rounded-full px-3.5 py-1.5 text-sm font-bold ${config[st].soft} ${config[st].text}`}>{config[st].label}</span> : <span className="rounded-full px-3.5 py-1.5 text-sm font-bold bg-slate-100 text-slate-500">Belum diisi</span>}</button>
+        {open && <div className="px-5 pb-4 pt-1 border-t border-slate-100 bg-slate-50/60"><div className="text-xs font-bold text-slate-500 mb-2.5">Pilih status kehadiran</div><div className="flex flex-wrap gap-2">{STATUS.map((option) => <button key={option} onClick={() => setStatus(s.id, option)} className={`rounded-xl px-3.5 py-2 text-xs font-bold border transition ${st === option ? `${config[option].soft} ${config[option].text} border-current` : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>{config[option].label}</button>)}</div>{st && st !== 'H' && <input value={keteranganMap[s.id] || ''} onChange={(e) => setKeteranganMap((m) => ({ ...m, [s.id]: e.target.value }))} placeholder="Keterangan (opsional), misalnya demam atau izin keluarga" className="field mt-3"/>}</div>}
       </div>
     })}</div>}
 
-    {siswa.length > 0 && <div className="fixed bottom-5 right-6 z-40"><button onClick={save} disabled={saving} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3.5 font-bold shadow-xl flex items-center gap-2 disabled:opacity-50"><Save size={18}/>{saving ? 'Menyimpan...' : 'Simpan Presensi'}</button></div>}
+    {siswa.length > 0 && <div className="fixed bottom-5 right-6 z-40"><button onClick={save} disabled={saving || !isSchoolDay} className="rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3.5 font-bold shadow-xl flex items-center gap-2 disabled:opacity-50"><Save size={18}/>{saving ? 'Menyimpan...' : 'Simpan Presensi'}</button></div>}</>}
+    {showSettings && <SettingsModal value={settings} onClose={() => setShowSettings(false)} onSave={saveSettings}/>} 
     {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border bg-white px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'border-emerald-200 text-emerald-800' : 'border-red-200 text-red-800'}`}>{toast.type === 'success' ? <span className="w-8 h-8 rounded-full bg-emerald-100 grid place-items-center"><CheckCircle2 size={18}/></span> : <span className="w-8 h-8 rounded-full bg-red-100 grid place-items-center"><AlertCircle size={18}/></span>}<span>{toast.text}</span><button onClick={() => setToast(null)} className="ml-3 opacity-50"><X size={15}/></button></div></div>}
   </div>
 }
