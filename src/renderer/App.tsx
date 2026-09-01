@@ -1,5 +1,6 @@
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
+import OnboardingGate from './components/OnboardingGate'
 import Dashboard from './pages/dashboard/Dashboard'
 import DataSiswa from './pages/siswa/data-siswa/DataSiswa'
 import Presensi from './pages/siswa/presensi/Presensi'
@@ -21,7 +22,7 @@ export default function App() {
       <Routes>
         {/* Login dinonaktifkan sementara selama pengembangan fitur. */}
         <Route path="/login" element={<Navigate to="/" replace />} />
-        <Route element={<Layout />}>
+        <Route element={<OnboardingGate><Layout /></OnboardingGate>}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/siswa/data-siswa" element={<DataSiswa />} />
           <Route path="/siswa/presensi" element={<Presensi />} />
