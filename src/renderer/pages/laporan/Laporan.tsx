@@ -16,17 +16,33 @@ export default function Laporan() {
   const [identity,setIdentity]=useState({sekolah:'-',kelas:'-',semester:'-',tahun:'-',guru:'-'})
   const filtered = tab==='nilai' ? data : data.filter((item) => {const date=item.tanggal||item.tanggal_mulai;return (!periodeMulai || date >= periodeMulai) && (!periodeSelesai || date <= periodeSelesai)})
   const reportRows = useMemo(() => {
-    if (tab !== 'presensi') return filtered
-    const rows = new Map<number, any>()
-    for (const student of siswa) rows.set(student.id, { siswa_nama: student.nama, hadir: 0, sakit: 0, izin: 0, alpa: 0, terlambat: 0, total_hari: 0, persentase_kehadiran: '—' })
-    for (const record of filtered) {
-      const row = rows.get(record.siswa_id)
-      if (!row) continue
-      const key = record.status === 'H' ? 'hadir' : record.status === 'S' ? 'sakit' : record.status === 'I' ? 'izin' : record.status === 'T' ? 'terlambat' : 'alpa'
-      row[key] += 1
-      row.total_hari += 1
+    if (tab === 'presensi') {
+      const rows = new Map<number, any>()
+      for (const student of siswa) rows.set(student.id, { siswa_nama: student.nama, hadir: 0, sakit: 0, izin: 0, alpa: 0, terlambat: 0, total_hari: 0, persentase_kehadiran: '—' })
+      for (const record of filtered) {
+        const row = rows.get(record.siswa_id)
+        if (!row) continue
+        const key = record.status === 'H' ? 'hadir' : record.status === 'S' ? 'sakit' : record.status === 'I' ? 'izin' : record.status === 'T' ? 'terlambat' : 'alpa'
+        row[key] += 1
+        row.total_hari += 1
+      }
+      return Array.from(rows.values()).map((row) => ({ ...row, persentase_kehadiran: row.total_hari ? `${Math.round(((row.hadir + row.terlambat) / row.total_hari) * 100)}%` : '—' }))
     }
-    return Array.from(rows.values()).map((row) => ({ ...row, persentase_kehadiran: row.total_hari ? `${Math.round(((row.hadir + row.terlambat) / row.total_hari) * 100)}%` : '—' }))
+    if (tab === 'perilaku') {
+      const rows = new Map<number, any>()
+      for (const student of siswa) rows.set(student.id, { siswa_nama: student.nama, positif: 0, perhatian: 0, catatan_terakhir: '—', tindak_lanjut: '—', tanggal_terakhir: '' })
+      for (const record of [...filtered].sort((a, b) => a.tanggal.localeCompare(b.tanggal))) {
+        const row = rows.get(record.siswa_id)
+        if (!row) continue
+        if (record.jenis === 'positif') row.positif += 1
+        else row.perhatian += 1
+        row.catatan_terakhir = record.kategori || record.deskripsi || '—'
+        row.tindak_lanjut = record.tindak_lanjut || '—'
+        row.tanggal_terakhir = record.tanggal
+      }
+      return Array.from(rows.values())
+    }
+    return filtered
   }, [filtered, siswa, tab])
 
   const exportExcel = async () => {
@@ -97,11 +113,9 @@ export default function Laporan() {
         <table className="w-full text-sm">
           <thead>
             <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
-              {tab!=='nilai'&&tab!=='presensi'&&<th className="px-4 py-3 text-left">Tanggal</th>}
+              {tab!=='nilai'&&tab!=='presensi'&&tab!=='perilaku'&&<th className="px-4 py-3 text-left">Tanggal</th>}
               {tab === 'presensi' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Hadir</th><th className="px-3 py-3 text-center">Sakit</th><th className="px-3 py-3 text-center">Izin</th><th className="px-3 py-3 text-center">Alpa</th><th className="px-3 py-3 text-center">Terlambat</th><th className="px-3 py-3 text-center">Total</th><th className="px-3 py-3 text-center">Kehadiran</th></>}
-              {tab === 'perilaku' && <th className="px-4 py-3 text-left">Siswa</th>}
-              {tab === 'perilaku' && <th className="px-4 py-3 text-left">Jenis</th>}
-              {tab === 'perilaku' && <th className="px-4 py-3 text-left">Deskripsi</th>}
+              {tab === 'perilaku' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Positif</th><th className="px-3 py-3 text-center">Perlu Perhatian</th><th className="px-4 py-3 text-left">Catatan Terakhir</th><th className="px-4 py-3 text-left">Tindak Lanjut</th></>}
               {tab === 'jurnal' && <th className="px-4 py-3 text-left">Mapel</th>}
               {tab === 'jurnal' && <th className="px-4 py-3 text-left">Materi</th>}
               {tab === 'nilai' && <><th className="px-4 py-3 text-left">Mata Pelajaran</th><th className="px-4 py-3 text-left">Siswa</th><th className="px-4 py-3 text-center">Harian</th><th className="px-4 py-3 text-center">UTS</th><th className="px-4 py-3 text-center">UAS</th><th className="px-4 py-3 text-center">Nilai Akhir</th></>}
@@ -115,12 +129,13 @@ export default function Laporan() {
                 <td className="px-3 py-2.5 text-center font-bold text-emerald-700">{r.hadir}</td><td className="px-3 py-2.5 text-center text-blue-700">{r.sakit}</td><td className="px-3 py-2.5 text-center text-amber-700">{r.izin}</td><td className="px-3 py-2.5 text-center text-red-700">{r.alpa}</td><td className="px-3 py-2.5 text-center text-orange-700">{r.terlambat}</td><td className="px-3 py-2.5 text-center">{r.total_hari}</td><td className="px-3 py-2.5 text-center"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-extrabold text-emerald-700">{r.persentase_kehadiran}</span></td>
               </tr>
             ))}
-            {tab === 'perilaku' && filtered.map((r: any) => (
-              <tr key={r.id} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-4 py-2">{r.tanggal}</td>
-                <td className="px-4 py-2">{r.siswa_nama}</td>
-                <td className="px-4 py-2"><span className={`text-xs font-semibold px-2 py-0.5 rounded-full text-white ${r.jenis === 'positif' ? 'bg-green-500' : 'bg-red-500'}`}>{r.jenis}</span></td>
-                <td className="px-4 py-2 text-xs">{r.deskripsi}</td>
+            {tab === 'perilaku' && reportRows.map((r: any) => (
+              <tr key={r.siswa_nama} className="border-t border-slate-100 even:bg-slate-50/60">
+                <td className="px-4 py-2.5 font-semibold text-slate-700">{r.siswa_nama}</td>
+                <td className="px-3 py-2.5 text-center"><span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700">{r.positif}</span></td>
+                <td className="px-3 py-2.5 text-center"><span className="rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-700">{r.perhatian}</span></td>
+                <td className="px-4 py-2.5"><div className="text-sm font-semibold">{r.catatan_terakhir}</div>{r.tanggal_terakhir && <div className="mt-0.5 text-xs text-slate-400">{r.tanggal_terakhir}</div>}</td>
+                <td className="px-4 py-2.5 text-xs text-slate-600">{r.tindak_lanjut}</td>
               </tr>
             ))}
             {tab === 'jurnal' && filtered.map((r: any) => (
