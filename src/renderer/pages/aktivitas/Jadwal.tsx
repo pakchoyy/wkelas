@@ -213,10 +213,8 @@ export default function Jadwal() {
       {showSettings && <Modal title="Pengaturan Jadwal" onClose={() => setShowSettings(false)} footer={<button onClick={saveSettings} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold">Simpan Pengaturan</button>}><div className="space-y-4"><label className="text-sm font-bold block">Hari sekolah<select value={settingsDraft.hariSekolah} onChange={(e) => setSettingsDraft({...settingsDraft,hariSekolah:Number(e.target.value)})} className="field mt-2"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label><label className="text-sm font-bold block">Jumlah jam pelajaran per hari<input type="number" min={1} max={16} value={settingsDraft.jumlahJam} onChange={(e) => setSettingsDraft({...settingsDraft,jumlahJam:Number(e.target.value)})} className="field mt-2"/></label><p className="text-xs text-slate-500">Pilih mata pelajaran pada setiap kotak. Tombol <strong>Istirahat semua hari</strong> hanya dipakai bila seluruh kelas istirahat pada jam tersebut; satu kali klik akan menghapus mapel pada baris itu.</p></div></Modal>}
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-sm max-h-[90dvh] overflow-y-auto rounded-2xl" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow-lg)' }}>
-            <div className="flex items-center justify-between px-4 py-3 border-b"><h3 className="text-sm font-bold">{editId ? 'Edit' : 'Tambah'} Jadwal</h3><button onClick={() => setShowForm(false)} aria-label="Tutup formulir jadwal" className="size-11 hover:bg-gray-100 rounded-lg">✕</button></div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">
+        <Modal title={`${editId ? 'Edit' : 'Tambah'} Jadwal`} onClose={() => { if (!importing) setShowForm(false) }} maxWidth="max-w-sm">
+            <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="text-xs font-medium text-gray-700 block mb-1">Hari</label>
                   <select value={form.hari} onChange={(e) => setForm({ ...form, hari: parseInt(e.target.value) })} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base sm:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}>
@@ -244,15 +242,14 @@ export default function Jadwal() {
                 <div><label className="text-xs font-medium text-gray-700 block mb-1">Ruang</label>
                   <input value={form.ruang} onChange={(e) => setForm({ ...form, ruang: e.target.value })} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base sm:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
               </div>
-              <div className="flex gap-3 justify-end pt-2">
+              <div className="flex flex-wrap gap-3 justify-end pt-2">
                 <button type="button" onClick={async () => { if (editId) { if (!window.confirm('Hapus jadwal ini?')) return; await window.electronAPI.jadwal.delete(editId); await load(); setToast({ text: 'Jadwal berhasil dihapus' }) }; setShowForm(false) }}
                   className="rounded-xl px-4 py-2 text-sm font-semibold text-red-600 border border-red-200" style={{ background: '#fef2f2' }}>
                   <Trash2 size={14} className="inline mr-1" />{editId ? 'Hapus' : 'Batal'}</button>
                 <button type="submit" className="rounded-xl px-6 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Simpan</button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </fieldset>
   )

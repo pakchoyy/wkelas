@@ -5,6 +5,7 @@ import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 import type { KalenderAkademik } from '../../../shared/types'
 import { db } from '../../../lib/db'
+import Modal from '../../components/Modal'
 
 const JENIS_WARNA: Record<string, string> = { libur_nasional: '#dc2626', libur_sekolah: '#d97706', ujian: '#2563eb', rapat: '#7c3aed', kegiatan: '#0ea5a0', lainnya: '#6b7280' }
 
@@ -91,10 +92,8 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
       </div>
 
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-md max-h-[90dvh] overflow-y-auto rounded-2xl" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow-lg)' }}>
-            <div className="flex items-center justify-between px-4 py-3 border-b"><h3 className="text-sm font-bold">{editId?'Edit Kegiatan':'Tambah Kegiatan'}</h3><button onClick={() => setShowForm(false)} aria-label="Tutup formulir kegiatan" className="size-11 hover:bg-gray-100 rounded-lg">✕</button></div>
-            <form onSubmit={handleSubmit} className="p-4 space-y-3">{formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
+        <Modal title={editId ? 'Edit Kegiatan' : 'Tambah Kegiatan'} onClose={() => { if (!busy) setShowForm(false) }}>
+            <form onSubmit={handleSubmit} className="space-y-3">{formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
               <div><label className="text-xs font-medium text-gray-700 block mb-1">Judul</label><input aria-label="Judul kegiatan" value={form.judul} onChange={(e) => setForm({ ...form, judul: e.target.value })} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base lg:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} required /></div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><label className="text-xs font-medium text-gray-700 block mb-1">Mulai</label><input type="date" aria-label="Tanggal mulai" value={form.tanggal_mulai} onChange={(e) => setForm({ ...form, tanggal_mulai: e.target.value })} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base lg:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
@@ -110,13 +109,12 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
                   <option value="lainnya">Lainnya</option>
                 </select></div>
               <div><label className="text-xs font-medium text-gray-700 block mb-1">Deskripsi</label><textarea aria-label="Deskripsi kegiatan" value={form.deskripsi} onChange={(e) => setForm({ ...form, deskripsi: e.target.value })} rows={2} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base lg:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
-              <div className="flex gap-3 justify-end pt-2">
+              <div className="flex flex-wrap gap-3 justify-end pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="min-h-11 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}>Batal</button>
                 <button type="submit" className="min-h-11 rounded-xl px-6 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Simpan</button>
               </div>
             </form>
-          </div>
-        </div>
+        </Modal>
       )}
     </fieldset></div>
   )
