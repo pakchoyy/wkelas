@@ -1,5 +1,5 @@
 import { classWeightKey } from '../../../lib/grade-periods'
-import { calculateGrade } from '../../../shared/grades'
+import { calculateGrade, readGradeWeights } from '../../../shared/grades'
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { FileDown, Printer } from 'lucide-react'
 import { useSiswaList } from '../../hooks/useSiswa'
@@ -67,6 +67,7 @@ export default function Laporan() {
     try {
     const XLSX = await import('xlsx')
     const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',tab==='nilai' ? `${identity.tahun} Semester ${identity.semester}` : `${periodeMulai||'Semua'} s/d ${periodeSelesai||'Semua'}`],[],...reportTable(tab, reportRows)]
+    if (tab === 'nilai') report.push([], ['* Nilai sementara: komponen belum lengkap. Nilai kosong tidak dianggap 0; bobot dihitung dari komponen yang tersedia.'])
     const sheet = XLSX.utils.aoa_to_sheet(report)
     sheet['!cols'] = reportTable(tab, []).at(0)!.map(label => ({ wch: Math.max(18, String(label).length + 4) }))
     const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, tab); XLSX.writeFile(workbook, `laporan-${tab}.xlsx`)
@@ -104,7 +105,7 @@ export default function Laporan() {
         update(await window.electronAPI.kalender.list(kelasId))
       } else if(tab==='nilai') {
         const subjects=(await window.electronAPI.mapel.list(kelasId)).filter((item:any)=>item.is_aktif!==0)
-        const setting=await db.pengaturan.get(await classWeightKey(db,kelasId));let weights={harian:40,uts:25,uas:35};if(setting?.value)try{weights={...weights,...JSON.parse(setting.value)}}catch{}
+        const setting=await db.pengaturan.get(await classWeightKey(db,kelasId)); const weights=readGradeWeights(setting?.value)
         const result:any[]=[]
         for (const subject of subjects) {
           const columns = await window.electronAPI.kolom.list(subject.id)

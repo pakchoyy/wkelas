@@ -16,6 +16,57 @@ registerHooks({resolve(specifier,context,next) {
 }})
 const {BgyDatabase} = await import('../src/lib/db.ts')
 const {gradePeriod,gradeWeightKey,calculateGrade} = await import('../src/shared/grades.ts')
+const {validateGradeWeights,readGradeWeights} = await import('../src/shared/grades.ts')
+const {saveGradeWeights} = await import('../src/lib/grade-periods.ts')
+
+test('weight validation rejects negative, nonfinite, incomplete and incorrect totals', () => {
+  for (const weights of [{harian:-10,uts:40,uas:70},{harian:101,uts:0,uas:-1},{harian:NaN,uts:25,uas:35},{harian:40,uts:25},{harian:50,uts:25,uas:35},{harian:'40',uts:25,uas:35}]) {
+    assert.throws(() => validateGradeWeights(weights))
+  }
+  assert.deepEqual(readGradeWeights(),{harian:40,uts:25,uas:35})
+  assert.deepEqual(validateGradeWeights({harian:33.3,uts:33.3,uas:33.4}),{harian:33.3,uts:33.3,uas:33.4})
+  assert.throws(() => readGradeWeights('{broken'))
+})
+
+test('saved weights affect calculation only after persistence and cannot cross semesters',async t => {
+  const db = await fixture(t)
+  const key = await classWeightKey(db,1)
+  const before = await db.pengaturan.get(key)
+  await assert.rejects(saveGradeWeights(db,1,key,{harian:-10,uts:40,uas:70}))
+  assert.deepEqual(await db.pengaturan.get(key),before)
+  const draft = {harian:0,uts:0,uas:100}
+  assert.notDeepEqual(readGradeWeights((await db.pengaturan.get(key)).value),draft)
+  await saveGradeWeights(db,1,key,draft)
+  assert.deepEqual(readGradeWeights((await db.pengaturan.get(key)).value),draft)
+  await saveClassPeriod(db,{...await db.kelas.get(1),semester:2})
+  await assert.rejects(saveGradeWeights(db,1,key,{harian:100,uts:0,uas:0}),/Periode/)
+  assert.deepEqual(readGradeWeights((await db.pengaturan.get(key)).value),draft)
+  assert.deepEqual(readGradeWeights((await db.pengaturan.get(await classWeightKey(db,1))).value),{harian:40,uts:25,uas:35})
+})
+
+test('weight storage failure preserves prior weights',async t => {
+  const db = await fixture(t)
+  const key = await classWeightKey(db,1)
+  const before = await db.pengaturan.get(key)
+  const fail = () => {throw new Error('Storage unavailable')}
+  db.pengaturan.hook('updating',fail)
+  await assert.rejects(saveGradeWeights(db,1,key,{harian:100,uts:0,uas:0}),/Storage unavailable/)
+  assert.deepEqual(await db.pengaturan.get(key),before)
+  db.pengaturan.hook('updating').unsubscribe(fail)
+})
+
+test('zero, missing and zero-weight components yield consistent grades for reports', () => {
+  const columns=[{id:1,label:'H1'},{id:2,label:'H2'},{id:3,label:'UTS'},{id:4,label:'UAS'}]
+  const values={'1-1':0,'1-2':100,'1-3':80,'1-4':90}
+  const grade=calculateGrade(columns,values,1)
+  assert.equal(grade.harian,50)
+  assert.equal(grade.akhir,71.5)
+  assert.equal(grade.lengkap,true)
+  const partial=calculateGrade(columns,{...values,'1-1':null},1)
+  assert.equal(partial.harian,100)
+  assert.equal(partial.lengkap,false)
+  assert.equal(calculateGrade(columns,{'1-4':0},1,{harian:0,uts:0,uas:100}).lengkap,true)
+})
 const {ensureGradePeriods,listPeriodColumns,saveClassPeriod,classWeightKey} = await import('../src/lib/grade-periods.ts')
 const {createBackupText,restoreBackupText} = await import('../src/lib/backup.ts')
 async function fixture(t) {

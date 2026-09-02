@@ -1,5 +1,5 @@
 import type { BgyDatabase } from './db'
-import { gradePeriod, gradeWeightKey, DEFAULT_WEIGHTS } from '../shared/grades'
+import { gradePeriod, gradeWeightKey, DEFAULT_WEIGHTS, validateGradeWeights } from '../shared/grades'
 
 // Stamp old columns before any change of the class period. Their IDs and scores stay intact.
 export async function ensureGradePeriods(database: BgyDatabase) {
@@ -40,6 +40,18 @@ export async function classWeightKey(database: BgyDatabase, kelasId: number) {
   const kelas = await database.kelas.get(kelasId)
   if (!kelas) throw new Error('Kelas tidak ditemukan.')
   return gradeWeightKey(kelasId,gradePeriod(kelas))
+}
+
+export async function saveGradeWeights(database: BgyDatabase, kelasId: number, expectedKey: string, input: unknown) {
+  const weights = validateGradeWeights(input)
+  return database.transaction('rw', [database.kelas, database.pengaturan], async () => {
+    const kelas = await database.kelas.get(kelasId)
+    if (!kelas || gradeWeightKey(kelasId, gradePeriod(kelas)) !== expectedKey) {
+      throw new Error('Periode sudah berubah. Muat ulang Penilaian sebelum mengatur bobot.')
+    }
+    await database.pengaturan.put({ key: expectedKey, value: JSON.stringify(weights), updated_at: new Date().toISOString() })
+    return weights
+  })
 }
 
 export async function saveClassPeriod(database: BgyDatabase, kelas: any) {
