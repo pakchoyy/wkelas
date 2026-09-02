@@ -19,18 +19,23 @@ const initialData: SetupData = {
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
   const [checking, setChecking] = useState(true)
   const [showSetup, setShowSetup] = useState(false)
+  const [checkError, setCheckError] = useState(false)
   const setKelasAktif = useAppStore((s) => s.setKelasAktif)
 
   useEffect(() => {
+    let cancelled = false
     ;(async () => {
       const kelas = await db.kelas.where('is_aktif').equals(1).first() || await db.kelas.orderBy('id').first()
+      if (cancelled) return
       if (kelas?.id) setKelasAktif(kelas.id)
       setShowSetup(!kelas)
       setChecking(false)
-    })()
+    })().catch(() => { if (!cancelled) { setCheckError(true); setChecking(false) } })
+    return () => { cancelled = true }
   }, [setKelasAktif])
 
-  if (checking) return <div className="min-h-screen grid place-items-center text-sm text-slate-500">Menyiapkan aplikasi...</div>
+  if (checkError) return <div className="min-h-dvh grid place-items-center p-4"><div role="alert" className="max-w-md space-y-3 rounded-2xl border border-red-200 bg-white p-6"><h1 className="font-bold">Data kelas belum bisa dibuka</h1><p className="text-sm text-slate-600">Coba muat ulang halaman. Jangan hapus data situs karena data kelas tersimpan di browser ini.</p><button onClick={() => window.location.reload()} className="min-h-11 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white">Coba lagi</button></div></div>
+  if (checking) return <div role="status" className="min-h-dvh grid place-items-center text-sm text-slate-500">Menyiapkan aplikasi...</div>
   if (showSetup) return <SetupWizard onComplete={() => setShowSetup(false)} />
   return <>{children}</>
 }

@@ -1,6 +1,6 @@
 import { classWeightKey } from '../../../lib/grade-periods'
 import { calculateGrade } from '../../../shared/grades'
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { FileDown, Printer } from 'lucide-react'
 import { useSiswaList } from '../../hooks/useSiswa'
 import { useAppStore } from '../../stores/appStore'
@@ -22,6 +22,9 @@ export default function Laporan() {
   const [periodeSelesai, setPeriodeSelesai] = useState('')
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState('')
+  const [exporting, setExporting] = useState(false)
+  const [exportMessage, setExportMessage] = useState<{ ok: boolean; text: string } | null>(null)
+  const exportLock = useRef(false)
   const invalidPeriod = tab !== 'nilai' && !!periodeMulai && !!periodeSelesai && periodeMulai > periodeSelesai
   const [data, setData] = useState<any[]>([])
   const [identity,setIdentity]=useState({sekolah:'-',kelas:'-',semester:'-',tahun:'-',guru:'-'})
@@ -59,11 +62,17 @@ export default function Laporan() {
   }, [filtered, siswa, tab])
 
   const exportExcel = async () => {
+    if (exportLock.current || loading || loadError || invalidPeriod || !reportRows.length) return
+    exportLock.current = true; setExporting(true); setExportMessage(null)
+    try {
     const XLSX = await import('xlsx')
     const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',tab==='nilai' ? `${identity.tahun} Semester ${identity.semester}` : `${periodeMulai||'Semua'} s/d ${periodeSelesai||'Semua'}`],[],...reportTable(tab, reportRows)]
     const sheet = XLSX.utils.aoa_to_sheet(report)
     sheet['!cols'] = reportTable(tab, []).at(0)!.map(label => ({ wch: Math.max(18, String(label).length + 4) }))
     const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, tab); XLSX.writeFile(workbook, `laporan-${tab}.xlsx`)
+    setExportMessage({ok:true,text:'File Excel siap diunduh. Periksa folder Unduhan atau notifikasi unduhan browser.'})
+    } catch { setExportMessage({ok:false,text:'Excel belum berhasil dibuat. Coba lagi; data laporan tidak berubah.'}) }
+    finally { exportLock.current = false; setExporting(false) }
   }
 
   const tabs: { id: TabLaporan; label: string }[] = [
@@ -115,6 +124,9 @@ export default function Laporan() {
     <div><style>{`@media print{aside,header,button,.no-print{display:none!important}main{overflow:visible!important;padding:0!important}.report{box-shadow:none!important;border:1px solid #999!important}.report .overflow-x-auto{overflow:visible!important}.report table{min-width:0!important;font-size:9px!important}.report th,.report td{padding:5px!important}body{background:white!important}}`}</style>
       <div className="mb-4 no-print"><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div>
       <div className="report mb-4 rounded-xl border border-slate-200 bg-white p-4 text-center"><h1 className="font-extrabold uppercase">Laporan {tabs.find(item=>item.id===tab)?.label}</h1><p className="mt-1 text-sm font-semibold">{identity.sekolah}</p><p className="mt-1 text-xs text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun} · Wali Kelas: {identity.guru}</p></div>
+      <p className="mb-4 text-center text-sm text-slate-600">Periode: {tab === 'nilai' ? identity.tahun + ' · Semester ' + identity.semester : (periodeMulai || 'Semua tanggal') + ' s/d ' + (periodeSelesai || 'Semua tanggal')}</p>
+      {tab === 'nilai' && <p className="mb-3 text-xs text-slate-600">* Nilai sementara: komponen penilaian belum lengkap.</p>}
+      {exportMessage && <p role={exportMessage.ok ? 'status' : 'alert'} className="no-print mb-3 rounded-xl border border-slate-200 bg-white p-3 text-sm">{exportMessage.text}</p>}
 
       <div className="flex gap-1 overflow-x-auto mb-4 rounded-xl p-1 no-print" style={{ background: '#f1f5f9' }}>
         {tabs.map((t) => (
@@ -131,8 +143,8 @@ export default function Laporan() {
         </div>}
         {tab === 'nilai' && <p className="text-sm text-slate-500">Nilai periode aktif: {identity.tahun}, semester {identity.semester}. Pilih periode lain di Pengaturan. * Nilai sementara.</p>}
         <div className="flex flex-wrap gap-2 sm:ml-auto">
-          <button onClick={exportExcel} disabled={loading || !!loadError || invalidPeriod || !reportRows.length} className="min-h-11 disabled:opacity-40 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> Excel</button>
-          <button disabled={loading || !!loadError || invalidPeriod} onClick={()=>window.print()} className="min-h-11 disabled:opacity-40 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><Printer size={16} /> Cetak / PDF</button>
+          <button onClick={exportExcel} disabled={exporting || loading || !!loadError || invalidPeriod || !reportRows.length} className="min-h-11 disabled:opacity-40 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border disabled:opacity-40" style={{ borderColor: 'var(--border)' }}><FileDown size={16} /> {exporting ? 'Menyiapkan…' : 'Excel'}</button>
+          <button disabled={exporting || loading || !!loadError || invalidPeriod} onClick={()=>window.print()} className="min-h-11 disabled:opacity-40 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}><Printer size={16} /> Cetak / PDF</button>
         </div>
       </div>
 

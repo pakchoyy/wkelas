@@ -20,8 +20,18 @@ export default function MataPelajaran() {
   const [error, setError] = useState('')
   const [toast, setToast] = useState('')
   const [working, setWorking] = useState(false)
+  const [ready, setReady] = useState(false)
   const load = async () => setData(await window.electronAPI.mapel.list(kelasId))
-  useEffect(() => { load(); db.kelas.get(kelasId).then((item) => { if (item) { setTingkat(item.tingkat); setKelas(item.nama_kelas) } }) }, [kelasId])
+  useEffect(() => {
+    let cancelled = false
+    setReady(false); setError('')
+    Promise.all([window.electronAPI.mapel.list(kelasId), db.kelas.get(kelasId)]).then(([rows,item]) => {
+      if (cancelled) return
+      if (!item) throw new Error('Kelas tidak ditemukan')
+      setData(rows); setTingkat(item.tingkat); setKelas(item.nama_kelas); setReady(true)
+    }).catch(() => { if (!cancelled) setError('Mata pelajaran belum berhasil dimuat. Muat ulang halaman untuk mencoba lagi.') })
+    return () => { cancelled = true }
+  }, [kelasId])
   useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(''), 2800); return () => clearTimeout(timer) }, [toast])
 
   const addPreset = async () => {
@@ -69,7 +79,8 @@ export default function MataPelajaran() {
   const remove = async (item: MataPelajaran) => { if (!window.confirm(`Hapus ${item.nama}? Nilai semua periode terkait juga akan dihapus. Mapel yang masih dipakai jadwal/rencana tidak dapat dihapus.`)) return; try { await window.electronAPI.mapel.delete(item.id); await load(); setToast('Mata pelajaran berhasil dihapus') } catch(error) {window.alert(error instanceof Error ? error.message : 'Mapel gagal dihapus.')} }
   const category = (name: string) => /seni/i.test(name) ? 'Seni' : /muatan|bahasa inggris/i.test(name) ? 'Pilihan' : 'Umum'
 
-  return <fieldset disabled={working} className="min-w-0 space-y-4">
+  return <fieldset disabled={working || !ready} className="min-w-0 space-y-4">
+    {!ready && !error && <p role="status" className="p-3 text-sm text-slate-500">Memuat mata pelajaran dan tingkat kelas…</p>}
     {working && <p role="status" className="rounded-xl bg-blue-50 p-3 text-sm text-blue-700">Memproses mata pelajaran… Tunggu sebentar.</p>}
     {!showForm && error && <p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{error}</p>}
     {toast && <div className="fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl">{toast}</div>}
