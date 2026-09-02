@@ -4,6 +4,7 @@ import { ArrowRight, BookOpen, CalendarDays, CheckCircle2, ClipboardCheck, Clock
 import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
+import { schoolDayStatus } from '../../../shared/school-day'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -15,19 +16,28 @@ export default function Dashboard() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
   const [data, setData] = useState<any>({ siswa: [], jadwal: [], todo: [], presensi: [], jurnal: [], mapel: [], kalender: [] })
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [schoolDays, setSchoolDays] = useState(5)
   useEffect(() => { ;(async () => {
+    setLoading(true); setError('')
     try {
+      const stored = await db.pengaturan.get(`presensi_${kelasId}`)
+      let days = 5
+      if (stored?.value) { try { days = JSON.parse(stored.value).hariSekolah === 6 ? 6 : 5 } catch {} }
+      setSchoolDays(days)
       const [siswa, jadwal, todo, presensi, kelas, jurnal, mapel, kalender] = await Promise.all([window.electronAPI.siswa.list(kelasId), window.electronAPI.jadwal.list(kelasId), window.electronAPI.todo.list(), window.electronAPI.presensi.get(kelasId, today), db.kelas.get(kelasId), window.electronAPI.jurnal.list(kelasId), window.electronAPI.mapel.list(kelasId), window.electronAPI.kalender.list(kelasId)])
       const guru = kelas?.guru_id ? await db.guru.get(kelas.guru_id) : undefined
       setData({ siswa, jadwal: jadwal.filter((j: any) => j.hari === day).sort((a: any, b: any) => a.jam_ke - b.jam_ke), todo, presensi: presensi.filter((p: any) => siswa.some((s: any) => s.id === p.siswa_id)), kelas, guru, jurnal, mapel, kalender })
-    } finally { setLoading(false) }
+    } catch { setError('Dashboard belum berhasil dimuat. Muat ulang halaman untuk mencoba lagi.') } finally { setLoading(false) }
   })() }, [kelasId, today])
   const counts = useMemo(() => { const count = (s: string) => data.presensi.filter((p: any) => p.status === s).length; const todayJournals=data.jurnal.filter((item:any)=>item.tanggal===today); return { hadir: count('H') + count('T'), terlambat: count('T'), sakit: count('S'), izin: count('I'), alpa: count('A'), todo: data.todo.filter((t: any) => t.status !== 'selesai').length, journalMissing: data.jadwal.filter((slot:any)=>!todayJournals.some((item:any)=>String(item.jam_ke)===String(slot.jam_ke)&&item.materi)).length } }, [data, today])
   const lengkap = data.siswa.length > 0 && data.presensi.length >= data.siswa.length
-  const holiday=data.kalender.find((item:any)=>['libur_nasional','libur_sekolah'].includes(item.jenis)&&today>=item.tanggal_mulai&&today<=(item.tanggal_selesai||item.tanggal_mulai))
+  const schoolDay = schoolDayStatus(today, schoolDays, data.kalender)
+  const holiday = !schoolDay.active ? { judul: schoolDay.reason } : null
   const subjectName=(slot:any)=>slot.nama_mapel_custom||data.mapel.find((item:any)=>item.id===slot.mata_pelajaran_id)?.nama||'Mata pelajaran'
 
   return <div className="max-w-[1440px] mx-auto space-y-5">
+    {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
     <section className="rounded-2xl bg-slate-900 text-white p-6 md:p-7 overflow-hidden relative">
       <div className="absolute -right-16 -top-20 w-72 h-72 rounded-full bg-emerald-500/10" />
       <div className="relative flex flex-col lg:flex-row lg:items-center justify-between gap-6"><div><div className="text-emerald-300 text-xs font-bold uppercase tracking-[.14em] mb-2">{dateLabel}</div><h1 className="text-2xl md:text-3xl font-extrabold">Selamat bekerja, {data.guru?.nama || 'Wali Kelas'} 👋</h1><p className="text-slate-400 mt-2 text-sm">{data.guru?.nama_sekolah || 'Sekolah belum diatur'} · {data.kelas?.nama_kelas || 'Kelas aktif'}</p></div>
@@ -38,7 +48,7 @@ export default function Dashboard() {
       <Panel title="Jadwal Hari Ini" subtitle={`${data.jadwal.length} kegiatan terjadwal`} icon={CalendarDays} action="Buka jadwal" onAction={() => navigate('/aktivitas/jadwal')}>
         {loading ? <Empty text="Memuat jadwal..."/> : holiday ? <Empty text={`Hari libur: ${holiday.judul}`}/> : data.jadwal.length === 0 ? <Empty text="Belum ada jadwal untuk hari ini."/> : <div className="divide-y divide-slate-100">{data.jadwal.slice(0, 5).map((x: any) => <div key={x.id} className="py-3 flex items-center gap-4"><div className="w-14 text-center"><div className="text-xs text-slate-400">Jam {x.jam_ke}</div><div className="text-sm font-bold">{x.jam_mulai || '--:--'}</div></div><div className="w-1 h-10 rounded-full bg-emerald-400"/><div><div className="font-bold text-sm">{subjectName(x)}</div><div className="text-xs text-slate-500 mt-1">{x.jam_selesai || '--:--'} {x.ruang ? `· ${x.ruang}` : ''}</div></div></div>)}</div>}
       </Panel>
-      <Panel title="Ringkasan Presensi" subtitle={lengkap ? 'Presensi hari ini sudah lengkap' : `${Math.max(data.siswa.length - data.presensi.length, 0)} siswa belum dicatat`} icon={ClipboardCheck} action="Kelola" onAction={() => navigate('/siswa/presensi')}><div className="grid grid-cols-2 gap-3 mt-2"><Attendance label="Hadir termasuk terlambat" value={counts.hadir} tone="emerald"/><Attendance label="Sakit" value={counts.sakit} tone="blue"/><Attendance label="Izin" value={counts.izin} tone="amber"/><Attendance label="Alpa" value={counts.alpa} tone="rose"/></div></Panel>
+      <Panel title="Ringkasan Presensi" subtitle={loading ? 'Memuat presensi…' : holiday ? 'Tidak perlu mengisi presensi hari ini' : lengkap ? 'Presensi hari ini sudah lengkap' : `${Math.max(data.siswa.length - data.presensi.length, 0)} siswa belum dicatat`} icon={ClipboardCheck} action={holiday ? 'Kalender' : 'Kelola'} onAction={() => navigate(holiday ? '/aktivitas/kalender' : '/siswa/presensi')}>{holiday ? <Empty text={holiday.judul}/> : <div className="grid grid-cols-2 gap-3 mt-2"><Attendance label="Hadir termasuk terlambat" value={counts.hadir} tone="emerald"/><Attendance label="Sakit" value={counts.sakit} tone="blue"/><Attendance label="Izin" value={counts.izin} tone="amber"/><Attendance label="Alpa" value={counts.alpa} tone="rose"/></div>}</Panel>
     </section>
     <section className="grid lg:grid-cols-[1.15fr_.85fr] gap-5">
       <Panel title="Yang Perlu Diselesaikan" subtitle="Daftar pekerjaan terdekat" icon={ListTodo} action="Semua tugas" onAction={() => navigate('/aktivitas/todo')}>
