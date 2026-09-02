@@ -15,7 +15,18 @@ registerHooks({resolve(specifier,context,next) {
   return next(specifier,context)
 }})
 const {BgyDatabase}=await import('../src/lib/db.ts')
-const {deleteSubject}=await import('../src/lib/subject-storage.ts')
+const {deleteSubject,addRecommendedSubjects}=await import('../src/lib/subject-storage.ts')
+test('parallel and repeated recommendations preserve existing and inactive subjects', async t => {
+ const db = await fixture(t)
+ await db.mata_pelajaran.update(1, {is_aktif:0,urutan:12})
+ await Promise.all([addRecommendedSubjects(db,1,'2'),addRecommendedSubjects(db,1,'2')])
+ const rows = await db.mata_pelajaran.where({kelas_id:1}).toArray()
+ assert.equal(new Set(rows.map(row => row.nama.toLowerCase())).size,rows.length)
+ assert.equal((await db.mata_pelajaran.get(1)).is_aktif,0)
+ assert.equal(await addRecommendedSubjects(db,1,'2'),0)
+ assert.ok(rows.filter(row=>row.id!==1).every(row=>row.urutan>12))
+ assert.equal(await db.nilai.count(),1)
+})
 async function fixture(t){const db=new BgyDatabase(`subject-${crypto.randomUUID()}`);t.after(()=>db.delete());await db.mata_pelajaran.add({id:1,kelas_id:1,nama:'Matematika'});await db.penilaian_kolom.add({id:1,mata_pelajaran_id:1});await db.nilai.add({id:1,siswa_id:1,kolom_id:1,nilai:90});return db}
 test('schedule references block deletion without removing scores',async t=>{
  const db=await fixture(t);await db.jadwal.add({kelas_id:1,mata_pelajaran_id:1})
