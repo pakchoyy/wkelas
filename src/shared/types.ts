@@ -74,6 +74,7 @@ export interface MataPelajaran {
   id: number
   kelas_id: number
   nama: string
+  is_aktif?: number
   kode?: string
   urutan: number
   created_at: string

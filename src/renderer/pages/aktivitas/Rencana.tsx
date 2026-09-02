@@ -5,6 +5,8 @@ import type { Jadwal, MataPelajaran, RencanaMengajar } from '../../../shared/typ
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
+import { teachingSlots, planJournalDraft } from '../../../shared/teaching-flow'
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 import { useAppStore } from '../../stores/appStore'
 
 const HARI = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
@@ -67,26 +69,29 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
   const [form, setForm] = useState<FormState>(emptyForm())
   const [showForm, setShowForm] = useState(false)
   const [toast, setToast] = useState<{ message: string; error?: boolean } | null>(null)
+  const baseline = useRef('')
+  const dirty = showForm && JSON.stringify(form) !== baseline.current
+  useUnsavedChanges(dirty, busy)
+  const closeForm = () => { if (!lock.current && (!dirty || window.confirm('Tutup tanpa menyimpan perubahan rencana?'))) setShowForm(false) }
   const [holidays, setHolidays] = useState<any[]>([])
 
   const load = async () => {
-    const [plans, schedules, subjects, calendar] = await Promise.all([
+    const [plans, schedules, subjects, calendar, attendance, scheduleConfig] = await Promise.all([
       window.electronAPI.rencana.list(kelasId),
       window.electronAPI.jadwal.list(kelasId),
-      window.electronAPI.mapel.list(kelasId), window.electronAPI.kalender.list(kelasId)
+      window.electronAPI.mapel.list(kelasId), window.electronAPI.kalender.list(kelasId),
+      db.pengaturan.get(`presensi_${kelasId}`), db.pengaturan.get(`jadwal_${kelasId}`)
     ])
+    const schoolDays = attendance ? JSON.parse(attendance.value).hariSekolah : 5
+    setHariSekolah(schoolDays === 6 ? 6 : 5)
+    setJadwal(teachingSlots(schedules, schoolDays, scheduleConfig ? JSON.parse(scheduleConfig.value) : {}))
     setData(plans)
-    setJadwal(schedules)
-    setMapel(subjects.filter((item:any)=>item.is_aktif!==0))
+    setMapel(subjects)
     setHolidays(calendar)
   }
 
   useEffect(() => {
     load().catch(() => setToast({message:'Rencana gagal dimuat. Muat ulang halaman.',error:true}))
-    db.pengaturan.get(`presensi_${kelasId}`).then((item) => {
-      if (!item?.value) return
-      try { setHariSekolah(JSON.parse(item.value).hariSekolah || 5) } catch {}
-    })
   }, [kelasId])
 
   useEffect(() => {
@@ -115,7 +120,7 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
     setFormError('')
     setSelectedJadwal(schedule)
     setEditing(plan || null)
-    setForm(plan ? {
+    const initial = plan ? {
       tanggal: plan.tanggal,
       mata_pelajaran_id: plan.mata_pelajaran_id?.toString() || '',
       topik: plan.topik || '',
@@ -124,7 +129,9 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
       media: plan.media || '',
       penilaian: plan.penilaian || '',
       status: plan.status || 'draft'
-    } : { ...emptyForm(date), mata_pelajaran_id: schedule.mata_pelajaran_id?.toString() || '' })
+    } : { ...emptyForm(date), mata_pelajaran_id: schedule.mata_pelajaran_id?.toString() || '' }
+    baseline.current = JSON.stringify(initial)
+    setForm(initial)
     setShowForm(true)
   }
 
@@ -154,10 +161,11 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
     finally {lock.current=false;setBusy(false)}
   }
   const createJournal = async () => {
-    if (!editing || lock.current) return
+    if (!editing || !selectedJadwal || lock.current) return
+    if (dirty) { setFormError('Simpan perubahan rencana terlebih dahulu, lalu buat draft jurnal.'); return }
     lock.current=true;setBusy(true);setFormError('')
     try {
-      await createJournalDraft(db,{kelas_id:kelasId,tanggal:form.tanggal,jam_ke:selectedJadwal?.jam_ke?.toString() || '',mata_pelajaran:mapelName(selectedJadwal,editing.mata_pelajaran_id),materi:form.topik,kegiatan:form.kegiatan,kendala:'',refleksi:''})
+      await createJournalDraft(db,planJournalDraft(kelasId,{...form,mata_pelajaran_id:form.mata_pelajaran_id ? Number(form.mata_pelajaran_id) : null},selectedJadwal,mapel))
       setShowForm(false);setToast({message:'Draft Jurnal berhasil dibuat'})
     } catch(error) {setFormError(error instanceof Error ? error.message : 'Draft Jurnal gagal dibuat.')}
     finally {lock.current=false;setBusy(false)}
@@ -224,15 +232,15 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
         })}
       </div>
 
-      {showForm && <Modal title={`${editing ? 'Edit' : 'Isi'} Rencana · ${mapelName(selectedJadwal, Number(form.mata_pelajaran_id))}`} onClose={() => {if(!lock.current)setShowForm(false)}} maxWidth="max-w-2xl" footer={<>
+      {showForm && <Modal title={`${editing ? 'Edit' : 'Isi'} Rencana · ${mapelName(selectedJadwal, Number(form.mata_pelajaran_id))}`} onClose={closeForm} maxWidth="max-w-2xl" footer={<>
         {editing && <button disabled={busy} onClick={removePlan} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16} /> Hapus</button>}
         {editing && <button disabled={busy} onClick={createJournal} className="flex items-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-bold text-emerald-700"><ClipboardCheck size={16} /> Buat Draft Jurnal</button>}
         <button disabled={busy} type="submit" form="rencana-form" className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Simpan Rencana</button>
       </>}>
-        <form id="rencana-form" onSubmit={savePlan}>{formError && <p role="alert" className="mb-3 text-sm text-red-700">{formError}</p>}<fieldset disabled={busy} className="min-w-0 space-y-4">
+        <form id="rencana-form" onSubmit={savePlan}><p className="mb-3 text-xs text-slate-500">Draft jurnal menyalin tanggal, jam, materi, dan kegiatan dari rencana tersimpan. Simpan perubahan terlebih dahulu; jurnal yang sudah ada tidak ditimpa.</p>{formError && <p role="alert" className="mb-3 text-sm text-red-700">{formError}</p>}<fieldset disabled={busy} className="min-w-0 space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <label className="text-xs font-bold text-slate-600">Tanggal<input type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} className="field mt-1.5" required /></label>
-            <label className="text-xs font-bold text-slate-600 sm:col-span-2">Mata pelajaran<select value={form.mata_pelajaran_id} onChange={(e) => setForm({ ...form, mata_pelajaran_id: e.target.value })} className="field mt-1.5"><option value="">Tanpa mata pelajaran</option>{mapel.map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</select></label>
+            <label className="text-xs font-bold text-slate-600 sm:col-span-2">Mata pelajaran<select value={form.mata_pelajaran_id} onChange={(e) => setForm({ ...form, mata_pelajaran_id: e.target.value })} className="field mt-1.5"><option value="">Tanpa mata pelajaran</option>{mapel.filter(item => item.is_aktif !== 0 || String(item.id) === form.mata_pelajaran_id).map((item) => <option key={item.id} value={item.id}>{item.nama}</option>)}</select></label>
           </div>
           <label className="block text-xs font-bold text-slate-600">Topik / materi <span className="text-red-500">*</span><input value={form.topik} onChange={(e) => setForm({ ...form, topik: e.target.value })} className="field mt-1.5" placeholder="Contoh: Penjumlahan dua angka" required /></label>
           <label className="block text-xs font-bold text-slate-600">Tujuan pembelajaran <span className="font-normal text-slate-400">(opsional)</span><textarea value={form.tujuan_pembelajaran} onChange={(e) => setForm({ ...form, tujuan_pembelajaran: e.target.value })} className="field mt-1.5" rows={2} placeholder="Siswa mampu..." /></label>
