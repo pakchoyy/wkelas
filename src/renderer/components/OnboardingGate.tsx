@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, GraduationCap, School, ShieldCheck, X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { ArrowLeft, ArrowRight, Check, GraduationCap, School, ShieldCheck } from 'lucide-react'
 import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
 import { getRecommendedMapel } from '../../shared/mapelRecommendations'
@@ -39,30 +39,45 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
   const [step, setStep] = useState(1)
   const [data, setData] = useState(initialData)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const saveLock = useRef(false)
   const setKelasAktif = useAppStore((s) => s.setKelasAktif)
   const update = (key: keyof SetupData, value: string | number) => setData((v) => ({ ...v, [key]: value }))
   const valid = step === 1 ? data.namaKelas && data.tingkat : step === 2 ? data.namaSekolah && data.namaWali : true
 
-  const finish = async () => {
+  const finish = async (skip = false) => {
+    if (saveLock.current) return
+    saveLock.current = true
     setSaving(true)
+    setError('')
+    const setup = skip ? { ...data, namaKelas: data.namaKelas.trim() || 'Kelas Saya', tingkat: data.tingkat.trim() || '1', namaWali: data.namaWali.trim() || 'Wali Kelas' } : data
+    try {
     const timestamp = now()
+    const kelasId = await db.transaction('rw', [db.guru, db.kelas, db.mata_pelajaran, db.pengaturan], async () => {
     const guruId = await db.guru.add({
-      supabase_uid: 'local', nama: data.namaWali, email: 'admin@lokal', nip: data.nip,
-      nama_sekolah: data.namaSekolah, tahun_ajaran_aktif: data.tahunAjaran,
-      semester_aktif: data.semester, created_at: timestamp, updated_at: timestamp,
+      supabase_uid: 'local', nama: setup.namaWali, email: 'admin@lokal', nip: setup.nip,
+      nama_sekolah: setup.namaSekolah, tahun_ajaran_aktif: setup.tahunAjaran,
+      semester_aktif: setup.semester, created_at: timestamp, updated_at: timestamp,
     })
     const kelasId = await db.kelas.add({
-      nama_kelas: data.namaKelas, tingkat: data.tingkat, tahun_ajaran: data.tahunAjaran,
-      semester: data.semester, is_aktif: 1, guru_id: guruId, created_at: timestamp, updated_at: timestamp,
+      nama_kelas: setup.namaKelas, tingkat: setup.tingkat, tahun_ajaran: setup.tahunAjaran,
+      semester: setup.semester, is_aktif: 1, guru_id: guruId, created_at: timestamp, updated_at: timestamp,
     })
-    await db.mata_pelajaran.bulkAdd(getRecommendedMapel(data.tingkat).map((mapel, index) => ({ kelas_id: kelasId, nama: mapel.nama, kode: mapel.kode, urutan: index + 1, created_at: timestamp })))
+    if (!skip) await db.mata_pelajaran.bulkAdd(getRecommendedMapel(setup.tingkat).map((mapel, index) => ({ kelas_id: kelasId, nama: mapel.nama, kode: mapel.kode, urutan: index + 1, created_at: timestamp })))
     await db.pengaturan.bulkPut([
       { key: 'fase_aktif', value: data.fase, updated_at: timestamp },
       { key: 'onboarding_complete', value: 'true', updated_at: timestamp },
     ])
+    return kelasId
+    })
     setKelasAktif(kelasId)
-    setSaving(false)
     onComplete()
+    } catch {
+      setError('Kelas belum berhasil disiapkan. Isian Anda tetap ada; silakan coba lagi.')
+    } finally {
+      saveLock.current = false
+      setSaving(false)
+    }
   }
 
   const steps = [
@@ -72,12 +87,14 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-100 grid place-items-center p-4">
-      <div className="w-full max-w-3xl rounded-2xl bg-white border border-slate-200 shadow-xl overflow-hidden">
-        <div className="px-7 py-5 border-b border-slate-100 flex justify-between">
+    <div className="min-h-dvh bg-slate-100 flex flex-col items-center p-3 sm:p-4">
+      <div className="my-auto w-full max-w-3xl rounded-2xl bg-white border border-slate-200 shadow-xl">
+        <div className="px-4 sm:px-7 py-5 border-b border-slate-100 flex flex-wrap items-start justify-between gap-3">
           <div><h1 className="font-bold text-lg">Siapkan Kelas Pertama</h1><p className="text-sm text-slate-500">Langkah {step} dari 3 · data tersimpan hanya di perangkat ini</p></div>
-          <X className="text-slate-300" size={22} />
+          <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Lewati dulu</button>
         </div>
+        <p className="px-4 sm:px-7 pt-4 text-sm text-slate-500">Lewati untuk mencoba dengan Kelas Saya (tingkat awal 1). Identitas dan tingkat kelas bisa dilengkapi di Pengaturan; mapel ditambahkan nanti.</p>
+        {error && <p role="alert" className="px-4 sm:px-7 pt-3 text-sm text-red-700">{error}</p>}
         <div className="px-7 py-4 border-b border-slate-100 flex items-center gap-3">
           {steps.map((item, i) => <div key={item.n} className="contents">
             <div className={`flex items-center gap-2 text-xs font-bold ${step >= item.n ? 'text-emerald-700' : 'text-slate-400'}`}>
@@ -86,7 +103,7 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
             </div>{i < 2 && <div className="h-px bg-slate-200 flex-1" />}
           </div>)}
         </div>
-        <div className="p-7 min-h-[340px]">
+        <fieldset disabled={saving} className="min-w-0 p-4 sm:p-7 sm:min-h-[340px]">
           {step === 1 && <div className="grid sm:grid-cols-2 gap-5">
             <Field label="Nama kelas" placeholder="Contoh: VII-A" value={data.namaKelas} onChange={(v) => update('namaKelas', v)} wide />
             <Field label="Tingkat kelas" placeholder="Contoh: 7" value={data.tingkat} onChange={(v) => update('tingkat', v)} />
@@ -108,11 +125,11 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
               <Summary label="Wali kelas" value={`${data.namaWali}${data.nip ? ` · NIP ${data.nip}` : ''}`} />
             </div>
           </div>}
-        </div>
-        <div className="px-7 py-5 border-t border-slate-100 flex justify-between">
-          <button disabled={step === 1} onClick={() => setStep((s) => s - 1)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold disabled:opacity-0 flex items-center gap-2"><ArrowLeft size={16}/> Kembali</button>
-          {step < 3 ? <button disabled={!valid} onClick={() => setStep((s) => s + 1)} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-2">Selanjutnya <ArrowRight size={16}/></button>
-            : <button disabled={saving} onClick={finish} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan...' : 'Buka Dashboard'}</button>}
+        </fieldset>
+        <div className="px-4 sm:px-7 py-5 border-t border-slate-100 flex flex-wrap justify-between gap-3">
+          <button disabled={step === 1 || saving} onClick={() => setStep((s) => s - 1)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold disabled:opacity-40 flex items-center gap-2"><ArrowLeft size={16}/> Kembali</button>
+          {step < 3 ? <button disabled={!valid || saving} onClick={() => setStep((s) => s + 1)} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-2">Selanjutnya <ArrowRight size={16}/></button>
+            : <button disabled={saving} onClick={() => finish()} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan...' : 'Buka Dashboard'}</button>}
         </div>
       </div>
     </div>

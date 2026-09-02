@@ -9,7 +9,7 @@ interface Props {
   maxWidth?: string
 }
 
-export default function Modal({ title, onClose, children, footer, maxWidth = 'max-w-lg' }: Props) {
+export default function Modal({ title, onClose, children, footer, maxWidth = 'max-w-md' }: Props) {
   const ref = useRef<HTMLDialogElement>(null)
   const titleId = useId()
   useEffect(() => {
@@ -19,24 +19,14 @@ export default function Modal({ title, onClose, children, footer, maxWidth = 'ma
     return () => { dialog.close() }
   }, [])
   return (
-    <dialog ref={ref} aria-labelledby={titleId} onCancel={event => { event.preventDefault(); onClose() }} className={`m-auto w-[calc(100%_-_2rem)] ${maxWidth} max-h-[90dvh] overflow-hidden rounded-2xl border-0 p-0 backdrop:bg-black/40 backdrop:backdrop-blur-sm`}>
-
-      <div
-        className="w-full rounded-2xl flex flex-col max-h-[90dvh]"
-        style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow-lg)' }}
-      >
-        <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--border)' }}>
-          <h3 id={titleId} className="text-sm font-bold break-words">{title}</h3>
-          <button type="button" aria-label="Tutup dialog" onClick={onClose} className="grid size-11 shrink-0 place-items-center hover:bg-gray-100 rounded-lg transition-colors">
-            <X size={18} />
-          </button>
+    <dialog ref={ref} aria-labelledby={titleId} onCancel={(event) => { event.preventDefault(); onClose() }} className={`m-auto w-[calc(100%_-_2rem)] ${maxWidth} max-h-[calc(100dvh_-_2rem)] overflow-y-auto overscroll-contain rounded-2xl border-0 p-0 backdrop:bg-black/40 backdrop:backdrop-blur-sm`}>
+      <div className="flex min-w-0 w-full flex-col rounded-2xl" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow-lg)' }}>
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3" style={{ borderColor: 'var(--border)' }}>
+          <h3 id={titleId} className="break-words text-sm font-bold">{title}</h3>
+          <button type="button" aria-label="Tutup dialog" onClick={onClose} className="grid size-11 shrink-0 place-items-center rounded-lg text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-700"><X size={18}/></button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">{children}</div>
-        {footer && (
-          <div className="px-4 py-3 border-t flex-shrink-0 flex flex-wrap gap-3 justify-end" style={{ borderColor: 'var(--border)' }}>
-            {footer}
-          </div>
-        )}
+        <div className="min-w-0 p-4">{children}</div>
+        {footer && <div className="flex shrink-0 flex-wrap justify-end gap-3 border-t px-4 py-3" style={{ borderColor: 'var(--border)' }}>{footer}</div>}
       </div>
     </dialog>
   )
