@@ -9,6 +9,9 @@ import { db } from '../../../lib/db'
 
 type TabLaporan = 'presensi' | 'nilai' | 'perilaku' | 'jurnal' | 'kalender'
 
+const calendarTypeLabel = (value: string) => ({ libur_nasional: 'Libur Nasional', libur_sekolah: 'Libur Sekolah', kegiatan: 'Kegiatan Sekolah', ujian: 'Ujian', pembagian_rapor: 'Pembagian Rapor' }[value] || value.replaceAll('_', ' '))
+const calendarDuration = (start: string, end?: string) => Math.max(1, Math.round((new Date(`${end || start}T12:00:00`).getTime() - new Date(`${start}T12:00:00`).getTime()) / 86400000) + 1)
+
 export default function Laporan() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
   const { data: siswa } = useSiswaList(kelasId)
@@ -49,6 +52,7 @@ export default function Laporan() {
       return Array.from(rows.values())
     }
     if (tab === 'jurnal') return [...filtered].sort((a, b) => `${a.tanggal}-${a.jam_ke || ''}`.localeCompare(`${b.tanggal}-${b.jam_ke || ''}`))
+    if (tab === 'kalender') return [...filtered].sort((a, b) => a.tanggal_mulai.localeCompare(b.tanggal_mulai)).map((item) => ({ ...item, jenis_label: calendarTypeLabel(item.jenis), jumlah_hari: calendarDuration(item.tanggal_mulai, item.tanggal_selesai) }))
     return filtered
   }, [filtered, siswa, tab])
 
@@ -150,7 +154,7 @@ export default function Laporan() {
               {tab === 'perilaku' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Positif</th><th className="px-3 py-3 text-center">Perlu Perhatian</th><th className="px-4 py-3 text-left">Catatan Terakhir</th><th className="px-4 py-3 text-left">Tindak Lanjut</th></>}
               {tab === 'jurnal' && <><th className="px-3 py-3 text-center">Jam</th><th className="px-3 py-3 text-left">Mapel</th><th className="px-3 py-3 text-left">Materi</th><th className="px-3 py-3 text-left">Kegiatan Pembelajaran</th><th className="px-3 py-3 text-left">Kendala</th><th className="px-3 py-3 text-left">Refleksi</th></>}
               {tab === 'nilai' && <><th className="px-4 py-3 text-left">Mata Pelajaran</th><th className="px-4 py-3 text-left">Siswa</th><th className="px-4 py-3 text-center">Harian</th><th className="px-4 py-3 text-center">UTS</th><th className="px-4 py-3 text-center">UAS</th><th className="px-4 py-3 text-center">Nilai Akhir</th></>}
-              {tab === 'kalender' && <><th className="px-4 py-3 text-left">Kegiatan</th><th className="px-4 py-3 text-left">Jenis</th></>}
+              {tab === 'kalender' && <><th className="px-4 py-3 text-left">Selesai</th><th className="px-3 py-3 text-center">Hari</th><th className="px-4 py-3 text-left">Kegiatan</th><th className="px-4 py-3 text-left">Jenis</th><th className="px-4 py-3 text-left">Keterangan</th></>}
             </tr>
           </thead>
           <tbody>
@@ -181,7 +185,7 @@ export default function Laporan() {
               </tr>
             ))}
             {tab === 'nilai' && filtered.map((r:any,index:number)=><tr key={`${r.mata_pelajaran}-${r.siswa_nama}-${index}`} className="border-t border-slate-100"><td className="px-4 py-2 font-semibold">{r.mata_pelajaran}</td><td className="px-4 py-2">{r.siswa_nama}</td><td className="px-4 py-2 text-center">{r.rata_harian}</td><td className="px-4 py-2 text-center">{r.uts}</td><td className="px-4 py-2 text-center">{r.uas}</td><td className="px-4 py-2 text-center font-extrabold text-emerald-700">{r.nilai_akhir}</td></tr>)}
-            {tab==='kalender'&&filtered.map((r:any)=><tr key={r.id} className="border-t border-slate-100"><td className="px-4 py-2">{r.tanggal_mulai}{r.tanggal_selesai?` – ${r.tanggal_selesai}`:''}</td><td className="px-4 py-2 font-semibold">{r.judul}</td><td className="px-4 py-2 capitalize">{r.jenis.replace('_',' ')}</td></tr>)}
+            {tab==='kalender'&&reportRows.map((r:any,index:number)=><tr key={r.id} className={`border-t border-slate-100 ${index%2?'bg-slate-50/60':''}`}><td className="whitespace-nowrap px-4 py-2.5">{r.tanggal_mulai}</td><td className="whitespace-nowrap px-4 py-2.5">{r.tanggal_selesai||r.tanggal_mulai}</td><td className="px-3 py-2.5 text-center font-bold">{r.jumlah_hari}</td><td className="px-4 py-2.5 font-semibold text-slate-700">{r.judul}</td><td className="px-4 py-2.5"><span className="rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700">{r.jenis_label}</span></td><td className="px-4 py-2.5 text-xs text-slate-600">{r.deskripsi||'—'}</td></tr>)}
             {reportRows.length === 0 && (
               <tr><td className="px-4 py-8 text-center text-sm text-gray-400" colSpan={8}>Belum ada data</td></tr>
             )}
