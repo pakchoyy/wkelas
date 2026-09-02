@@ -40,6 +40,23 @@ body {
   box-shadow: 0 0 0 3px rgba(5, 150, 105, .12);
 }
 
+.app-modal {
+  scroll-padding-block: 1rem;
+  overflow-wrap: anywhere;
+}
+.app-modal input, .app-modal select, .app-modal textarea {
+  max-width: 100%;
+  scroll-margin-block: 1rem;
+}
+.modal-footer > button {
+  min-height: 2.75rem;
+  max-width: 100%;
+  white-space: normal;
+}
+@media (max-width: 479px) {
+  .modal-footer > button { flex: 1 1 100%; justify-content: center; }
+}
+
 @keyframes slide-up {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
