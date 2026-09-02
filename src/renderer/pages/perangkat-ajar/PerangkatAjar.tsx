@@ -42,18 +42,18 @@ export default function PerangkatAjar() {
     catch {setError('Dokumen gagal dihapus. Silakan coba lagi.')}
     finally {lock.current=false;setBusy(false)}
   }
-  return <div className="space-y-4">
+  return <div className="space-y-3">
     <h2 className="text-xl font-bold">Perangkat Ajar</h2>
     <div className="flex gap-2">{[['saya','Dokumen Saya'],['resmi','Dokumen Resmi']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>setTab(id)} className={`min-h-11 flex-1 rounded-xl border px-3 text-sm font-semibold ${tab===id?'bg-teal-600 text-white':'bg-white'}`}>{label}</button>)}</div>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {tab==='resmi' ? <><p className="text-sm text-slate-500">Dokumen resmi belum tersedia. Gunakan Dokumen Saya untuk menyimpan berkas Anda.</p><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{JENIS.map(j=><div key={j} className="rounded-xl border bg-white p-4"><h3 className="font-bold">{j}</h3><p className="text-sm text-slate-500">Belum tersedia</p></div>)}</div></> : <>
-      <p className="text-sm text-slate-500">Berkas tersimpan di browser ini. Sertakan dalam cadangan data sebelum berganti perangkat.</p>
-      <button disabled={busy} onClick={()=>{setForm({judul:'',kategori:'',deskripsi:''});setFile(null);setFormError('');setShow(true)}} className="min-h-11 rounded-xl bg-teal-600 px-4 text-white font-semibold">Tambah dokumen</button>
+      <p className="text-xs text-slate-500">Tersimpan di browser ini. Sertakan berkas dalam backup.</p>
+      <button disabled={busy} onClick={()=>{setForm({judul:'',kategori:'',deskripsi:''});setFile(null);setFormError('');setShow(true)}} className="min-h-11 rounded-xl bg-teal-600 px-3 text-sm text-white font-semibold">+ Dokumen</button>
       {loading ? <p role="status">Memuat dokumen...</p> : <div className="space-y-3">{docs.map(doc=><article key={doc.id} className="rounded-xl border bg-white p-4">
         <h3 className="font-bold break-words">{doc.judul}</h3><p className="mt-1 text-sm text-slate-500 break-words">{doc.format_file?.toUpperCase()} {doc.kategori && `· ${doc.kategori}`} · {Math.ceil((doc.ukuran_file || 0)/1024)} KB</p>
         {doc.deskripsi && <p className="mt-2 text-sm whitespace-pre-wrap break-words">{doc.deskripsi}</p>}
         <div className="mt-3 flex flex-wrap gap-3"><button onClick={()=>download(doc)} className="min-h-11 rounded-lg border px-4 text-sm text-teal-700">Unduh</button><button disabled={busy} onClick={()=>remove(doc)} className="min-h-11 rounded-lg border border-red-200 px-4 text-sm text-red-700">Hapus</button></div>
-      </article>)}{!docs.length && <p className="p-8 text-center text-slate-500">Belum ada dokumen. Tambahkan berkas pertama Anda.</p>}</div>}
+      </article>)}{!docs.length && <p className="rounded-lg border border-dashed border-slate-200 bg-white p-5 text-center text-sm text-slate-500">Belum ada berkas. Pilih + Dokumen untuk mulai.</p>}</div>}
     </>}
     {show && <Modal title="Tambah dokumen" onClose={()=>{if(!lock.current)setShow(false)}}><form onSubmit={upload}><fieldset disabled={busy} className="min-w-0 space-y-4">
       {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}

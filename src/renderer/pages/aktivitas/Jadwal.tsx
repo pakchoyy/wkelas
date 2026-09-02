@@ -169,28 +169,22 @@ export default function Jadwal() {
       {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.text}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-bold">Jadwal Pelajaran</h2>
-        <div className="flex flex-wrap gap-2"><button onClick={downloadTemplate} className="min-h-11 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Download size={16}/>Template Excel</button><label className="min-h-11 flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Upload size={16}/>Unggah Excel<input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { uploadTemplate(e.target.files?.[0]); e.currentTarget.value = '' }}/></label><button onClick={() => { setSettingsDraft({hariSekolah,jumlahJam}); setUsePreset(false);setSettingsError('');setShowSettings(true) }}
+        <div className="flex flex-wrap gap-2"><button onClick={downloadTemplate} className="min-h-11 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Download size={16}/><span className="sm:hidden">Template</span><span className="hidden sm:inline">Template Excel</span></button><label className="min-h-11 flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Upload size={16}/><span className="sm:hidden">Unggah</span><span className="hidden sm:inline">Unggah Excel</span><input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { uploadTemplate(e.target.files?.[0]); e.currentTarget.value = '' }}/></label><button onClick={() => { setSettingsDraft({hariSekolah,jumlahJam}); setUsePreset(false);setSettingsError('');setShowSettings(true) }}
           className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
-          <Settings2 size={16} /> Pengaturan
+          <Settings2 size={16} /><span className="sm:hidden">Atur</span><span className="hidden sm:inline">Pengaturan</span>
         </button></div>
       </div>
 
       <section className="lg:hidden" aria-label="Agenda per hari">
-        <div className="flex gap-2 overflow-x-auto pb-3" aria-label="Pilih hari">{HARI.slice(0,hariSekolah).map((day,index) => <button key={day} aria-pressed={activeDay === index + 1} onClick={() => setSelectedDay(index + 1)} className={`min-h-11 shrink-0 rounded-xl border px-4 text-sm font-bold ${activeDay === index + 1 ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>{day}</button>)}</div>
+        <div className="flex gap-1 pb-1" aria-label="Pilih hari">{HARI.slice(0,hariSekolah).map((day,index) => <button key={day} aria-pressed={activeDay === index + 1} onClick={() => setSelectedDay(index + 1)} className={`min-h-11 min-w-0 flex-1 rounded-lg border px-1 text-xs font-bold ${activeDay === index + 1 ? 'border-teal-600 bg-teal-600 text-white' : 'border-slate-200 bg-white text-slate-600'}`}>{day.slice(0,3)}</button>)}</div>
         <h3 className="my-3 font-bold">Jadwal {HARI[activeDay - 1]}</h3>
         <div className="space-y-3">{Array.from({length:jumlahJam},(_,index) => index + 1).map(jam => {
           const item = data.find(record => record.hari === activeDay && record.jam_ke === jam)
           const time = resolveScheduleTime(jam,waktuJam,data)
           const rest = istirahat.includes(jam)
-          return <article key={jam} className={`rounded-xl border p-4 ${rest ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-            <div className="flex flex-wrap justify-between gap-2 text-sm text-slate-500"><span>{rest ? 'Jeda' : `JP ${jam-istirahat.filter(row=>row<jam).length}`}</span><span>{time.mulai}–{time.selesai}</span></div>
-            <h4 className="mt-2 font-bold break-words">{rest ? 'Istirahat' : item ? getMapelName(item) : 'Belum ada pelajaran'}</h4>
-            {item && !rest && <p className="mt-1 text-sm text-slate-600 break-words">{[item.nama_guru,item.ruang].filter(Boolean).join(' · ')}</p>}
-            <div className="mt-3 flex flex-wrap gap-2">
-              {!rest && <button onClick={() => handleCell(activeDay,jam,item)} className="min-h-11 rounded-lg bg-teal-50 px-3 text-sm font-bold text-teal-700">{item ? 'Edit pelajaran' : 'Tambah pelajaran'}</button>}
-              <button onClick={() => { setTimeError(''); setTimeEditor({jam,...time}) }} className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm">Atur waktu</button>
-              <button onClick={() => toggleBreak(jam)} className="min-h-11 px-2 text-sm text-amber-800">{rest ? 'Jadikan JP' : '+ Jeda'}</button>
-            </div>
+          return <article key={jam} className={`rounded-lg border px-3 py-2 ${rest ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
+            <div className="flex items-center justify-between gap-2 text-xs text-slate-500"><strong>{rest ? 'Jeda' : `JP ${jam-istirahat.filter(row=>row<jam).length}`}</strong><button aria-label={`Atur waktu baris ${jam}`} onClick={()=>{setTimeError('');setTimeEditor({jam,...time})}} className="min-h-11 text-teal-700">{time.mulai}–{time.selesai} · Edit</button></div>
+            <div className="flex items-center gap-2">{rest ? <span className="flex-1 text-sm font-semibold">Istirahat</span> : <button onClick={()=>handleCell(activeDay,jam,item)} className="min-h-11 min-w-0 flex-1 rounded-lg bg-teal-50 px-2 text-left text-sm font-semibold text-teal-800">{item ? getMapelName(item) : '+ Pilih pelajaran'}</button>}<button onClick={()=>toggleBreak(jam)} className="min-h-11 shrink-0 px-2 text-xs text-amber-800">{rest ? 'Jadikan JP' : '+ Jeda'}</button></div>
           </article>
         })}</div>
       </section>

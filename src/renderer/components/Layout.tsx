@@ -42,11 +42,11 @@ export default function Layout() {
         </main>
       </div>
       <nav aria-label="Navigasi cepat" className="mobile-navigation grid shrink-0 grid-cols-4 border-t border-slate-200 bg-white lg:hidden" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
-        {quickLinks.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/'} className={({isActive}) => `flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-semibold ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Icon size={21}/>{label}</NavLink>)}
-        <button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="mobile-menu" className={`flex min-h-16 flex-col items-center justify-center gap-1 text-xs font-semibold ${!quickActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Menu size={21}/>Menu</button>
+        {quickLinks.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/'} className={({isActive}) => `flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] sm:text-xs font-semibold ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Icon size={19}/>{label}</NavLink>)}
+        <button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="mobile-menu" className={`flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] sm:text-xs font-semibold ${!quickActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Menu size={19}/>Menu</button>
       </nav>
       <dialog ref={drawer} id="mobile-menu" aria-labelledby="mobile-menu-title" onClose={() => setMenuOpen(false)} onClick={event => { const bounds=event.currentTarget.getBoundingClientRect(); if(event.target===event.currentTarget && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) setMenuOpen(false) }} className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-80 max-w-[calc(100vw-3rem)] flex-col border-0 bg-white p-0 text-slate-800 shadow-xl open:flex backdrop:bg-slate-950/45">
-        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3"><h2 id="mobile-menu-title" className="font-bold">Menu Wali Kelas</h2><button onClick={() => setMenuOpen(false)} aria-label="Tutup menu" className="grid size-11 place-items-center rounded-xl hover:bg-slate-100"><X size={21}/></button></div>
+        <div className="flex shrink-0 items-center justify-between border-b px-4 py-3"><h2 id="mobile-menu-title" className="font-bold">Menu Wali Kelas</h2><button onClick={() => setMenuOpen(false)} aria-label="Tutup menu" className="grid size-11 place-items-center rounded-xl hover:bg-slate-100"><X size={19}/></button></div>
         <Sidebar onNavigate={() => setMenuOpen(false)}/>
       </dialog>
     </div>
