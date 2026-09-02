@@ -4,6 +4,7 @@ import { saveSchedule } from './schedule-storage'
 import { ensureGradePeriods, listPeriodColumns, subjectPeriod } from './grade-periods'
 import { db } from './db'
 import { createBackupText, restoreBackupText } from './backup'
+import { BACKUP_HISTORY_KEY, backupFingerprint } from './backup-history'
 import type { ElectronAPI } from '../main/preload'
 
 function nowISO() {
@@ -342,8 +343,14 @@ const electronAPI: ElectronAPI = {
       const a = document.createElement('a')
       a.href = url
       a.download = `bgy-backup-${new Date().toISOString().split('T')[0]}.bgy`
+      document.body.appendChild(a)
       a.click()
-      URL.revokeObjectURL(url)
+      a.remove()
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+      // Device-local metadata must not be imported as another device's history.
+      try {
+        localStorage.setItem(BACKUP_HISTORY_KEY, JSON.stringify({startedAt:new Date().toISOString(),filename:a.download,fingerprint:await backupFingerprint(text)}))
+      } catch { /* Download was initiated even if browser metadata is unavailable. */ }
       return { success: true, path: a.download }
     },
     restore: async () => {
@@ -358,7 +365,7 @@ const electronAPI: ElectronAPI = {
           try {
             const text = await file.text()
             const restored = await restoreBackupText(db, text, (tables) => window.confirm(
-              `Cadangan berisi ${tables.kelas.length} kelas, ${tables.siswa.length} siswa, dan ${tables.dokumen_saya.length} dokumen.\n\nPemulihan mengganti seluruh data pada browser ini. Pastikan Anda sudah menyimpan cadangan data saat ini. Lanjutkan?`
+              `Cadangan berisi ${tables.kelas.length} kelas, ${tables.siswa.length} siswa, ${tables.nilai.length} nilai, ${tables.presensi.length} catatan presensi, ${tables.jurnal_harian.length} jurnal, dan ${tables.dokumen_saya.length} dokumen.\n\nSeluruh kelas, identitas sekolah/guru, siswa, nilai semua semester, presensi, perilaku, mapel, jadwal, rencana, jurnal, tugas, dokumen, serta pengaturan pada browser ini akan DIGANTI, bukan digabung.\n\nUnduh cadangan data saat ini terlebih dahulu jika masih diperlukan. Lanjutkan pemulihan?`
             ))
             resolve({ success: restored })
           } catch (e) {
