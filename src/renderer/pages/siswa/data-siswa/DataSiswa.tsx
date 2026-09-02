@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useLocation } from 'react-router-dom'
 import { Plus, Upload, Settings2, Search, Pencil, Trash2, X, Users, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react'
 import { db } from '../../../../lib/db'
 import { useSiswaList, useFieldDefs } from '../../../hooks/useSiswa'
@@ -10,6 +11,7 @@ import ImportData from './ImportData'
 import ConfirmDialog from '../../../components/ConfirmDialog'
 
 export default function DataSiswa() {
+  const location = useLocation()
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
   const { data: siswa, loading, reload } = useSiswaList(kelasId)
   const { data: fields, reload: reloadFields } = useFieldDefs(kelasId)
@@ -18,7 +20,7 @@ export default function DataSiswa() {
   const [jkFilter, setJkFilter] = useState('')
   const [sortBy, setSortBy] = useState('nama')
   const [kelasLabel, setKelasLabel] = useState('Kelas aktif')
-  const [formOpen, setFormOpen] = useState(false)
+  const [formOpen, setFormOpen] = useState(location.state?.openAddStudent === true)
   const [editSiswa, setEditSiswa] = useState<Siswa | null>(null)
   const [fieldOpen, setFieldOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(false)

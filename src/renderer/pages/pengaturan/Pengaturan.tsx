@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Upload } from 'lucide-react'
 import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
+import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 
 type Tab = 'profil' | 'kelas' | 'backup'
 
@@ -19,7 +20,17 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
   const [kelas, setKelas] = useState<any>(null)
   const [guru, setGuru] = useState<any>(null)
   const [toast, setToast] = useState('')
-  const load = async () => { const k=await db.kelas.get(kelasId); setKelas(k||null); setGuru(k?.guru_id ? await db.guru.get(k.guru_id) : null) }
+  const [savedClass, setSavedClass] = useState('null')
+  const [savedTeacher, setSavedTeacher] = useState('null')
+  const classDirty = !loading && JSON.stringify(kelas) !== savedClass
+  const teacherDirty = !loading && JSON.stringify(guru) !== savedTeacher
+  useUnsavedChanges(classDirty || teacherDirty, busy)
+  const load = async () => {
+    const k = await db.kelas.get(kelasId) || null
+    const g = k?.guru_id ? await db.guru.get(k.guru_id) || null : null
+    setKelas(k); setGuru(g)
+    setSavedClass(JSON.stringify(k)); setSavedTeacher(JSON.stringify(g))
+  }
   useEffect(()=>{load().catch(()=>setError('Pengaturan gagal dimuat. Muat ulang halaman.')).finally(()=>setLoading(false))},[kelasId])
   useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2800);return()=>clearTimeout(timer)},[toast])
   const saveSettings = async (event:React.FormEvent,profile:boolean) => {
@@ -30,10 +41,12 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
         if(!guru?.id)throw new Error('Data guru belum tersedia. Muat ulang halaman.')
         const count=await db.guru.update(guru.id,{nama:guru.nama,nip:guru.nip,nama_sekolah:guru.nama_sekolah,updated_at:new Date().toISOString()})
         if(!count)throw new Error('Data guru tidak ditemukan.')
+        setSavedTeacher(JSON.stringify(guru))
         setToast('Identitas sekolah dan guru berhasil disimpan')
       } else {
         if(!kelas?.id)throw new Error('Data kelas belum tersedia. Muat ulang halaman.')
         await saveClassPeriod(db,kelas);setToast('Periode aktif disimpan. Nilai periode lain tetap tersimpan.')
+        setSavedClass(JSON.stringify(kelas))
       }
     } catch(error) {setError(error instanceof Error ? error.message : 'Pengaturan gagal disimpan. Isian tetap tersedia; silakan coba lagi.')}
     finally {lock.current=false;setBusy(false)}
@@ -45,6 +58,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}{loading && <p role="status">Memuat pengaturan...</p>}
     {toast&&<div className="fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl">{toast}</div>}
     <div><h2 className="text-xl font-extrabold">Pengaturan</h2><p className="mt-1 text-sm text-slate-500">Data di sini digunakan pada Dashboard, Jurnal, dan laporan.</p></div>
+    {(classDirty || teacherDirty) && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Belum disimpan: {[teacherDirty && 'Sekolah & Guru', classDirty && 'Kelas & Semester'].filter(Boolean).join(', ')}. Isian tetap ada saat berpindah tab. Simpan pada masing-masing tab sebelum meninggalkan halaman.</p>}
     <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-200/70 p-1 w-fit max-w-full">{tabs.map((item)=><button disabled={busy} aria-pressed={tab===item.id} key={item.id} onClick={()=>setTab(item.id)} className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold ${tab===item.id?'bg-white text-emerald-700 shadow-sm':'text-slate-500'}`}><item.icon size={16}/>{item.label}</button>)}</div>
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       {tab==='profil'&&<form onSubmit={e=>saveSettings(e,true)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Identitas Sekolah dan Guru</h3><p className="mt-1 text-xs text-slate-400">Akan ditampilkan pada kop jurnal dan laporan.</p></div><label className="block text-sm font-bold">Nama sekolah<input required value={guru?.nama_sekolah||''} onChange={(e)=>setGuru({...guru,nama_sekolah:e.target.value})} className="field mt-1.5"/></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama wali kelas<input required value={guru?.nama||''} onChange={(e)=>setGuru({...guru,nama:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">NIP <span className="font-normal text-slate-400">(opsional)</span><input value={guru?.nip||''} onChange={(e)=>setGuru({...guru,nip:e.target.value})} className="field mt-1.5"/></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Identitas</button></fieldset></form>}
