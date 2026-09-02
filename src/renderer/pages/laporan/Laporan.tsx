@@ -6,6 +6,8 @@ import { useSiswaList } from '../../hooks/useSiswa'
 import { useAppStore } from '../../stores/appStore'
 import { attendancePercent } from '../../../shared/attendance'
 import { db } from '../../../lib/db'
+import { compareJournalRows } from '../../../shared/journal-report'
+import { matchesReportPeriod, reportTable } from '../../../shared/report-data'
 
 type TabLaporan = 'presensi' | 'nilai' | 'perilaku' | 'jurnal' | 'kalender'
 
@@ -23,7 +25,7 @@ export default function Laporan() {
   const invalidPeriod = tab !== 'nilai' && !!periodeMulai && !!periodeSelesai && periodeMulai > periodeSelesai
   const [data, setData] = useState<any[]>([])
   const [identity,setIdentity]=useState({sekolah:'-',kelas:'-',semester:'-',tahun:'-',guru:'-'})
-  const filtered = tab==='nilai' ? data : data.filter((item) => {const date=item.tanggal||item.tanggal_mulai;return (!periodeMulai || date >= periodeMulai) && (!periodeSelesai || date <= periodeSelesai)})
+  const filtered = data.filter(item => matchesReportPeriod(item, tab, periodeMulai, periodeSelesai))
   const reportRows = useMemo(() => {
     if (tab === 'presensi') {
       const rows = new Map<number, any>()
@@ -51,15 +53,16 @@ export default function Laporan() {
       }
       return Array.from(rows.values())
     }
-    if (tab === 'jurnal') return [...filtered].sort((a, b) => `${a.tanggal}-${a.jam_ke || ''}`.localeCompare(`${b.tanggal}-${b.jam_ke || ''}`))
+    if (tab === 'jurnal') return [...filtered].sort(compareJournalRows)
     if (tab === 'kalender') return [...filtered].sort((a, b) => a.tanggal_mulai.localeCompare(b.tanggal_mulai)).map((item) => ({ ...item, jenis_label: calendarTypeLabel(item.jenis), jumlah_hari: calendarDuration(item.tanggal_mulai, item.tanggal_selesai) }))
     return filtered
   }, [filtered, siswa, tab])
 
   const exportExcel = async () => {
     const XLSX = await import('xlsx')
-    const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',tab==='nilai' ? `${identity.tahun} Semester ${identity.semester}` : `${periodeMulai||'Semua'} s/d ${periodeSelesai||'Semua'}`],[],...XLSX.utils.sheet_to_json<any[]>(XLSX.utils.json_to_sheet(reportRows),{header:1})]
+    const report=[['LAPORAN '+tab.toUpperCase()],['Sekolah',identity.sekolah],['Kelas',identity.kelas],['Semester',identity.semester],['Tahun Pelajaran',identity.tahun],['Wali Kelas',identity.guru],['Periode',tab==='nilai' ? `${identity.tahun} Semester ${identity.semester}` : `${periodeMulai||'Semua'} s/d ${periodeSelesai||'Semua'}`],[],...reportTable(tab, reportRows)]
     const sheet = XLSX.utils.aoa_to_sheet(report)
+    sheet['!cols'] = reportTable(tab, []).at(0)!.map(label => ({ wch: Math.max(18, String(label).length + 4) }))
     const workbook = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(workbook, sheet, tab); XLSX.writeFile(workbook, `laporan-${tab}.xlsx`)
   }
 
@@ -143,7 +146,7 @@ export default function Laporan() {
             : tab === 'nilai' ? [['Mata pelajaran',row.mata_pelajaran],['Harian',row.rata_harian],['UTS',row.uts],['UAS',row.uas],['Nilai akhir',row.nilai_akhir]]
             : tab === 'perilaku' ? [['Positif',row.positif],['Perlu perhatian',row.perhatian],['Catatan terakhir',row.catatan_terakhir],['Tanggal catatan',row.tanggal_terakhir],['Tindak lanjut',row.tindak_lanjut]]
             : tab === 'jurnal' ? [['Tanggal',row.tanggal],['Jam',row.jam_ke],['Materi',row.materi],['Kegiatan pembelajaran',row.kegiatan],['Kendala',row.kendala],['Refleksi',row.refleksi]]
-            : [['Mulai',row.tanggal_mulai],['Selesai',row.tanggal_selesai || row.tanggal_mulai],['Jenis',String(row.jenis || '').replaceAll('_',' ')]]
+            : [['Mulai',row.tanggal_mulai],['Selesai',row.tanggal_selesai || row.tanggal_mulai],['Jumlah hari kalender',row.jumlah_hari],['Jenis',row.jenis_label],['Keterangan',row.deskripsi]]
           return <article key={index} className="p-4"><h2 className="font-bold text-slate-800 break-words">{title}</h2><dl className={`mt-3 grid gap-3 text-sm ${tab === 'presensi' ? 'grid-cols-2' : 'grid-cols-1'}`}>{details.map(([label,value]) => <div key={label} className="min-w-0"><dt className="text-slate-500">{label}</dt><dd className="font-medium whitespace-pre-wrap break-words">{value === null || value === undefined || value === '' ? '—' : value}</dd></div>)}</dl></article>
         })}{!reportRows.length && <p className="p-8 text-center text-sm text-slate-500">Belum ada data pada periode ini.</p>}</div>
         <div className="hidden lg:block print:block overflow-x-auto"><table className={`w-full text-sm ${tab === 'jurnal' ? 'min-w-[980px]' : ''}`}>
