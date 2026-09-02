@@ -1,3 +1,4 @@
+import { editSubject, addRecommendedSubjects } from '../../../../lib/subject-storage'
 import {useUnsavedChanges} from '../../../hooks/useUnsavedChanges'
 import { classWeightKey, saveGradeWeights } from '../../../../lib/grade-periods'
 import { calculateGrade, DEFAULT_WEIGHTS, readGradeWeights, validateGradeWeights, orderedGradeColumns, nextDailyLabel } from '../../../../shared/grades'
@@ -39,6 +40,10 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
   const [showKomponen, setShowKomponen] = useState(false)
   const [showMapel, setShowMapel] = useState(false)
   const [komponenForm, setKomponenForm] = useState({ label: '', bobot: '1', tanggal: '', catatan: '' })
+  const [editMapelId, setEditMapelId] = useState<number | null>(null)
+  const [mapelBusy, setMapelBusy] = useState(false)
+  const mapelLock = useRef(false)
+  const [mapelError, setMapelError] = useState('')
   const [mapelForm, setMapelForm] = useState({ nama: '', kode: '' })
   const [editKomponen, setEditKomponen] = useState<PenilaianKolom | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget>(null)
@@ -144,17 +149,22 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
   const average = (sid: number) => { if (!weightKey) return '—'; const result = calculateGrade(komponen,nilaiMap,sid,bobot); return result.akhir === null ? '—' : `${result.akhir.toFixed(1)}${result.lengkap ? '' : ' *'}` }
 
   const submitMapel = async (e: React.FormEvent) => {
-    e.preventDefault()
-    try { const saved = await window.electronAPI.mapel.create({ kelas_id: kelasId, ...mapelForm, urutan: mapelList.length + 1 }); setShowMapel(false); setMapelForm({ nama: '', kode: '' }); await loadMapel(); if (saved?.id) switchMapel(saved.id); setToast({ type: 'success', text: 'Mata pelajaran berhasil ditambahkan.' }) }
-    catch { setToast({ type: 'error', text: 'Mata pelajaran gagal ditambahkan.' }) }
+    e.preventDefault(); if(mapelLock.current)return
+    mapelLock.current=true;setMapelBusy(true);setMapelError('')
+    try {
+      if(editMapelId) await editSubject(db,kelasId,editMapelId,mapelForm)
+      else { if(!mapelForm.nama.trim()) throw new Error('Nama wajib diisi.'); await window.electronAPI.mapel.create({kelas_id:kelasId,...mapelForm,nama:mapelForm.nama.trim(),urutan:mapelList.length+1}) }
+      setEditMapelId(null);setMapelForm({nama:'',kode:''});await loadMapel()
+      setToast({type:'success',text:'Mata pelajaran tersimpan.'})
+    } catch(error) {setMapelError(error instanceof Error ? error.message : 'Mapel gagal disimpan.')}
+    finally {mapelLock.current=false;setMapelBusy(false)}
   }
   const addRecommendations = async () => {
-    const existing = new Set(mapelList.map((item) => item.nama.trim().toLowerCase()))
-    const missing = getRecommendedMapel(tingkat).filter((item) => !existing.has(item.nama.toLowerCase()))
-    try {
-      for (const [index, item] of missing.entries()) await window.electronAPI.mapel.create({ kelas_id: kelasId, nama: item.nama, kode: item.kode, urutan: mapelList.length + index + 1 })
-      await loadMapel(); setToast({ type: 'success', text: missing.length ? `${missing.length} mata pelajaran rekomendasi ditambahkan.` : 'Semua mata pelajaran rekomendasi sudah tersedia.' })
-    } catch { setToast({ type: 'error', text: 'Rekomendasi mata pelajaran gagal ditambahkan.' }) }
+    if(mapelLock.current)return
+    mapelLock.current=true;setMapelBusy(true);setMapelError('')
+    try {const count=await addRecommendedSubjects(db,kelasId,tingkat);await loadMapel();setToast({type:'success',text:`${count} mapel ditambahkan.`})}
+    catch {setMapelError('Rekomendasi gagal ditambahkan.')}
+    finally {mapelLock.current=false;setMapelBusy(false)}
   }
   const submitKomponen = async (e: React.FormEvent) => {
     e.preventDefault(); if (!mapelId) return
@@ -215,7 +225,19 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
       <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden"><div className="hidden lg:block overflow-auto max-h-[65vh]"><table className="w-full table-fixed text-xs"><thead className="sticky top-0 z-20"><tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500"><th className="w-8 px-1 py-3 text-center">No.</th><th className="w-36 px-2 py-3 text-left sticky left-0 bg-slate-50 z-30">Nama Siswa</th>{visibleKomponen.map((k) => <th key={k.id} className={`w-[10%] px-1 py-2 text-center ${isFixed(k) ? 'bg-blue-50/70' : ''}`}><div className="text-[9px] tracking-wider mb-1 text-slate-400">{isFixed(k) ? 'NILAI SEMESTER' : 'NILAI HARIAN'}</div><div className="flex justify-center gap-1 items-center"><span title={k.label} className="normal-case text-slate-700 font-bold">{isFixed(k) ? k.label : `H${dailyKomponen.findIndex((item) => item.id === k.id) + 1}`}</span>{!isFixed(k) && <><button onClick={() => openKomponen(k)} className="p-1 text-slate-400 hover:text-emerald-700"><Pencil size={12}/></button><button onClick={() => setDeleteTarget({ type: 'komponen', id: k.id, name: k.label })} className="p-1 text-slate-400 hover:text-red-600"><Trash2 size={12}/></button></>}</div>{k.tanggal && <div className="normal-case text-[10px] text-slate-400 font-normal mt-1">{k.tanggal}</div>}</th>)}<th className="w-[10%] px-1 py-2 text-center bg-emerald-50">Nilai Akhir</th></tr></thead><tbody>{siswa.map((s, index) => <tr key={s.id} className={`${index % 2 ? 'bg-slate-50/60' : 'bg-white'} border-b border-slate-100 hover:bg-emerald-50/40`}><td className="px-3 py-2.5 text-center font-semibold text-slate-400">{index + 1}</td><td className={`px-2 py-2.5 sticky left-0 z-10 font-semibold text-slate-800 ${index % 2 ? 'bg-slate-50' : 'bg-white'}`}>{s.nama}</td>{visibleKomponen.map((k) => { const key = `${s.id}-${k.id}`; return <td key={k.id} className={`px-1.5 py-2 text-center ${isFixed(k) ? 'bg-blue-50/30' : ''}`}><div className="relative inline-block"><input type="number" min="0" max="100" step=".5" value={nilaiMap[key] ?? ''} onChange={(e) => changeNilai(key, e.target.value)} onBlur={() => saveCell(s.id, k.id)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.currentTarget.blur() } }} className={`w-14 rounded-lg border px-2 py-1.5 text-center font-mono outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${dirty.has(key) ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-white'}`}/>{savingKey === key && <span className="absolute -right-1 -top-1 w-2 h-2 rounded-full bg-blue-500 animate-pulse"/>}</div></td>})}<td className="px-3 py-2.5 text-center font-extrabold text-emerald-700 bg-emerald-50/40">{average(s.id)}</td></tr>)}</tbody></table>{siswa.length === 0 && !loadingSiswa && <div className="py-14 text-center text-sm text-slate-400">Tidak ada siswa yang cocok dengan pencarian.</div>}</div><div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap gap-3 items-center"><span className="text-xs text-slate-500">Harian {bobot.harian}% + UTS {bobot.uts}% + UAS {bobot.uas}%. * Nilai sementara: komponen belum lengkap.</span>{dirty.size > 0 && <button disabled={pending > 0} onClick={saveAll} className="min-h-11 rounded-lg bg-emerald-600 text-white px-3 py-2 text-xs font-bold flex items-center gap-2"><Save size={14}/>Simpan {dirty.size} Perubahan</button>}</div></div>
     </>}
 
-    {showMapel && <Modal title="Kelola Mata Pelajaran" onClose={() => setShowMapel(false)} maxWidth="max-w-lg"><div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4"><div className="flex items-start gap-3"><Sparkles size={19} className="mt-0.5 shrink-0 text-emerald-600"/><div className="flex-1"><div className="text-sm font-bold text-emerald-900">Rekomendasi Kelas {tingkat} · Fase {getPhaseForGrade(tingkat)}</div><p className="mt-1 text-xs text-emerald-700">Menambahkan mapel Kurikulum Merdeka yang belum tersedia. Mapel buatan Anda tetap aman.</p><button type="button" onClick={addRecommendations} className="mt-3 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white">Tambahkan Rekomendasi</button></div></div></div><form onSubmit={submitMapel} className="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_90px_auto] gap-2 mb-4"><input aria-label="Nama mata pelajaran" required value={mapelForm.nama} onChange={(e) => setMapelForm({ ...mapelForm, nama: e.target.value })} placeholder="Nama mata pelajaran" className="field"/><input aria-label="Kode mata pelajaran" value={mapelForm.kode} onChange={(e) => setMapelForm({ ...mapelForm, kode: e.target.value })} placeholder="Kode" className="field"/><button className="min-h-11 rounded-xl bg-emerald-600 text-white px-4 text-sm font-bold">Tambah</button></form><div className="space-y-2">{mapelList.map((m) => <div key={m.id} className="rounded-xl border border-slate-200 p-3 flex items-center"><div><div className="text-sm font-bold text-slate-700">{m.nama}</div><div className="text-xs text-slate-400">{m.kode || 'Tanpa kode'}</div></div><button onClick={() => setDeleteTarget({ type: 'mapel', id: m.id, name: m.nama })} className="ml-auto rounded-lg px-2.5 py-2 text-xs font-semibold text-slate-500 hover:bg-red-50 hover:text-red-700"><Trash2 size={15}/></button></div>)}</div></Modal>}
+    {showMapel && <Modal title="Mata Pelajaran" onClose={() => {if(!mapelLock.current)setShowMapel(false)}} maxWidth="max-w-lg">
+      {mapelError && <p role="alert" className="mb-2 text-sm text-red-700">{mapelError}</p>}
+      <fieldset disabled={mapelBusy} className="min-w-0">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 text-xs"><span>Kelas {tingkat} · Fase {getPhaseForGrade(tingkat)}</span><button onClick={addRecommendations} className="min-h-11 rounded-lg bg-emerald-50 px-3 font-semibold text-emerald-700">+ Mapel rekomendasi</button></div>
+      <form onSubmit={submitMapel} className="mb-3 flex flex-wrap gap-2">
+        <input aria-label="Nama mata pelajaran" required value={mapelForm.nama} onChange={e=>setMapelForm({...mapelForm,nama:e.target.value})} placeholder="Nama mapel" className="field !py-2 flex-1 !w-auto min-w-32"/>
+        <input aria-label="Kode mapel" value={mapelForm.kode} onChange={e=>setMapelForm({...mapelForm,kode:e.target.value})} placeholder="Kode" className="field !w-20 !py-2"/>
+        <button className="min-h-11 rounded-lg bg-emerald-600 px-3 text-sm font-bold text-white">{editMapelId ? 'Simpan' : 'Tambah'}</button>
+        {editMapelId && <button type="button" onClick={()=>{setEditMapelId(null);setMapelForm({nama:'',kode:''})}} className="min-h-11 px-2 text-sm">Batal</button>}
+      </form>
+      <div className="divide-y rounded-lg border border-slate-200">{mapelList.map(m=><div key={m.id} className="flex items-center gap-2 px-3 py-1"><div className="min-w-0 flex-1"><div className="break-words text-sm font-semibold">{m.nama}</div>{m.kode && <div className="text-xs text-slate-400">{m.kode}</div>}</div><button aria-label={`Edit ${m.nama}`} onClick={()=>{setEditMapelId(m.id);setMapelForm({nama:m.nama,kode:m.kode||''});setMapelError('')}} className="size-11 shrink-0 grid place-items-center text-emerald-700"><Pencil size={16}/></button><button aria-label={`Hapus ${m.nama}`} onClick={()=>setDeleteTarget({type:'mapel',id:m.id,name:m.nama})} className="size-11 shrink-0 grid place-items-center text-red-500"><Trash2 size={16}/></button></div>)}</div>
+      </fieldset>
+    </Modal>}
     {showKomponen && <Modal title={editKomponen ? 'Edit Nilai Harian' : 'Tambah Nilai Harian'} onClose={() => { setShowKomponen(false); setEditKomponen(null) }} footer={<><button onClick={() => setShowKomponen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold">Batal</button><button form="komponen-form" className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold">Simpan</button></>}><form id="komponen-form" onSubmit={submitKomponen} className="space-y-4"><label className="text-sm font-semibold text-slate-700 block">Nama nilai harian <span className="text-red-500">*</span><input required value={komponenForm.label} onChange={(e) => setKomponenForm({ ...komponenForm, label: e.target.value })} placeholder="Contoh: Harian 1" className="field mt-1.5"/></label><div><div className="text-xs font-bold text-slate-500 mb-2">Pilihan nama</div><div className="flex flex-wrap gap-2">{['Harian', 'Tugas', 'Praktik', 'Projek'].map((x) => <button type="button" key={x} onClick={() => setKomponenForm({ ...komponenForm, label: `${x} ${komponen.filter((k) => !isFixed(k)).length + 1}` })} className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold hover:border-emerald-300">{x}</button>)}</div></div><label className="text-sm font-semibold text-slate-700 block">Tanggal <span className="text-slate-400 font-normal">(Opsional)</span><input type="date" value={komponenForm.tanggal} onChange={(e) => setKomponenForm({ ...komponenForm, tanggal: e.target.value })} className="field mt-1.5"/></label><label className="text-sm font-semibold text-slate-700 block">Catatan <span className="text-slate-400 font-normal">(Opsional)</span><input value={komponenForm.catatan} onChange={(e) => setKomponenForm({ ...komponenForm, catatan: e.target.value })} className="field mt-1.5"/></label></form></Modal>}
     {showBobot && <Modal title="Pengaturan Persentase Nilai" onClose={closeBobot} footer={<button disabled={!bobotValid || bobotSaving} onClick={saveBobot} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold disabled:opacity-40">{bobotSaving ? 'Menyimpan...' : 'Simpan'}</button>}>
       {bobotError && <p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-sm text-red-700">{bobotError}</p>}

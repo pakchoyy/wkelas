@@ -1,4 +1,4 @@
-import { defaultTime, resolveScheduleTime, excelTime } from '../../../shared/schedule'
+import { defaultTime, resolveScheduleTime, excelTime, schedulePreset } from '../../../shared/schedule'
 import { updateScheduleTime, importSchedule } from '../../../lib/schedule-storage'
 import { useState, useEffect, useRef } from 'react'
 import { Download, Settings2, Trash2, Upload } from 'lucide-react'
@@ -17,6 +17,11 @@ export default function Jadwal() {
   const [mapelList, setMapelList] = useState<MataPelajaran[]>([])
   const [showForm, setShowForm] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [usePreset, setUsePreset] = useState(false)
+  const [preset, setPreset] = useState({start:'07:00',duration:35,breakAfter:3,breakMinutes:15})
+  const settingsLock = useRef(false)
+  const [settingsBusy, setSettingsBusy] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
   const [settingsDraft, setSettingsDraft] = useState({hariSekolah:5,jumlahJam:10})
   const [hariSekolah, setHariSekolah] = useState<5 | 6>(5)
   const [selectedDay, setSelectedDay] = useState(() => { const day = new Date().getDay(); return day >= 1 && day <= 5 ? day : 1 })
@@ -63,13 +68,17 @@ export default function Jadwal() {
       await db.transaction('rw',[db.jadwal,db.pengaturan],async () => {
         const current = await db.jadwal.where({kelas_id:kelasId}).toArray()
         if (current.some(r => r.hari > settingsDraft.hariSekolah || r.jam_ke > settingsDraft.jumlahJam)) throw new Error('Masih ada jadwal di luar batas baru. Pindahkan atau hapus jadwal tersebut terlebih dahulu.')
+        if(timing && current.some(row=>timing.istirahat.includes(row.jam_ke))) throw new Error('Baris istirahat masih berisi mapel. Pindahkan mapelnya sebelum menerapkan contoh waktu.')
+        if(timing) for(const row of current) await db.jadwal.update(row.id!,{jam_mulai:timing.waktuJam[row.jam_ke].mulai,jam_selesai:timing.waktuJam[row.jam_ke].selesai})
         const key = `jadwal_${kelasId}`
         const previous = await db.pengaturan.get(key)
         const cfg = previous ? JSON.parse(previous.value) : {}
-        await db.pengaturan.put({key,value:JSON.stringify({...cfg,jumlahJam:settingsDraft.jumlahJam,istirahat:(cfg.istirahat || []).filter((jam:number) => jam <= settingsDraft.jumlahJam)}),updated_at:new Date().toISOString()})
+        await db.pengaturan.put({key,value:JSON.stringify({...cfg,jumlahJam:settingsDraft.jumlahJam,istirahat:(cfg.istirahat || []).filter((jam:number) => jam <= settingsDraft.jumlahJam),...timing}),updated_at:new Date().toISOString()})
         const attendance = await db.pengaturan.get(`presensi_${kelasId}`)
         await db.pengaturan.put({key:`presensi_${kelasId}`,value:JSON.stringify({...attendance ? JSON.parse(attendance.value) : {},hariSekolah:settingsDraft.hariSekolah}),updated_at:new Date().toISOString()})
       })
+      if(timing) {setWaktuJam(timing.waktuJam);setIstirahat(timing.istirahat)}
+      await load()
       setHariSekolah(settingsDraft.hariSekolah as 5|6); setJumlahJam(settingsDraft.jumlahJam); setIstirahat(current => current.filter(jam => jam <= settingsDraft.jumlahJam)); setShowSettings(false)
     } catch(error) { setToast({text:error instanceof Error ? error.message : 'Pengaturan gagal disimpan.',error:true}) }
   }
@@ -84,7 +93,26 @@ export default function Jadwal() {
     }
   }
 
-  const toggleBreak=async(jam:number)=>{const making=!istirahat.includes(jam);if(making&&data.some(i=>i.jam_ke===jam)&&!window.confirm('Jadikan jam ini istirahat? Isi mapel pada baris ini akan dihapus.'))return;if(making){for(const item of data.filter(i=>i.jam_ke===jam))await window.electronAPI.jadwal.delete(item.id)}const next=making?[...istirahat,jam]:istirahat.filter(i=>i!==jam);setIstirahat(next);await storeScheduleSettings(waktuJam,next);await load();setToast({text:making?'Baris dijadikan istirahat':'Baris pelajaran diaktifkan'})}
+  const toggleBreak = async (jam:number) => {
+    if(settingsLock.current)return
+    settingsLock.current=true
+    try {
+      const next = await db.transaction('rw',[db.jadwal,db.pengaturan],async()=>{
+        const key=`jadwal_${kelasId}`
+        const stored=await db.pengaturan.get(key)
+        const cfg=stored ? JSON.parse(stored.value) : {jumlahJam,waktuJam,istirahat:[]}
+        const current:number[]=cfg.istirahat || []
+        const making=!current.includes(jam)
+        if(making && await db.jadwal.where({kelas_id:kelasId,jam_ke:jam}).count()) throw new Error('Pindahkan mapel pada baris ini sebelum menjadikannya jeda.')
+        const breaks=making ? [...current,jam] : current.filter(row=>row!==jam)
+        if(breaks.length >= jumlahJam) throw new Error('Sisakan minimal satu JP.')
+        await db.pengaturan.put({key,value:JSON.stringify({...cfg,istirahat:breaks}),updated_at:new Date().toISOString()})
+        return breaks
+      })
+      setIstirahat(next);setToast({text:'Jeda tersimpan. Mapel tidak dihapus.'})
+    } catch(error) {setToast({text:error instanceof Error ? error.message : 'Jeda gagal disimpan.',error:true})}
+    finally {settingsLock.current=false}
+  }
 
   const getMapelName = (item: JadwalType) => item.nama_mapel_custom || mapelList.find((m) => m.id === item.mata_pelajaran_id)?.nama || '-'
   const setCell = async (hari: number, jam: number, value: string) => {
@@ -141,7 +169,7 @@ export default function Jadwal() {
       {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.text}</div>}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-xl font-bold">Jadwal Pelajaran</h2>
-        <div className="flex flex-wrap gap-2"><button onClick={downloadTemplate} className="min-h-11 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Download size={16}/>Template Excel</button><label className="min-h-11 flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Upload size={16}/>Unggah Excel<input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { uploadTemplate(e.target.files?.[0]); e.currentTarget.value = '' }}/></label><button onClick={() => { setSettingsDraft({hariSekolah,jumlahJam}); setShowSettings(true) }}
+        <div className="flex flex-wrap gap-2"><button onClick={downloadTemplate} className="min-h-11 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Download size={16}/>Template Excel</button><label className="min-h-11 flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Upload size={16}/>Unggah Excel<input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { uploadTemplate(e.target.files?.[0]); e.currentTarget.value = '' }}/></label><button onClick={() => { setSettingsDraft({hariSekolah,jumlahJam}); setUsePreset(false);setSettingsError('');setShowSettings(true) }}
           className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>
           <Settings2 size={16} /> Pengaturan
         </button></div>
@@ -155,13 +183,13 @@ export default function Jadwal() {
           const time = resolveScheduleTime(jam,waktuJam,data)
           const rest = istirahat.includes(jam)
           return <article key={jam} className={`rounded-xl border p-4 ${rest ? 'border-amber-200 bg-amber-50' : 'border-slate-200 bg-white'}`}>
-            <div className="flex flex-wrap justify-between gap-2 text-sm text-slate-500"><span>Jam {jam}</span><span>{time.mulai}–{time.selesai}</span></div>
+            <div className="flex flex-wrap justify-between gap-2 text-sm text-slate-500"><span>{rest ? 'Jeda' : `JP ${jam-istirahat.filter(row=>row<jam).length}`}</span><span>{time.mulai}–{time.selesai}</span></div>
             <h4 className="mt-2 font-bold break-words">{rest ? 'Istirahat' : item ? getMapelName(item) : 'Belum ada pelajaran'}</h4>
             {item && !rest && <p className="mt-1 text-sm text-slate-600 break-words">{[item.nama_guru,item.ruang].filter(Boolean).join(' · ')}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               {!rest && <button onClick={() => handleCell(activeDay,jam,item)} className="min-h-11 rounded-lg bg-teal-50 px-3 text-sm font-bold text-teal-700">{item ? 'Edit pelajaran' : 'Tambah pelajaran'}</button>}
               <button onClick={() => { setTimeError(''); setTimeEditor({jam,...time}) }} className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm">Atur waktu</button>
-              <button onClick={() => toggleBreak(jam)} className="min-h-11 px-2 text-sm text-amber-800">{rest ? 'Batalkan istirahat semua hari' : 'Istirahat semua hari'}</button>
+              <button onClick={() => toggleBreak(jam)} className="min-h-11 px-2 text-sm text-amber-800">{rest ? 'Jadikan JP' : '+ Jeda'}</button>
             </div>
           </article>
         })}</div>
@@ -197,11 +225,11 @@ export default function Jadwal() {
           <tbody>
             {Array.from({ length: jumlahJam }, (_, jam) => jam + 1).map((jam) => (
               <tr key={jam} className="border-t" style={{ borderColor: 'var(--border)' }}>
-                <td className="px-3 py-2 text-xs font-semibold text-gray-500"><div>Jam {jam}</div><button onClick={()=>toggleBreak(jam)} className="mt-1 text-[10px] font-bold text-amber-600" title="Menandai seluruh hari pada jam ini sebagai istirahat">{istirahat.includes(jam)?'Batalkan istirahat':'Istirahat semua hari'}</button></td><td className="px-2 py-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="time" value={waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||defaultTime(jam).mulai} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:e.target.value,selesai:waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||defaultTime(jam).selesai}})} onBlur={(e)=>saveTime(jam,'mulai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/><span>–</span><input type="time" value={waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||defaultTime(jam).selesai} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||defaultTime(jam).mulai,selesai:e.target.value}})} onBlur={(e)=>saveTime(jam,'selesai',e.target.value)} className="w-[92px] rounded-lg border px-1 py-2 text-xs"/></div></td>
+                <td className="px-3 py-2 text-xs font-semibold text-gray-500"><div>{istirahat.includes(jam) ? 'Jeda' : `JP ${jam-istirahat.filter(row=>row<jam).length}`}</div><button onClick={()=>toggleBreak(jam)} className="mt-1 text-[10px] font-bold text-amber-600" title="Menandai seluruh hari pada jam ini sebagai istirahat">{istirahat.includes(jam)?'Jadikan JP':'+ Jeda'}</button></td><td className="px-2 py-2 whitespace-nowrap"><div className="flex items-center gap-1"><input type="time" value={waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||defaultTime(jam).mulai} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:e.target.value,selesai:waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||defaultTime(jam).selesai}})} onBlur={(e)=>saveTime(jam,'mulai',e.target.value)} className="w-[88px] rounded-md border border-slate-200 bg-slate-50 px-1 py-1.5 text-xs"/><span>–</span><input type="time" value={waktuJam[jam]?.selesai||data.find(i=>i.jam_ke===jam)?.jam_selesai||defaultTime(jam).selesai} onChange={(e)=>setWaktuJam({...waktuJam,[jam]:{mulai:waktuJam[jam]?.mulai||data.find(i=>i.jam_ke===jam)?.jam_mulai||defaultTime(jam).mulai,selesai:e.target.value}})} onBlur={(e)=>saveTime(jam,'selesai',e.target.value)} className="w-[88px] rounded-md border border-slate-200 bg-slate-50 px-1 py-1.5 text-xs"/></div></td>
                 {istirahat.includes(jam)?<td colSpan={hariSekolah} className="border-l bg-amber-50 text-center text-xs font-bold uppercase tracking-wider text-amber-700">Istirahat</td>:HARI.slice(0, hariSekolah).map((_, hari) => {
                   const item = data.find((d) => d.hari === hari + 1 && d.jam_ke === jam)
                   return (
-                    <td key={hari} className="px-2 py-2 text-xs border-l" style={{ borderColor: 'var(--border)' }}><select value={item?.nama_mapel_custom ? 'custom' : item?.mata_pelajaran_id || ''} onChange={(e)=>setCell(hari+1,jam,e.target.value)} className={`w-full rounded-lg border px-2 py-2 text-xs font-semibold outline-none ${item ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-400'}`}><option value="">— Kosong —</option>{item?.nama_mapel_custom && <option value="custom">{item.nama_mapel_custom}</option>}{mapelList.map((subject)=><option key={subject.id} value={subject.id}>{subject.nama}</option>)}</select><button onClick={() => handleCell(hari+1,jam,item)} className="mt-1 text-xs text-teal-700 underline">Detail</button></td>
+                    <td key={hari} className="px-2 py-2 text-xs border-l" style={{ borderColor: 'var(--border)' }}><select value={item?.nama_mapel_custom ? 'custom' : item?.mata_pelajaran_id || ''} onChange={(e)=>setCell(hari+1,jam,e.target.value)} className={`w-full rounded-lg border px-2 py-2 text-xs font-semibold outline-none ${item ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-400'}`}><option value="">— Kosong —</option>{item?.nama_mapel_custom && <option value="custom">{item.nama_mapel_custom}</option>}{mapelList.map((subject)=><option key={subject.id} value={subject.id}>{subject.nama}</option>)}</select><button onClick={() => handleCell(hari+1,jam,item)} className="ml-1 min-h-8 text-[10px] text-teal-700">Edit</button></td>
                   )
                 })}
               </tr>
@@ -210,7 +238,14 @@ export default function Jadwal() {
         </table>
       </div>
 
-      {showSettings && <Modal title="Pengaturan Jadwal" onClose={() => setShowSettings(false)} footer={<button onClick={saveSettings} className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 text-sm font-bold">Simpan Pengaturan</button>}><div className="space-y-4"><label className="text-sm font-bold block">Hari sekolah<select value={settingsDraft.hariSekolah} onChange={(e) => setSettingsDraft({...settingsDraft,hariSekolah:Number(e.target.value)})} className="field mt-2"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label><label className="text-sm font-bold block">Jumlah jam pelajaran per hari<input type="number" min={1} max={16} value={settingsDraft.jumlahJam} onChange={(e) => setSettingsDraft({...settingsDraft,jumlahJam:Number(e.target.value)})} className="field mt-2"/></label><p className="text-xs text-slate-500">Pilih mata pelajaran pada setiap kotak. Tombol <strong>Istirahat semua hari</strong> hanya dipakai bila seluruh kelas istirahat pada jam tersebut; satu kali klik akan menghapus mapel pada baris itu.</p></div></Modal>}
+      {showSettings && <Modal title="Pengaturan Jadwal" onClose={()=>{if(!settingsLock.current)setShowSettings(false)}} footer={<button disabled={settingsBusy} onClick={saveSettings} className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-bold">{settingsBusy ? 'Menyimpan…' : 'Simpan'}</button>}>
+      {settingsError && <p role="alert" className="mb-3 text-sm text-red-700">{settingsError}</p>}
+      <fieldset disabled={settingsBusy} className="min-w-0 space-y-3">
+      <div className="grid grid-cols-2 gap-3"><label className="text-xs font-semibold">Hari sekolah<select value={settingsDraft.hariSekolah} onChange={e=>setSettingsDraft({...settingsDraft,hariSekolah:Number(e.target.value)})} className="field mt-1"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label><label className="text-xs font-semibold">Jumlah baris (termasuk jeda)<input type="number" min={1} max={16} value={settingsDraft.jumlahJam} onChange={e=>setSettingsDraft({...settingsDraft,jumlahJam:Number(e.target.value)})} className="field mt-1"/></label></div>
+      <label className="flex min-h-11 items-center gap-2 text-sm font-semibold"><input type="checkbox" checked={usePreset} onChange={e=>setUsePreset(e.target.checked)}/>Susun waktu JP + istirahat</label>
+      {usePreset && <div className="grid grid-cols-2 gap-3 rounded-lg bg-slate-50 p-3"><label className="text-xs">Mulai<input type="time" value={preset.start} onChange={e=>setPreset({...preset,start:e.target.value})} className="field mt-1"/></label><label className="text-xs">Menit per JP<input type="number" min={10} max={90} value={preset.duration} onChange={e=>setPreset({...preset,duration:Number(e.target.value)})} className="field mt-1"/></label><label className="text-xs">Istirahat setelah JP<input type="number" min={1} max={settingsDraft.jumlahJam-1} value={preset.breakAfter} onChange={e=>setPreset({...preset,breakAfter:Number(e.target.value)})} className="field mt-1"/></label><label className="text-xs">Menit istirahat<input type="number" min={5} max={60} value={preset.breakMinutes} onChange={e=>setPreset({...preset,breakMinutes:Number(e.target.value)})} className="field mt-1"/></label><p className="col-span-2 text-xs text-slate-500">Contoh awal: 35 menit/JP, jeda 15 menit setelah JP 3. Waktu seluruh hari akan disusun ulang; mapel tidak dihapus.</p></div>}
+      <p className="text-xs text-slate-500">JP = jam pelajaran. Gunakan + Jeda pada tabel untuk menandai istirahat semua hari.</p>
+      </fieldset></Modal>}
 
       {showForm && (
         <Modal title={`${editId ? 'Edit' : 'Tambah'} Jadwal`} onClose={() => { if (!importing) setShowForm(false) }} maxWidth="max-w-sm">

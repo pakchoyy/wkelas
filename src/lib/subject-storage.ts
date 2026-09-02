@@ -1,6 +1,17 @@
 import type { BgyDatabase } from './db'
 import { getRecommendedMapel } from '../shared/mapelRecommendations'
 
+export async function editSubject(db: BgyDatabase, kelasId: number, id: number, input: {nama:string;kode:string}) {
+  const nama = input.nama.trim(), kode = input.kode.trim()
+  if (!nama) throw new Error('Nama mapel wajib diisi.')
+  return db.transaction('rw',db.mata_pelajaran,async () => {
+    const rows = await db.mata_pelajaran.where({kelas_id:kelasId}).toArray()
+    if (!rows.some(row => row.id === id)) throw new Error('Mapel tidak ditemukan.')
+    if (rows.some(row => row.id !== id && row.nama.trim().toLowerCase() === nama.toLowerCase())) throw new Error('Nama mapel sudah digunakan.')
+    await db.mata_pelajaran.update(id,{nama,kode})
+  })
+}
+
 export async function addRecommendedSubjects(db: BgyDatabase, kelasId: number, tingkat: string) {
   return db.transaction('rw', db.mata_pelajaran, async () => {
     const current = await db.mata_pelajaran.where({ kelas_id: kelasId }).toArray()

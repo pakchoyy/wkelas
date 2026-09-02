@@ -109,20 +109,16 @@ function Backup() {
   }
   return <div className="space-y-4">
     <div><h3 className="font-extrabold">Data & Cadangan</h3><p className="mt-1 text-sm text-slate-500">Simpan salinan data secara berkala dan sebelum memulihkan cadangan lain.</p></div>
-    <div className="rounded-xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-900">
-      <strong>Data tersimpan di browser ini</strong>
-      <p className="mt-1">Data belum tersinkron antara HP dan laptop. Menghapus data situs atau memakai browser lain dapat membuat data tidak tersedia di sini.</p>
-      <p className="mt-2">Untuk pindah perangkat, buat cadangan, pindahkan file .bgy ke perangkat tujuan, lalu pilih Pulihkan Data. Pemulihan mengganti seluruh data pada browser tujuan.</p>
-    </div>
-    <section className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950" aria-label="Riwayat cadangan">
-      <h4 className="font-bold">Unduhan cadangan terakhir dimulai</h4>
+    <p className="text-sm text-slate-600">Data hanya di browser ini · Belum tersinkron antarperangkat.</p>
+    <section className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700" aria-label="Riwayat cadangan">
+      <h4 className="font-bold">Cadangan terakhir</h4>
       <p className="mt-1">{history ? new Intl.DateTimeFormat('id-ID',{dateStyle:'long',timeStyle:'short'}).format(new Date(history.startedAt)) : 'Belum tercatat pada browser ini'}</p>
       {history && <p className="mt-1 break-all text-xs">{history.filename}</p>}
       <p role="status" className="mt-3">{reminder}</p>
-      <p className="mt-2 text-xs">Riwayat ini hanya berlaku pada browser ini, bukan bukti file telah tersimpan. Simpan .bgy di tempat aman karena berisi data siswa dan dokumen.</p>
+
       <button disabled={busy} onClick={() => void checkHistory()} className="mt-2 min-h-11 underline disabled:opacity-50">Periksa perubahan terbaru</button>
     </section>
-    <p className="rounded-xl border border-red-100 bg-red-50 p-3 text-sm text-red-800">Pemulihan bukan penggabungan: seluruh data semua kelas dan semester di browser ini akan diganti dengan isi file. Buat cadangan data saat ini terlebih dahulu jika masih diperlukan.</p>
+    <details className="text-xs text-slate-500"><summary className="min-h-8 cursor-pointer font-semibold">Tentang penyimpanan & pemulihan</summary><p className="py-2">Menghapus data situs dapat menghapus data aplikasi. Untuk pindah perangkat, unduh .bgy lalu pulihkan di perangkat tujuan. Pemulihan mengganti seluruh kelas dan semester, bukan menggabungkan. Riwayat hanya mencatat unduhan dimulai—pastikan file tersimpan dan jaga kerahasiaannya.</p></details>
     <div className="grid gap-3 md:grid-cols-2">
       <button disabled={busy} onClick={() => run('create')} className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left text-emerald-800 disabled:opacity-50"><Download size={20}/><span><strong className="block">Buat Cadangan</strong><small>Simpan seluruh data dan dokumen ke file .bgy</small></span></button>
       <button disabled={busy} onClick={() => run('restore')} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left text-slate-700 disabled:opacity-50"><Upload size={20}/><span><strong className="block">Pulihkan Data</strong><small>Pilih file, periksa ringkasan, lalu konfirmasi</small></span></button>
