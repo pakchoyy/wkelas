@@ -29,6 +29,7 @@ function SettingsModal({ value, onClose, onSave, kelasId, onCalendarChanged }: {
     <div className="mb-4 flex gap-2"><button aria-pressed={tab === 'sekolah'} onClick={() => setTab('sekolah')} className={'min-h-11 rounded-lg px-3 text-sm font-semibold ' + (tab === 'sekolah' ? 'bg-teal-100 text-teal-800' : 'bg-slate-100 text-slate-600')}>Hari sekolah</button><button aria-pressed={tab === 'libur'} onClick={() => setTab('libur')} className={'min-h-11 rounded-lg px-3 text-sm font-semibold ' + (tab === 'libur' ? 'bg-rose-100 text-rose-800' : 'bg-slate-100 text-slate-600')}>Hari libur</button></div>
     {tab === 'libur' ? <HolidaySettings kelasId={kelasId} onChanged={onCalendarChanged}/> : <div className="space-y-4">
       <label className="block text-sm font-semibold">Hari sekolah<select value={form.hariSekolah} onChange={e => setForm({...form,hariSekolah:Number(e.target.value) as 5|6})} className="field mt-2"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label>
+      <p className="text-xs text-slate-500">Berlaku juga untuk Jadwal, Rencana Mengajar, dan Jurnal.</p>
       {[1,2].map(sem => <div key={sem} className="rounded-xl border border-slate-200 p-3"><h3 className="mb-2 text-sm font-semibold">Semester {sem}</h3><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-semibold">Tanggal mulai<input type="date" value={sem === 1 ? form.s1Mulai : form.s2Mulai} onChange={e => setForm({...form,[sem === 1 ? 's1Mulai' : 's2Mulai']:e.target.value})} className="field mt-1"/></label><label className="text-xs font-semibold">Tanggal akhir<input type="date" value={sem === 1 ? form.s1Akhir : form.s2Akhir} onChange={e => setForm({...form,[sem === 1 ? 's1Akhir' : 's2Akhir']:e.target.value})} className="field mt-1"/></label></div></div>)}
     </div>}
   </Modal>
@@ -177,10 +178,10 @@ function PresensiKelas({kelasId}:{kelasId:number}) {
     {tab === 'rekap' ? <Rekap siswa={siswa} records={rekapRecords} settings={settings} setSettings={setSettings}/> : <>
     <div className="rounded-xl bg-white border border-slate-200 p-2 mb-3">
       <div className="grid grid-cols-[44px_minmax(0,1fr)_44px_44px] gap-2 items-center">
-        <button aria-label="Tanggal sebelumnya" onClick={() => setTanggal(addDays(tanggal, -1))} className="action-mint size-11 rounded-xl border border-slate-200 grid place-items-center"><ChevronLeft size={21}/></button>
+        <button aria-label="Tanggal sebelumnya" onClick={() => setTanggal(addDays(tanggal, -1))} className="bg-white text-slate-600 size-11 rounded-xl border border-slate-200 grid place-items-center"><ChevronLeft size={21}/></button>
         <h1 className="text-center text-sm font-bold text-slate-900"><span className="sm:hidden">{new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(tanggal + 'T12:00:00'))}</span><span className="hidden sm:inline">{longDate(tanggal)}</span></h1>
         <CalendarDateButton value={tanggal} onChange={setTanggal} max={todayISO()} label="Pilih tanggal presensi"/>
-        <button aria-label="Tanggal berikutnya" disabled={tanggal >= todayISO()} onClick={() => setTanggal(addDays(tanggal, 1))} className="action-mint size-11 rounded-xl border border-slate-200 grid place-items-center disabled:opacity-35"><ChevronRight size={21}/></button>
+        <button aria-label="Tanggal berikutnya" disabled={tanggal >= todayISO()} onClick={() => setTanggal(addDays(tanggal, 1))} className="bg-white text-slate-600 size-11 rounded-xl border border-slate-200 grid place-items-center disabled:opacity-35"><ChevronRight size={21}/></button>
       </div>
     </div>
 

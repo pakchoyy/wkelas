@@ -2,12 +2,14 @@ import {useUnsavedChanges} from '../../hooks/useUnsavedChanges'
 import { compareJournalRows, journalReportBody, journalWordHtml } from '../../../shared/journal-report'
 import { saveJournalField } from '../../../lib/journal-storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ChevronLeft, ChevronRight, FileOutput, FileSpreadsheet, FileText, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
+import { CalendarDays, FileOutput, FileSpreadsheet, FileText, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
 import { teachingSlots } from '../../../shared/teaching-flow'
+import { schoolDayStatus } from '../../../shared/school-day'
+import TeachingWeekNavigator from '../../components/TeachingWeekNavigator'
 
 type Form = { tanggal: string; jam_ke: string; mata_pelajaran: string; materi: string; kegiatan: string; kendala: string; refleksi: string }
 const blank = (): Form => ({ tanggal: todayISO(), jam_ke: '', mata_pelajaran: '', materi: '', kegiatan: '', kendala: '', refleksi: '' })
@@ -34,6 +36,8 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
   const [form, setForm] = useState<Form>(blank())
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null)
   const [weekAnchor, setWeekAnchor] = useState(todayISO())
+  const [schoolDays,setSchoolDays] = useState(5)
+  const [selectedDay,setSelectedDay] = useState(()=>Math.min(4,Math.max(0,new Date().getDay()-1)))
   const [jadwal, setJadwal] = useState<any[]>([])
   const [mapel, setMapel] = useState<any[]>([])
   const [holidays, setHolidays] = useState<any[]>([])
@@ -43,7 +47,7 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
   const [showExport, setShowExport] = useState(false)
   useUnsavedChanges(Object.keys(drafts).length > 0,pending > 0 || saving)
 
-  const load = async () => { const [journals,schedules,subjects,calendar,attendance,scheduleConfig]=await Promise.all([window.electronAPI.jurnal.list(kelasId),window.electronAPI.jadwal.list(kelasId),window.electronAPI.mapel.list(kelasId),window.electronAPI.kalender.list(kelasId),db.pengaturan.get(`presensi_${kelasId}`),db.pengaturan.get(`jadwal_${kelasId}`)]); setData(journals); setJadwal(teachingSlots(schedules, attendance ? JSON.parse(attendance.value).hariSekolah : 5, scheduleConfig ? JSON.parse(scheduleConfig.value) : {})); setMapel(subjects); setHolidays(calendar) }
+  const load = async () => { const [journals,schedules,subjects,calendar,attendance,scheduleConfig]=await Promise.all([window.electronAPI.jurnal.list(kelasId),window.electronAPI.jadwal.list(kelasId),window.electronAPI.mapel.list(kelasId),window.electronAPI.kalender.list(kelasId),db.pengaturan.get(`presensi_${kelasId}`),db.pengaturan.get(`jadwal_${kelasId}`)]); setData(journals); setSchoolDays(attendance && JSON.parse(attendance.value).hariSekolah === 6 ? 6 : 5); setJadwal(teachingSlots(schedules, attendance ? JSON.parse(attendance.value).hariSekolah : 5, scheduleConfig ? JSON.parse(scheduleConfig.value) : {})); setMapel(subjects); setHolidays(calendar) }
   useEffect(() => {
     load().catch(() => setQuickError('Jurnal gagal dimuat. Muat ulang halaman.'))
     db.kelas.get(kelasId).then(async (kelas) => {
@@ -59,6 +63,9 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
   const weekStart=monday(weekAnchor)
   const isHoliday=(date:string)=>holidays.some((item)=>['libur_nasional','libur_sekolah'].includes(item.jenis)&&date>=item.tanggal_mulai&&date<=(item.tanggal_selesai||item.tanggal_mulai))
   const weeklyRows=jadwal.flatMap((slot)=>{ const tanggal=iso(shift(weekStart,slot.hari-1)); if(isHoliday(tanggal)) return []; const subject=slot.nama_mapel_custom||mapel.find((item)=>item.id===slot.mata_pelajaran_id)?.nama||'Pelajaran'; const journal=data.find((item)=>item.tanggal===tanggal&&String(item.jam_ke)===String(slot.jam_ke)); return [{slot,tanggal,subject,journal}] }).sort((a,b)=>a.tanggal.localeCompare(b.tanggal)||a.slot.jam_ke-b.slot.jam_ke)
+  const selectedDate=iso(shift(weekStart,Math.min(selectedDay,schoolDays-1)))
+  const selectedStatus=schoolDayStatus(selectedDate,schoolDays,holidays)
+  const dayRows=weeklyRows.filter(row=>row.tanggal===selectedDate)
   const openNew = () => { setFormError(''); setEditId(null); setForm({ ...blank(), tanggal: month === todayISO().slice(0, 7) ? todayISO() : `${month}-01` }); setShowForm(true) }
   const openEdit = (item: any) => { setFormError(''); setEditId(item.id); setForm({ tanggal: item.tanggal || todayISO(), jam_ke: item.jam_ke || '', mata_pelajaran: item.mata_pelajaran || '', materi: item.materi || '', kegiatan: item.kegiatan || '', kendala: item.kendala || '', refleksi: item.refleksi || '' }); setShowForm(true) }
 
@@ -87,7 +94,7 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
     if (drafts[key] === undefined) return
     persistField({id:item.id,kelas_id:kelasId,tanggal:item.tanggal,jam_ke:String(item.jam_ke || ''),mata_pelajaran:item.mata_pelajaran},field,value,key)
   }
-  const quickWeeklySave = (row:any, field:'materi'|'kegiatan', value:string) => {
+  const quickWeeklySave = (row:any, field:'materi'|'kegiatan'|'kendala'|'refleksi', value:string) => {
     const key = `slot-${row.tanggal}-${row.slot.id}-${field}`
     if (drafts[key] === undefined) return
     persistField({kelas_id:kelasId,tanggal:row.tanggal,jam_ke:String(row.slot.jam_ke),mata_pelajaran:row.subject},field,value,key)
@@ -129,18 +136,32 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
     <section className="journal-print hidden" aria-label="Laporan jurnal untuk cetak" dangerouslySetInnerHTML={{__html:journalReportBody(identity,monthName,rows)}}/>
 
     {quickError && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{quickError} Isian yang gagal tetap tersedia; fokuskan kembali kolom lalu keluar untuk mencoba lagi.<button onClick={() => setQuickError('')} className="ml-2 min-h-11 underline">Tutup pesan</button></div>}
-    <p role="status" className="text-sm text-slate-500">{pending ? 'Menyimpan jurnal...' : Object.keys(drafts).length ? 'Ada isian yang belum tersimpan.' : 'Semua perubahan cepat sudah tersimpan.'}</p>
+
     {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.text}</div>}
-    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-extrabold text-slate-900">Jurnal Harian Mengajar</h2><p className="mt-1 text-sm text-slate-500">Dokumentasi pembelajaran dan bahan laporan guru.</p></div><div className="flex flex-wrap gap-2"><div className="relative"><button onClick={() => setShowExport((open) => !open)} disabled={!rows.length || pending > 0 || Object.keys(drafts).length > 0} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 disabled:opacity-40"><FileOutput size={17}/>Ekspor</button>{showExport && <div className="absolute left-0 sm:left-auto sm:right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl"><button onClick={() => { exportExcel(); setShowExport(false) }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-emerald-50"><FileSpreadsheet size={16} className="text-emerald-600"/>Excel (.xlsx)</button><button onClick={exportWord} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-blue-50"><FileText size={16} className="text-blue-600"/>Word (.doc)</button><button onClick={exportPdf} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-red-50"><Printer size={16} className="text-red-600"/>PDF (Cetak)</button></div>}</div><button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17}/>Tambah Jurnal</button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-extrabold text-slate-900">Jurnal Harian Mengajar</h2><p className="mt-1 text-sm text-slate-500">Pilih hari, lalu isi jurnal sesuai pelajaran.</p></div><div className="flex flex-wrap gap-2"><div className="relative"><button onClick={() => setShowExport((open) => !open)} disabled={!rows.length || pending > 0 || Object.keys(drafts).length > 0} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 disabled:opacity-40"><FileOutput size={17}/>Ekspor</button>{showExport && <div className="absolute left-0 sm:left-auto sm:right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl"><button onClick={() => { exportExcel(); setShowExport(false) }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-emerald-50"><FileSpreadsheet size={16} className="text-emerald-600"/>Excel (.xlsx)</button><button onClick={exportWord} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-blue-50"><FileText size={16} className="text-blue-600"/>Word (.doc)</button><button onClick={exportPdf} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-red-50"><Printer size={16} className="text-red-600"/>PDF (Cetak)</button></div>}</div><button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17}/>Tambah Jurnal</button></div></div>
 
     <section className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><strong className="text-slate-800">{identity.sekolah}</strong><span className="text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun}</span><span className="lg:ml-auto text-slate-500">Wali Kelas: <strong className="text-slate-700">{identity.guru}</strong></span></section>
-    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="flex gap-2 items-center justify-between border-b border-slate-200 p-3"><button onClick={()=>setWeekAnchor(iso(shift(weekStart,-7)))} aria-label="Minggu sebelumnya" className="size-11 shrink-0 grid place-items-center rounded-lg border"><ChevronLeft size={18}/></button><div className="text-center"><div className="text-xs font-bold uppercase text-emerald-600">Input Mingguan dari Jadwal</div><div className="text-sm sm:text-base font-bold">{dateLabel(iso(weekStart))} – {dateLabel(iso(shift(weekStart,6)))}</div></div><button onClick={()=>setWeekAnchor(iso(shift(weekStart,7)))} aria-label="Minggu berikutnya" className="size-11 shrink-0 grid place-items-center rounded-lg border"><ChevronRight size={18}/></button></div><div className="lg:hidden print:hidden divide-y divide-slate-100">{weeklyRows.map(row => <article key={`${row.tanggal}-${row.slot.id}`} className="p-4">
-      <p className="text-sm text-slate-500">{dateLabel(row.tanggal)} · Jam {row.slot.jam_ke}</p>
-      <h3 className="mt-1 font-bold break-words">{row.subject}</h3>
-      <p className="mt-2 text-sm whitespace-pre-wrap break-words">{row.journal?.materi || 'Materi belum diisi'}</p>
-      {row.journal?.kegiatan && <p className="mt-1 text-sm text-slate-600 whitespace-pre-wrap break-words">{row.journal.kegiatan}</p>}
-      <button onClick={() => { if (row.journal) openEdit(row.journal); else { setEditId(null); setFormError(''); setForm({...blank(),tanggal:row.tanggal,jam_ke:String(row.slot.jam_ke),mata_pelajaran:row.subject}); setShowForm(true) } }} className="mt-3 min-h-11 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700">{row.journal ? 'Edit jurnal' : 'Isi jurnal'}</button>
-    </article>)}</div><div className="hidden lg:block print:block overflow-x-auto"><table className="w-full min-w-[850px] text-xs"><thead><tr className="bg-slate-50 text-slate-500"><th className="px-3 py-3 text-left">Hari / Tanggal</th><th className="px-3 py-3">Jam</th><th className="px-3 py-3 text-left">Mata Pelajaran</th><th className="px-3 py-3 text-left">Materi</th><th className="px-3 py-3 text-left">Kegiatan Pembelajaran</th></tr></thead><tbody>{weeklyRows.map((row)=><tr key={`${row.tanggal}-${row.slot.id}`} className="border-t border-slate-100"><td className="px-3 py-2 font-semibold capitalize">{dateLabel(row.tanggal)}</td><td className="px-3 py-2 text-center">{row.slot.jam_ke}</td><td className="px-3 py-2 font-bold">{row.subject}</td><td className="px-2 py-2"><input value={drafts[`slot-${row.tanggal}-${row.slot.id}-materi`] ?? row.journal?.materi ?? ''} onChange={e => setDrafts(current => ({...current,[`slot-${row.tanggal}-${row.slot.id}-materi`]:e.target.value}))} onBlur={(e)=>quickWeeklySave(row,'materi',e.target.value)} placeholder="Isi materi" className="field !py-2 text-xs"/></td><td className="px-2 py-2"><input value={drafts[`slot-${row.tanggal}-${row.slot.id}-kegiatan`] ?? row.journal?.kegiatan ?? ''} onChange={e => setDrafts(current => ({...current,[`slot-${row.tanggal}-${row.slot.id}-kegiatan`]:e.target.value}))} onBlur={(e)=>quickWeeklySave(row,'kegiatan',e.target.value)} placeholder="Isi kegiatan" className="field !py-2 text-xs"/></td></tr>)}</tbody></table></div>{weeklyRows.length===0&&<div className="py-10 text-center text-sm text-slate-400">Belum ada Jadwal pada minggu ini.</div>}<div className="border-t bg-emerald-50 px-4 py-2 text-xs text-emerald-700"><span className="lg:hidden">Buka Isi/Edit jurnal, lalu tekan Simpan Jurnal. </span><span className="hidden lg:inline">Materi dan kegiatan tersimpan otomatis saat berpindah kolom. </span>Hari sekolah, jam istirahat, dan jumlah jam mengikuti pengaturan jadwal. Hari libur tidak dibuatkan baris jurnal.</div></section>
+    <TeachingWeekNavigator value={weekAnchor} schoolDays={schoolDays} selectedDay={Math.min(selectedDay,schoolDays-1)} onChange={setWeekAnchor} onSelectDay={setSelectedDay} holidays={holidays}/>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="Isian jurnal harian">
+      <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 ${selectedStatus.active ? 'border-slate-200 bg-slate-50' : 'border-rose-200 bg-rose-100 text-rose-900'}`}>
+        <h3 className="text-sm font-bold">{dateLabel(selectedDate)}</h3>
+        {selectedStatus.active && dayRows.length>0 && <span className="text-xs text-slate-500 lg:hidden">Geser untuk kolom lainnya →</span>}
+      </div>
+      {!selectedStatus.active ? <div className="flex min-h-40 flex-col items-center justify-center bg-rose-50 p-5 text-center text-rose-800"><CalendarDays size={28} className="mb-2"/><strong>{selectedStatus.reason}</strong><p className="mt-1 text-sm">Tidak ada kegiatan mengajar pada hari libur.</p></div> : dayRows.length===0 ? <div className="p-8 text-center text-sm text-slate-500">Belum ada jadwal pelajaran pada hari ini.<a href="#/aktivitas/jadwal" className="mx-auto mt-3 block w-fit rounded-lg border border-slate-200 px-3 py-3 font-semibold text-teal-700">Buka Jadwal Pelajaran</a></div> : <>
+        <div className="overflow-x-auto" role="region" aria-label="Geser untuk mengisi jurnal" tabIndex={0}>
+          <table className="w-full min-w-[1040px] table-fixed text-sm"><thead><tr className="bg-slate-50 text-xs text-slate-600">
+            <th className="sticky left-0 z-10 w-36 bg-slate-50 px-3 py-3 text-left">Pelajaran / jam</th>
+            {['Materi','Kegiatan pembelajaran','Kendala','Refleksi'].map(label=><th key={label} className="w-52 px-3 py-3 text-left">{label}</th>)}
+            <th className="w-20 px-2 py-3">Form</th>
+          </tr></thead><tbody>{dayRows.map(row=><tr key={`${row.tanggal}-${row.slot.id}`} className="border-t border-slate-100 align-top">
+            <th scope="row" className="sticky left-0 z-10 bg-white px-3 py-3 text-left text-xs"><span className="block font-bold">{row.subject}</span><span className="mt-1 block font-normal text-slate-500">Jam {row.slot.jam_ke}</span><span className="block font-normal text-slate-500">{row.slot.jam_mulai}–{row.slot.jam_selesai}</span></th>
+            {(['materi','kegiatan','kendala','refleksi'] as const).map((field,index)=><td key={field} className="p-2"><textarea aria-label={`${['Materi','Kegiatan pembelajaran','Kendala','Refleksi'][index]} ${row.subject} jam ${row.slot.jam_ke}`} rows={3} value={drafts[`slot-${row.tanggal}-${row.slot.id}-${field}`] ?? row.journal?.[field] ?? ''} onChange={e=>setDrafts(current=>({...current,[`slot-${row.tanggal}-${row.slot.id}-${field}`]:e.target.value}))} onBlur={e=>quickWeeklySave(row,field,e.target.value)} placeholder={index<2 ? 'Tulis di sini' : 'Opsional'} className="field resize-y text-sm"/></td>)}
+            <td className="px-2 py-3"><button aria-label={`Buka form jurnal ${row.subject} jam ${row.slot.jam_ke}`} disabled={pending>0 || Object.keys(drafts).length>0} onClick={()=>{if(row.journal) openEdit(row.journal);else {setEditId(null);setFormError('');setForm({...blank(),tanggal:row.tanggal,jam_ke:String(row.slot.jam_ke),mata_pelajaran:row.subject});setShowForm(true)}}} className="grid size-11 place-items-center rounded-lg border border-slate-200 text-teal-700 disabled:opacity-40"><Pencil size={17}/></button></td>
+          </tr>)}</tbody></table>
+        </div>
+        <p role="status" className="border-t border-slate-100 px-4 py-3 text-xs text-slate-500">{pending ? 'Menyimpan jurnal…' : Object.keys(drafts).length ? 'Ada isian yang belum tersimpan.' : 'Isian tersimpan otomatis saat pindah kolom.'}</p>
+      </>}
+    </section>
     <div className="flex flex-wrap gap-3 items-center justify-between rounded-xl border border-slate-200 bg-white p-3"><div><div className="text-xs font-bold uppercase tracking-wider text-slate-400">Periode Laporan</div><div className="mt-0.5 font-bold capitalize text-slate-800">{monthName}</div></div><input type="month" value={month} aria-label="Bulan laporan jurnal" onChange={(event) => { if (event.target.value) setMonth(event.target.value) }} className="field !w-auto" /></div>
 
     <div className="lg:hidden print:hidden space-y-3" aria-label="Jurnal bulanan">{rows.map(item => <article key={item.id} className="rounded-xl border border-slate-200 bg-white p-4">

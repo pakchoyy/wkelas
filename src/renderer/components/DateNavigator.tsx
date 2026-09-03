@@ -5,10 +5,10 @@ import CalendarDateButton from './CalendarDateButton'
 export default function DateNavigator({value,label,onChange,onPrevious,onNext,nextDisabled=false,weekly=false,max,direct=false}:{value:string;label:string;onChange:(date:string)=>void;onPrevious:()=>void;onNext:()=>void;nextDisabled?:boolean;weekly?:boolean;max?:string;direct?:boolean}) {
   const [expanded,setExpanded]=useState(false)
   if (direct) return <div className="rounded-xl border border-slate-200 bg-white p-2"><div className="grid grid-cols-[44px_minmax(0,1fr)_44px_44px] items-center gap-2">
-    <button aria-label="Tanggal sebelumnya" onClick={onPrevious} className="action-mint grid size-11 place-items-center rounded-xl border"><ChevronLeft size={18}/></button>
+    <button aria-label="Tanggal sebelumnya" onClick={onPrevious} className="bg-white text-slate-600 border-slate-200 grid size-11 place-items-center rounded-xl border"><ChevronLeft size={18}/></button>
     <span className="text-center text-sm font-bold text-slate-900"><span className="sm:hidden">{new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short',year:'numeric'}).format(new Date(value + 'T12:00:00'))}</span><span className="hidden sm:inline">{label}</span></span>
     <CalendarDateButton value={value} onChange={onChange} max={max}/>
-    <button aria-label="Tanggal berikutnya" onClick={onNext} disabled={nextDisabled} className="action-mint grid size-11 place-items-center rounded-xl border disabled:opacity-35"><ChevronRight size={18}/></button>
+    <button aria-label="Tanggal berikutnya" onClick={onNext} disabled={nextDisabled} className="bg-white text-slate-600 border-slate-200 grid size-11 place-items-center rounded-xl border disabled:opacity-35"><ChevronRight size={18}/></button>
   </div></div>
   return <div className="rounded-xl border border-slate-200 bg-white p-2">
     <div className="flex items-center gap-1">

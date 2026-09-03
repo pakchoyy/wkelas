@@ -1,7 +1,7 @@
-import DateNavigator from '../../components/DateNavigator'
+import TeachingWeekNavigator from '../../components/TeachingWeekNavigator'
 import { createJournalDraft } from '../../../lib/journal-storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardCheck, Plus, Trash2 } from 'lucide-react'
 import type { Jadwal, MataPelajaran, RencanaMengajar } from '../../../shared/types'
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
@@ -104,11 +104,6 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
 
   const weekStart = useMemo(() => mondayOf(anchorDate), [anchorDate])
   const days = useMemo(() => Array.from({ length: hariSekolah }, (_, index) => addDays(weekStart, index)), [weekStart, hariSekolah])
-  const weekEnd = days[days.length - 1]
-  const weekLabel = weekStart.getMonth() === weekEnd.getMonth()
-    ? `${weekStart.getDate()}–${weekEnd.getDate()} ${BULAN[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`
-    : `${weekStart.getDate()} ${BULAN[weekStart.getMonth()]} – ${weekEnd.getDate()} ${BULAN[weekEnd.getMonth()]} ${weekEnd.getFullYear()}`
-
   const mapelName = (item?: Jadwal | null, mapelId?: number) =>
     item?.nama_mapel_custom || mapel.find((subject) => subject.id === (item?.mata_pelajaran_id || mapelId))?.nama || 'Pelajaran'
 
@@ -186,9 +181,8 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
         <p className="hidden md:block mt-1 text-sm text-slate-500">Isi rencana langsung dari jadwal pelajaran minggu ini.</p>
       </div>
 
-      <DateNavigator weekly value={anchorDate} label={weekLabel} onChange={setAnchorDate} onPrevious={()=>setAnchorDate(toISO(addDays(weekStart,-7)))} onNext={()=>setAnchorDate(toISO(addDays(weekStart,7)))}/>
-      <div className="flex items-center justify-between gap-2 text-xs text-slate-500"><span>Klik pelajaran untuk mengisi rencana.</span><button onClick={()=>setAnchorDate(todayISO())} className="min-h-11 shrink-0 px-2 font-semibold text-teal-700">Minggu ini</button></div>
-      <div className="grid gap-1 md:hidden" style={{gridTemplateColumns:`repeat(${hariSekolah},minmax(0,1fr))`}} aria-label="Pilih hari rencana">{HARI.slice(0,hariSekolah).map((day,index)=><button key={day} aria-pressed={Math.min(selectedDay,hariSekolah-1)===index} onClick={()=>setSelectedDay(index)} className={`min-h-11 rounded-lg text-xs font-semibold ${Math.min(selectedDay,hariSekolah-1)===index ? 'bg-teal-600 text-white' : 'bg-white text-slate-600'}`}>{day.slice(0,3)}</button>)}</div>
+      <TeachingWeekNavigator value={anchorDate} schoolDays={hariSekolah} selectedDay={Math.min(selectedDay,hariSekolah-1)} onChange={setAnchorDate} onSelectDay={setSelectedDay} holidays={holidays} desktopTabs={false}/>
+      <p className="text-xs text-slate-500">Pilih hari, lalu pilih pelajaran untuk mengisi rencana.</p>
 
       <div className="grid grid-cols-1 gap-3 pb-2 md:grid-cols-2 xl:grid-cols-3">
         {days.map((date, dayIndex) => {
@@ -197,16 +191,16 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
           const isToday = dateISO === todayISO()
           const holiday = holidays.find((item) => ['libur_nasional','libur_sekolah'].includes(item.jenis) && dateISO >= item.tanggal_mulai && dateISO <= (item.tanggal_selesai || item.tanggal_mulai))
           return (
-            <section key={dateISO} className={`${dayIndex === Math.min(selectedDay,hariSekolah-1) ? 'block' : 'hidden md:block'} md:min-h-[330px] overflow-hidden rounded-2xl border ${isToday ? 'border-emerald-400' : 'border-slate-200'} ${['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
-              <header className={`border-b px-4 py-3 ${isToday ? 'bg-emerald-600 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
+            <section key={dateISO} className={`${dayIndex === Math.min(selectedDay,hariSekolah-1) ? 'block' : 'hidden md:block'} md:min-h-[330px] overflow-hidden rounded-2xl border ${holiday ? 'border-rose-200' : isToday ? 'border-emerald-400' : 'border-slate-200'} ${holiday ? 'bg-rose-50' : ['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
+              <header className={`border-b px-4 py-3 ${holiday ? 'bg-rose-100 text-rose-900' : isToday ? 'bg-emerald-600 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold">{HARI[dayIndex]}</span>
                   {isToday && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">HARI INI</span>}
                 </div>
-                <span className={`text-xs ${isToday ? 'text-emerald-50' : 'text-slate-500'}`}>{date.getDate()} {BULAN[date.getMonth()]}</span>
+                <span className={`text-xs ${isToday && !holiday ? 'text-emerald-50' : 'text-slate-500'}`}>{date.getDate()} {BULAN[date.getMonth()]} {date.getFullYear()}</span>
               </header>
               <div className="space-y-2 p-3">
-                {holiday ? <div className="flex min-h-[72px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-amber-200 bg-amber-50 px-3 text-center"><CalendarDays size={26} className="mb-2 text-amber-500"/><p className="text-sm font-bold text-amber-800">{holiday.judul}</p><p className="mt-1 text-xs text-amber-600">Tidak ada rencana mengajar pada hari libur.</p></div> : slots.map((slot) => {
+                {holiday ? <div className="flex min-h-[160px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-center"><CalendarDays size={26} className="mb-2 text-rose-600"/><p className="text-sm font-bold text-rose-800">{holiday.judul}</p><p className="mt-1 text-xs text-rose-700">Tidak ada rencana mengajar pada hari libur.</p></div> : slots.map((slot) => {
                   const plan = findPlan(dateISO, slot)
                   return (
                     <button key={slot.id} onClick={() => openPlan(dateISO, slot, plan)} className="w-full rounded-xl border bg-white p-3 text-left transition hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md" style={{ borderColor: 'var(--border)' }}>

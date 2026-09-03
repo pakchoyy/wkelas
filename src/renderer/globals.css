@@ -153,7 +153,7 @@ button:has(> svg.lucide-x):hover { background: #fecdd3; color: #9f1239; }
 .action-mint:hover { background: #a7f3d0; }
 .action-teal { background: #ccfbf1; color: #115e59; border-color: #99f6e4; }
 .action-teal:hover { background: #99f6e4; }
-.tab-mint { background: #d1fae5; color: #065f46; }
-.tab-teal { background: #ccfbf1; color: #115e59; }
+.tab-mint { background: #f1f5f9; color: #475569; }
+.tab-teal { background: #f1f5f9; color: #475569; }
 .tab-mint[aria-pressed="true"] { background: #047857; color: white; box-shadow: 0 2px 4px #064e3b20; }
 .tab-teal[aria-pressed="true"] { background: #0f766e; color: white; box-shadow: 0 2px 4px #134e4a20; }
