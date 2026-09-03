@@ -68,7 +68,15 @@ export class BgyDatabase extends Dexie {
 }
 
 const MAIN_DB_NAME = 'bgy-wali-kelas'
-const DEMO_DB_NAME = 'bgy-wali-kelas-demo'
+export const DEMO_DB_NAME = 'bgy-wali-kelas-demo'
+const DEMO_MODE_KEY = 'bgy-demo-mode'
+
+function savedDemoMode(): boolean {
+  try { return localStorage.getItem(DEMO_MODE_KEY) === 'true' } catch { return false }
+}
+
+let demoSelected = savedDemoMode()
+export function isDemoMode(): boolean { return demoSelected }
 
 let activeDb: BgyDatabase | null = null
 
@@ -87,16 +95,20 @@ function getDemoDb(): BgyDatabase {
 }
 
 export function activateMainDb(): BgyDatabase {
+  localStorage.removeItem(DEMO_MODE_KEY)
+  demoSelected = false
   return getMainDb()
 }
 
 export function activateDemoDb(): BgyDatabase {
+  localStorage.setItem(DEMO_MODE_KEY, 'true')
+  demoSelected = true
   return getDemoDb()
 }
 
 export const db = new Proxy({} as BgyDatabase, {
   get(_target, prop: string) {
-    const d = activeDb || getMainDb()
+    const d = activeDb || (demoSelected ? getDemoDb() : getMainDb())
     const value = (d as any)[prop]
     return typeof value === 'function' ? (value as Function).bind(d) : value
   },

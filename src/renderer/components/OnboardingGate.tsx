@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, GraduationCap, School, ShieldCheck } from 'lucide-react'
-import { db } from '../../lib/db'
+import { activateMainDb, db } from '../../lib/db'
+import { seedDemoData } from '../../lib/demo-data'
+import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import { getPhaseForGrade } from '../../shared/mapelRecommendations'
 import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboarding'
@@ -45,7 +47,15 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
     setSaving(true)
     setError('')
     try {
-    const kelasId = await saveInitialClass(db, data, skip)
+    if (skip) {
+      await seedDemoData()
+      useAuthStore.getState().setDemo()
+      setKelasAktif(1)
+      onComplete()
+      return
+    }
+    activateMainDb()
+    const kelasId = await saveInitialClass(db, data)
     setKelasAktif(kelasId)
     onComplete()
     } catch (error) {
@@ -67,9 +77,9 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
       <div className="my-auto w-full max-w-3xl rounded-2xl bg-white border border-slate-200 shadow-xl">
         <div className="px-4 sm:px-7 py-5 border-b border-slate-100 flex flex-wrap items-start justify-between gap-3">
           <div><h1 className="font-bold text-lg">Siapkan Kelas Pertama</h1><p className="text-sm text-slate-500">Langkah {step} dari 3 · data tersimpan hanya di perangkat ini</p></div>
-          <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">Lewati dulu</button>
+          <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">{saving ? 'Menyiapkan…' : 'Lewati — isi data contoh'}</button>
         </div>
-        <p className="px-4 sm:px-7 pt-4 text-sm text-slate-500">Lewati untuk mencoba dengan isian saat ini. Nama kelas kosong akan menjadi Kelas Saya. Identitas dan tingkat kelas bisa dilengkapi di Pengaturan; mapel ditambahkan nanti.</p>
+        <p className="px-4 sm:px-7 pt-4 text-sm text-slate-600">Lewati untuk mencoba aplikasi dengan contoh guru, siswa, jadwal, dan nilai. Isian formulir ini tidak digunakan untuk data contoh. Hapus data contoh dari dashboard saat siap membuat kelas sendiri.</p>
         {error && <p role="alert" className="px-4 sm:px-7 pt-3 text-sm text-red-700">{error}</p>}
         <div className="px-7 py-4 border-b border-slate-100 flex items-center gap-3">
           {steps.map((item, i) => <div key={item.n} className="contents">

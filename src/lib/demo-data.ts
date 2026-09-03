@@ -1,4 +1,5 @@
-import { activateDemoDb, activateMainDb } from './db'
+import { BgyDatabase, DEMO_DB_NAME, activateDemoDb, activateMainDb } from './db'
+import { initialSetup } from './onboarding'
 
 const iso = (d: Date) => d.toISOString()
 const now = iso(new Date())
@@ -41,16 +42,18 @@ function nilaiFor(siswaId: number, kolomId: number): number {
 }
 
 export async function seedDemoData(): Promise<void> {
-  const db = activateDemoDb()
+  const academic = initialSetup()
+  const db = new BgyDatabase(DEMO_DB_NAME)
+  try {
 
   await db.transaction('rw', db.tables, async () => {
     for (const table of db.tables) {
       await table.clear()
     }
 
-    await db.guru.add({ id: 1, supabase_uid: 'demo', nama: 'Budi Santoso, S.Pd.', email: 'demo@bgy.app', nip: '198501012010011001', nama_sekolah: 'SMP Negeri 1 Nusantara', mata_pelajaran: 'Matematika', tahun_ajaran_aktif: '2025/2026', semester_aktif: 1, created_at: now, updated_at: now })
+    await db.guru.add({ id: 1, supabase_uid: 'demo', nama: 'Budi Santoso, S.Pd.', email: 'demo@bgy.app', nip: '198501012010011001', nama_sekolah: 'SD Negeri 1 Nusantara', mata_pelajaran: 'Matematika', tahun_ajaran_aktif: academic.tahunAjaran, semester_aktif: academic.semester, created_at: now, updated_at: now })
 
-    await db.kelas.add({ id: 1, nama_kelas: '7A', tingkat: '7', tahun_ajaran: '2025/2026', semester: 1, is_aktif: 1, guru_id: 1, created_at: now, updated_at: now })
+    await db.kelas.add({ id: 1, nama_kelas: '5A', tingkat: '5', tahun_ajaran: academic.tahunAjaran, semester: academic.semester, is_aktif: 1, guru_id: 1, created_at: now, updated_at: now })
 
     const siswaIds = NAMA_SISWA.map((_, i) => i + 1)
     for (const [i, [nama, jk]] of NAMA_SISWA.entries()) {
@@ -136,28 +139,28 @@ export async function seedDemoData(): Promise<void> {
     }
 
     const jadwal: Array<[number, number, string, string, number, string, string]> = [
-      [1, 1, '07:00', '08:20', 1, 'Budi Santoso, S.Pd.', 'R. 7A'],
-      [1, 2, '08:20', '09:40', 1, 'Budi Santoso, S.Pd.', 'R. 7A'],
-      [1, 3, '10:00', '11:20', 2, 'Sri Lestari, M.Pd.', 'R. 7A'],
-      [1, 4, '11:20', '12:40', 2, 'Sri Lestari, M.Pd.', 'R. 7A'],
+      [1, 1, '07:00', '08:20', 1, 'Budi Santoso, S.Pd.', 'R. 5A'],
+      [1, 2, '08:20', '09:40', 1, 'Budi Santoso, S.Pd.', 'R. 5A'],
+      [1, 3, '10:00', '11:20', 2, 'Sri Lestari, M.Pd.', 'R. 5A'],
+      [1, 4, '11:20', '12:40', 2, 'Sri Lestari, M.Pd.', 'R. 5A'],
       [1, 5, '13:00', '14:20', 8, 'Asep Hidayat, S.Pd.', 'Lapangan'],
       [2, 1, '07:00', '08:20', 4, 'Dewi Murni, S.Si.', 'Lab IPA'],
       [2, 2, '08:20', '09:40', 4, 'Dewi Murni, S.Si.', 'Lab IPA'],
-      [2, 3, '10:00', '11:20', 3, 'Rina Marlina, S.Pd.', 'R. 7A'],
-      [2, 4, '11:20', '12:40', 3, 'Rina Marlina, S.Pd.', 'R. 7A'],
-      [2, 5, '13:00', '14:20', 5, 'Tatang Suryana, S.Pd.', 'R. 7A'],
-      [3, 1, '07:00', '08:20', 6, 'Neni Rosita, S.Pd.', 'R. 7A'],
-      [3, 2, '08:20', '09:40', 1, 'Budi Santoso, S.Pd.', 'R. 7A'],
-      [3, 3, '10:00', '11:20', 2, 'Sri Lestari, M.Pd.', 'R. 7A'],
+      [2, 3, '10:00', '11:20', 3, 'Rina Marlina, S.Pd.', 'R. 5A'],
+      [2, 4, '11:20', '12:40', 3, 'Rina Marlina, S.Pd.', 'R. 5A'],
+      [2, 5, '13:00', '14:20', 5, 'Tatang Suryana, S.Pd.', 'R. 5A'],
+      [3, 1, '07:00', '08:20', 6, 'Neni Rosita, S.Pd.', 'R. 5A'],
+      [3, 2, '08:20', '09:40', 1, 'Budi Santoso, S.Pd.', 'R. 5A'],
+      [3, 3, '10:00', '11:20', 2, 'Sri Lestari, M.Pd.', 'R. 5A'],
       [3, 4, '11:20', '12:40', 4, 'Dewi Murni, S.Si.', 'Lab IPA'],
       [3, 5, '13:00', '14:20', 7, 'Euis Karlina, S.Pd.', 'R. Seni'],
-      [4, 1, '07:00', '08:20', 1, 'Budi Santoso, S.Pd.', 'R. 7A'],
-      [4, 2, '08:20', '09:40', 5, 'Tatang Suryana, S.Pd.', 'R. 7A'],
-      [4, 3, '10:00', '11:20', 5, 'Tatang Suryana, S.Pd.', 'R. 7A'],
-      [4, 4, '11:20', '12:40', 3, 'Rina Marlina, S.Pd.', 'R. 7A'],
+      [4, 1, '07:00', '08:20', 1, 'Budi Santoso, S.Pd.', 'R. 5A'],
+      [4, 2, '08:20', '09:40', 5, 'Tatang Suryana, S.Pd.', 'R. 5A'],
+      [4, 3, '10:00', '11:20', 5, 'Tatang Suryana, S.Pd.', 'R. 5A'],
+      [4, 4, '11:20', '12:40', 3, 'Rina Marlina, S.Pd.', 'R. 5A'],
       [4, 5, '13:00', '14:20', 8, 'Asep Hidayat, S.Pd.', 'Lapangan'],
-      [5, 1, '07:00', '08:00', 6, 'Neni Rosita, S.Pd.', 'R. 7A'],
-      [5, 2, '08:00', '09:00', 2, 'Sri Lestari, M.Pd.', 'R. 7A'],
+      [5, 1, '07:00', '08:00', 6, 'Neni Rosita, S.Pd.', 'R. 5A'],
+      [5, 2, '08:00', '09:00', 2, 'Sri Lestari, M.Pd.', 'R. 5A'],
       [5, 3, '09:00', '10:00', 7, 'Euis Karlina, S.Pd.', 'R. Seni'],
       [5, 4, '10:00', '11:00', 4, 'Dewi Murni, S.Si.', 'Lab IPA'],
     ]
@@ -211,7 +214,7 @@ export async function seedDemoData(): Promise<void> {
 
     const todo = [
       { judul: 'Persiapan materi Pecahan', deskripsi: 'Siapkan LKS dan media manipulatif', prioritas: 'tinggi', status: 'belum', deadline: dateOffset(1) },
-      { judul: 'Koreksi PR Matematika', deskripsi: 'Kelas 7A', prioritas: 'normal', status: 'belum', deadline: dateOffset(0) },
+      { judul: 'Koreksi PR Matematika', deskripsi: 'Kelas 5A', prioritas: 'normal', status: 'belum', deadline: dateOffset(0) },
       { judul: 'Input Nilai PH 2', deskripsi: 'Input ke aplikasi', prioritas: 'tinggi', status: 'selesai', deadline: dateOffset(-1), completed_at: now },
       { judul: 'Laporan kemajuan siswa', deskripsi: 'Persiapan laporan untuk kepala sekolah', prioritas: 'normal', status: 'belum', deadline: dateOffset(3) },
       { judul: 'Undangan rapat orang tua', deskripsi: 'Kirim undangan via WA', prioritas: 'rendah', status: 'belum', deadline: dateOffset(5) },
@@ -223,12 +226,14 @@ export async function seedDemoData(): Promise<void> {
     const dokumen = [
       { judul: 'Soal Ulangan Harian Bilangan Bulat', deskripsi: 'Soal beserta kunci jawaban', kategori: 'Soal', format_file: 'pdf', ukuran_file: 245760 },
       { judul: 'Rencana Pelaksanaan Pembelajaran Pecahan', deskripsi: 'RPP Kurikulum Merdeka', kategori: 'RPP', format_file: 'docx', ukuran_file: 35840 },
-      { judul: 'Daftar Nilai Semester Ganjil', deskripsi: 'Rekap nilai kelas 7A', kategori: 'Laporan', format_file: 'xlsx', ukuran_file: 92160 },
+      { judul: 'Daftar Nilai Semester Ganjil', deskripsi: 'Rekap nilai kelas 5A', kategori: 'Laporan', format_file: 'xlsx', ukuran_file: 92160 },
     ]
     for (const d of dokumen) {
       await db.dokumen_saya.add({ ...d, file_data: undefined, deleted_at: null, created_at: now, updated_at: now })
     }
   })
+  activateDemoDb()
+  } finally { db.close() }
 }
 
 export function resetToMainDb(): void {
@@ -236,10 +241,13 @@ export function resetToMainDb(): void {
 }
 
 export async function clearDemoDb(): Promise<void> {
-  const db = activateDemoDb()
+  const db = new BgyDatabase(DEMO_DB_NAME)
+  try {
   await db.transaction('rw', db.tables, async () => {
     for (const table of db.tables) {
       await table.clear()
     }
   })
+  activateMainDb()
+  } finally { db.close() }
 }

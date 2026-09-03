@@ -1,4 +1,5 @@
 import { GraduationCap, Menu, User } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useAuthStore } from '../stores/authStore'
 
 export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; menuOpen:boolean}) {
@@ -8,8 +9,8 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
   return (
     <>
       {isDemo && (
-        <div className="min-h-7 bg-amber-100 px-3 py-1 flex items-center justify-center text-xs font-semibold text-amber-900">
-          DEMO MODE — Data tidak tersimpan
+        <div className="min-h-7 shrink-0 bg-amber-100 px-3 py-1 flex flex-wrap items-center justify-center gap-x-3 text-xs font-semibold text-amber-900">
+          <span>Data contoh aktif</span><Link to="/" className="inline-flex min-h-8 items-center underline underline-offset-2">Kelola data contoh</Link>
         </div>
       )}
       <header

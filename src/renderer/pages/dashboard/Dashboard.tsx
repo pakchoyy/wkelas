@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Stat from '../../components/StatCard'
+import DemoNotice from '../../components/DemoNotice'
 import { ArrowRight, BookOpen, CalendarDays, CheckCircle2, ClipboardCheck, Clock3, GraduationCap, ListTodo, Users } from 'lucide-react'
 import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
@@ -41,6 +42,7 @@ export default function Dashboard() {
   const shown = (value: number) => unavailable ? '—' : value
 
   return <div className="dashboard max-w-[1440px] mx-auto space-y-5">
+    <DemoNotice/>
     <p role="status" className="sr-only">{loading ? 'Memuat ringkasan kelas…' : error ? '' : 'Ringkasan kelas sudah dimuat.'}</p>
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p>{error}</p><button onClick={() => setRetry(value => value + 1)} className="min-h-11 rounded-lg border border-red-300 bg-white px-4 font-semibold">Coba lagi</button></div>}
     <section className="dashboard-hero relative overflow-hidden rounded-2xl bg-slate-900 p-5 text-white sm:p-7">
