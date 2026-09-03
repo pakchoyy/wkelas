@@ -29,7 +29,7 @@ const standaloneItems = [
   { to: '/pengaturan', icon: Settings, label: 'Pengaturan' },
 ]
 
-const linkClass = ({ isActive }: { isActive: boolean }) => `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors ${isActive ? 'bg-teal-50 text-[#0ea5a0]' : 'text-slate-600 hover:bg-slate-100'}`
+const linkClass = ({ isActive }: { isActive: boolean }) => `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors [&>svg]:shrink-0 ${isActive ? 'bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-inset ring-teal-200' : 'text-slate-600 hover:bg-slate-100'}`
 
 export default function Sidebar({onNavigate}: {onNavigate?: () => void}) {
   const menuId = useId()

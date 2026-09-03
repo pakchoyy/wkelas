@@ -34,16 +34,17 @@ export default function Layout() {
   const quickActive = quickLinks.some(link => link.to === location.pathname)
   return (
     <div className="app-layout flex h-dvh min-h-0 flex-col overflow-hidden">
+      <a href="#main-content" className="skip-link" onClick={event => { event.preventDefault(); main.current?.focus(); main.current?.scrollTo({top:0}); }}>Lewati ke konten utama</a>
       <Header onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen}/>
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden w-64 shrink-0 lg:flex"><Sidebar/></div>
-        <main ref={main} id="main-content" className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3 sm:p-4 lg:p-6">
+        <main ref={main} id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3 sm:p-4 lg:p-6">
           <div className="min-w-0 animate-slide-up"><Outlet/></div>
         </main>
       </div>
       <nav aria-label="Navigasi cepat" className="mobile-navigation grid shrink-0 grid-cols-4 border-t border-slate-200 bg-white lg:hidden" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
-        {quickLinks.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/'} className={({isActive}) => `flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] sm:text-xs font-semibold ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Icon size={19}/>{label}</NavLink>)}
-        <button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="mobile-menu" className={`flex min-h-12 flex-col items-center justify-center gap-1 text-[10px] sm:text-xs font-semibold ${!quickActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Menu size={19}/>Menu</button>
+        {quickLinks.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/'} className={({isActive}) => `flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Icon size={19}/>{label}</NavLink>)}
+        <button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="mobile-menu" className={`flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${!quickActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Menu size={19}/>Menu</button>
       </nav>
       <dialog ref={drawer} id="mobile-menu" aria-labelledby="mobile-menu-title" onClose={() => setMenuOpen(false)} onClick={event => { const bounds=event.currentTarget.getBoundingClientRect(); if(event.target===event.currentTarget && (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom)) setMenuOpen(false) }} className="fixed inset-y-0 left-0 m-0 h-dvh max-h-none w-80 max-w-[calc(100vw-3rem)] flex-col border-0 bg-white p-0 text-slate-800 shadow-xl open:flex backdrop:bg-slate-950/45">
         <div className="flex shrink-0 items-center justify-between border-b px-4 py-3"><h2 id="mobile-menu-title" className="font-bold">Menu Wali Kelas</h2><button onClick={() => setMenuOpen(false)} aria-label="Tutup menu" className="grid size-11 place-items-center rounded-xl hover:bg-slate-100"><X size={19}/></button></div>

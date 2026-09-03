@@ -7,6 +7,10 @@
   --border: #e2e8f0;
   --text: #1e293b;
   --text-light: #64748b;
+  --accent: #0f766e;
+  --accent-hover: #115e59;
+  --accent-soft: #f0fdfa;
+  --header-bg: linear-gradient(135deg, #0f766e, #0d6977, #285f73);
   --radius: 12px;
   --shadow: 0 2px 12px rgba(0,0,0,0.08);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.13);
@@ -17,6 +21,31 @@ body {
   font-family: 'Segoe UI', system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(button, a, input, select, textarea, summary):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+.app-header :focus-visible, .dashboard-hero :focus-visible { outline-color: #ffffff; }
+.skip-link { position: fixed; inset-block-start: 0.5rem; inset-inline-start: 0.5rem; z-index: 100; transform: translateY(-200%); border-radius: 0.5rem; background: white; color: var(--accent); padding: 0.75rem 1rem; font-weight: 600; }
+.skip-link:focus { transform: translateY(0); }
+.dashboard { container-type: inline-size; }
+.dashboard h1, .dashboard h2 { text-wrap: balance; }
+.dashboard p { text-wrap: pretty; }
+.dashboard-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.75rem; }
+.dashboard-stats > :last-child { grid-column: 1 / -1; }
+.dashboard-columns { display: grid; gap: 1.25rem; }
+.dashboard-primary { background: var(--accent); color: white; transition: background-color 150ms, scale 150ms; }
+.dashboard-primary:hover { background: var(--accent-hover); }
+.dashboard-primary:active { scale: 0.96; }
+@container (min-width: 56rem) {
+  .dashboard-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .dashboard-stats > :last-child { grid-column: auto; }
+  .dashboard-columns { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); }
+  .dashboard-welcome { flex-direction: row; align-items: center; }
 }
 
 .field {
@@ -71,6 +100,8 @@ body {
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-slide-up { animation: none; }
+  .app-layout *, .app-layout *::before, .app-layout *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .dashboard-primary:active { scale: none; }
 }
 @media print {
   @page { size: A4 landscape; margin: 12mm; }
