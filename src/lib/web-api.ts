@@ -1,5 +1,6 @@
 import { deleteSubject } from './subject-storage'
 import { saveCalendar } from './calendar-storage'
+import { ensureIndonesianHolidays } from './holiday-storage'
 import { saveSchedule } from './schedule-storage'
 import { ensureGradePeriods, listPeriodColumns, subjectPeriod } from './grade-periods'
 import { db } from './db'
@@ -209,6 +210,7 @@ const electronAPI: ElectronAPI = {
   },
   kalender: {
     list: async (kelasId: number) => {
+      await ensureIndonesianHolidays(db, kelasId)
       return db.kalender_akademik.where({ kelas_id: kelasId }).toArray()
     },
     save: async (data: any) => saveCalendar(db, data),

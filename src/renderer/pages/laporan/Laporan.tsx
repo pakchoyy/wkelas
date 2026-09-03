@@ -79,7 +79,7 @@ export default function Laporan() {
   const tabs: { id: TabLaporan; label: string }[] = [
     { id: 'presensi', label: 'Presensi' },
     { id: 'nilai', label: 'Nilai' },
-    { id: 'perilaku', label: 'Perilaku' },
+    { id: 'perilaku', label: 'Catatan Perilaku' },
     { id: 'jurnal', label: 'Jurnal' },
     { id: 'kalender', label: 'Kalender' },
   ]

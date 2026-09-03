@@ -89,42 +89,42 @@ export default function DataSiswa() {
 
   return (
     <div className="max-w-[1440px] mx-auto">
-      <div className="flex items-start justify-between mb-5 flex-wrap gap-4">
+      <div className="flex items-start justify-between mb-3 sm:mb-5 flex-wrap gap-3">
         <div>
           <div className="flex items-center gap-2 mb-1"><Users size={20} className="text-emerald-600"/><h2 className="text-xl font-extrabold text-slate-900">Data Siswa</h2></div>
           <p className="text-sm text-slate-500">{kelasLabel}</p>
-          <div className="flex flex-wrap gap-3 mt-2 text-xs font-semibold text-slate-500"><span>{siswa.length} siswa</span><span>•</span><span>{laki} laki-laki</span><span>•</span><span>{perempuan} perempuan</span></div>
+          <div className="flex flex-wrap gap-1.5 mt-2 text-xs font-semibold"><span className="rounded-md bg-teal-100 px-2 py-1 text-teal-800">{siswa.length} siswa</span><span className="rounded-md bg-blue-100 px-2 py-1 text-blue-800">{laki} laki-laki</span><span className="rounded-md bg-violet-100 px-2 py-1 text-violet-800">{perempuan} perempuan</span></div>
         </div>
-        <div className="flex gap-2 flex-wrap">
+        <div className="flex w-full flex-wrap gap-2 lg:w-auto [&>button]:px-2 [&>button]:text-xs sm:[&>button]:px-4 sm:[&>button]:text-sm">
           <button
             onClick={() => setFieldOpen(true)}
-            className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+            className="action-mint min-h-11 flex items-center justify-center gap-1.5 rounded-xl px-3 lg:px-4 py-2.5 text-sm font-semibold border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
           >
-            <Settings2 size={16} /> Atur Kolom Data
+            <Settings2 size={16} /><span className="lg:hidden">Atur kolom</span><span className="hidden lg:inline">Atur Kolom Data</span>
           </button>
           <button
             onClick={() => setImportOpen(true)}
-            className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+            className="action-teal min-h-11 flex items-center justify-center gap-1.5 rounded-xl px-3 lg:px-4 py-2.5 text-sm font-semibold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
           >
-            <Upload size={16} /> Import Data
+            <Upload size={16} /><span className="lg:hidden">Impor</span><span className="hidden lg:inline">Import Data</span>
           </button>
           <button
             onClick={() => { setEditSiswa(null); setFormOpen(true) }}
-            className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-[0.98]"
+            className="action-primary min-h-11 flex items-center justify-center gap-1.5 rounded-xl px-3 lg:px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-[0.98]"
           >
-            <Plus size={16} /> Tambah Siswa
+            <Plus size={16} /><span className="sm:hidden">Tambah</span><span className="hidden sm:inline">Tambah Siswa</span>
           </button>
         </div>
       </div>
 
-      <div className="rounded-2xl bg-white border border-slate-200 p-3 mb-4 flex flex-col md:flex-row gap-3 md:items-center">
-        <div className="relative flex-1 max-w-xl">
+      <div className="rounded-xl bg-white border border-slate-200 p-2 sm:p-3 mb-3 grid grid-cols-2 md:flex gap-2 md:items-center">
+        <div className="relative col-span-2 min-w-0 flex-1 md:max-w-xl">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-light)' }} />
           <input
             aria-label="Cari nama, NIS, atau nomor absen"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari berdasarkan nama atau NIS..."
+            placeholder="Cari nama atau NIS..."
             className="w-full rounded-xl pl-9 pr-11 py-2.5 text-base lg:text-sm border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
           {search && (
@@ -139,21 +139,28 @@ export default function DataSiswa() {
         </div>
         <SelectWrap><select aria-label="Filter jenis kelamin" value={jkFilter} onChange={(e) => setJkFilter(e.target.value)} className="min-h-11 w-full appearance-none rounded-xl pl-3 pr-9 py-2.5 text-base lg:text-sm border border-slate-200 bg-slate-50 text-slate-600 focus:bg-white focus:border-emerald-500 outline-none"><option value="">Semua JK</option><option value="L">Laki-laki</option><option value="P">Perempuan</option></select></SelectWrap>
         <SelectWrap><select aria-label="Urutan siswa" value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="min-h-11 w-full appearance-none rounded-xl pl-3 pr-9 py-2.5 text-base lg:text-sm border border-slate-200 bg-slate-50 text-slate-600 focus:bg-white focus:border-emerald-500 outline-none"><option value="nama">Urut A–Z</option><option value="terbaru">Siswa Terbaru</option></select></SelectWrap>
-        <div className="md:ml-auto text-xs font-semibold text-slate-500 whitespace-nowrap">{isFiltering ? `${filtered.length} dari ${siswa.length}` : `${siswa.length} siswa`}</div>
+        <div className="col-span-2 md:ml-auto text-xs font-semibold text-slate-500 whitespace-nowrap">{isFiltering ? `${filtered.length} dari ${siswa.length}` : `${siswa.length} siswa`}</div>
       </div>
 
-      <section className="lg:hidden space-y-3" aria-label="Daftar siswa">
-        {loading ? <p role="status" className="p-6 text-center">Memuat data siswa...</p> : filtered.map(student => <article key={student.id} className="rounded-xl border border-slate-200 bg-white p-4">
-          <h3 className="font-bold text-slate-800 break-words">{student.nama}</h3>
-          <dl className="mt-3 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-2 text-sm">
-            <dt className="text-slate-500">NIS</dt><dd className="break-words">{student.nis || 'Belum diisi'}</dd>
-            <dt className="text-slate-500">Jenis kelamin</dt><dd>{student.jenis_kelamin === 'L' ? 'Laki-laki' : student.jenis_kelamin === 'P' ? 'Perempuan' : 'Belum diisi'}</dd>
-            <dt className="text-slate-500">No. absen</dt><dd>{student.no_absen || 'Belum diisi'}</dd>
-          </dl>
-          {!!fields.length && <details className="mt-3 border-t border-slate-100"><summary className="min-h-11 py-3 cursor-pointer text-sm font-semibold text-teal-700">Data tambahan ({fields.length})</summary><dl className="space-y-3 text-sm">{fields.map(field => <div key={field.id}><dt className="text-slate-500 break-words">{field.nama_field}</dt><dd className="whitespace-pre-wrap break-words">{fieldValues[student.id]?.[field.id] || '—'}</dd></div>)}</dl></details>}
-          <div className="mt-3 flex flex-wrap gap-3"><button onClick={() => handleEdit(student)} aria-label={`Edit data ${student.nama}`} className="min-h-11 rounded-xl bg-emerald-50 px-4 text-sm font-bold text-emerald-700">Edit siswa</button><button onClick={() => confirmHapus(student)} aria-label={`Hapus ${student.nama}`} className="min-h-11 rounded-xl border border-red-200 px-4 text-sm text-red-700">Hapus</button></div>
+      <section className="lg:hidden overflow-hidden rounded-xl border border-slate-200 bg-white divide-y divide-slate-100" aria-label="Daftar siswa">
+        {loading ? <p role="status" className="p-6 text-center">Memuat data siswa...</p> : filtered.map((student,index) => <article key={student.id} className="flex items-start gap-1 px-3 py-2">
+          <details className="min-w-0 flex-1 group">
+            <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
+              <span className="w-5 shrink-0 text-xs text-slate-500">{student.no_absen || index + 1}</span>
+              <span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold text-slate-800">{student.nama}</span><span className="block text-xs text-slate-500">NIS {student.nis || '—'} · {student.jenis_kelamin || 'JK —'}</span></span>
+              <ChevronDown size={15} className="shrink-0 text-slate-500 group-open:rotate-180"/>
+            </summary>
+            <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-slate-100 py-3 text-xs">
+              <dt className="text-slate-500">No. absen</dt><dd>{student.no_absen || 'Belum diisi'}</dd>
+              <dt className="text-slate-500">NIS</dt><dd className="break-words">{student.nis || 'Belum diisi'}</dd>
+              <dt className="text-slate-500">Jenis kelamin</dt><dd>{student.jenis_kelamin === 'L' ? 'Laki-laki' : student.jenis_kelamin === 'P' ? 'Perempuan' : 'Belum diisi'}</dd>
+            </dl>
+            {!!fields.length && <dl className="space-y-2 pb-3 text-xs">{fields.map(field => <div key={field.id}><dt className="break-words text-slate-500">{field.nama_field}</dt><dd className="whitespace-pre-wrap break-words">{fieldValues[student.id]?.[field.id] || '—'}</dd></div>)}</dl>}
+          </details>
+          <button onClick={() => handleEdit(student)} aria-label={`Edit data ${student.nama}`} className="grid size-11 shrink-0 place-items-center rounded-lg text-teal-700 hover:bg-teal-50"><Pencil size={17}/></button>
+          <button onClick={() => confirmHapus(student)} aria-label={`Hapus ${student.nama}`} className="grid size-11 shrink-0 place-items-center rounded-lg text-red-700 hover:bg-red-50"><Trash2 size={17}/></button>
         </article>)}
-        {!loading && !filtered.length && <div className="rounded-xl border border-dashed p-6 text-center text-sm text-slate-500"><p>{isFiltering ? 'Tidak ada siswa yang cocok dengan pencarian atau filter.' : 'Belum ada siswa. Gunakan Tambah Siswa atau Import Data di atas.'}</p>{isFiltering && <button onClick={() => { setSearch(''); setJkFilter('') }} className="mt-3 min-h-11 rounded-lg border px-4 font-semibold">Reset pencarian dan filter</button>}</div>}
+        {!loading && !filtered.length && <div className="p-6 text-center text-sm text-slate-500"><p>{isFiltering ? 'Tidak ada siswa yang cocok.' : 'Belum ada siswa. Tambahkan siswa atau impor data.'}</p>{isFiltering && <button onClick={() => { setSearch(''); setJkFilter('') }} className="mt-3 min-h-11 rounded-lg border px-4 font-semibold">Reset pencarian dan filter</button>}</div>}
       </section>
       <div className="hidden lg:block rounded-2xl overflow-hidden border border-slate-200 bg-white">
         <div className="overflow-x-auto">
@@ -252,11 +259,11 @@ export default function DataSiswa() {
         onCancel={() => setHapus({ open: false, siswa: null })}
         onConfirm={handleHapus}
       />
-      {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'bg-white border-emerald-200 text-emerald-800' : 'bg-white border-red-200 text-red-800'}`}>{toast.type === 'success' ? <span className="w-8 h-8 rounded-full bg-emerald-100 grid place-items-center"><CheckCircle2 size={18}/></span> : <span className="w-8 h-8 rounded-full bg-red-100 grid place-items-center"><AlertCircle size={18}/></span>}<span>{toast.text}</span><button onClick={() => setToast(null)} className="ml-3 opacity-50 hover:opacity-100"><X size={15}/></button></div></div>}
+      {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'bg-white border-emerald-200 text-emerald-800' : 'bg-white border-red-200 text-red-800'}`}>{toast.type === 'success' ? <span className="w-8 h-8 rounded-full bg-emerald-100 grid place-items-center"><CheckCircle2 size={18}/></span> : <span className="w-8 h-8 rounded-full bg-red-100 grid place-items-center"><AlertCircle size={18}/></span>}<span>{toast.text}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)} className="ml-3 opacity-50 hover:opacity-100"><X size={15}/></button></div></div>}
     </div>
   )
 }
 
 function SelectWrap({ children }: { children: React.ReactNode }) {
-  return <div className="relative inline-flex">{children}<ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /></div>
+  return <div className="relative min-w-0 inline-flex">{children}<ChevronDown size={15} className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400" /></div>
 }

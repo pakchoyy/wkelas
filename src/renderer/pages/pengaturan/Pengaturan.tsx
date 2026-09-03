@@ -2,6 +2,7 @@ import { saveClassPeriod } from '../../../lib/grade-periods'
 import { createBackupText } from '../../../lib/backup'
 import { BACKUP_HISTORY_KEY, backupFingerprint, backupReminder, readBackupHistory, type BackupHistory } from '../../../lib/backup-history'
 import { useEffect, useRef, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Upload } from 'lucide-react'
 import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
@@ -19,6 +20,8 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
   const [error,setError] = useState('')
   const [loading,setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('profil')
+  const location = useLocation()
+  useEffect(() => { setTab('profil') }, [location.key])
   const [kelas, setKelas] = useState<any>(null)
   const [guru, setGuru] = useState<any>(null)
   const [toast, setToast] = useState('')

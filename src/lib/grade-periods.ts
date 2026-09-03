@@ -42,6 +42,24 @@ export async function classWeightKey(database: BgyDatabase, kelasId: number) {
   return gradeWeightKey(kelasId,gradePeriod(kelas))
 }
 
+export async function ensureDefaultGradeColumns(database: BgyDatabase, mapelId: number) {
+  await ensureGradePeriods(database)
+  await database.transaction('rw', [database.kelas, database.mata_pelajaran, database.penilaian_kolom, database.pengaturan], async () => {
+    const periode = await subjectPeriod(database, mapelId)
+    const rows = await database.penilaian_kolom.where({mata_pelajaran_id:mapelId}).filter(c => c.periode === periode).toArray()
+    const marker = 'nilai_harian_awal_' + mapelId + '_' + periode
+    const now = new Date().toISOString()
+    const add = (label:string,urutan:number) => database.penilaian_kolom.add({mata_pelajaran_id:mapelId,periode,label,urutan,bobot:1,created_at:now,updated_at:now})
+    if (!await database.pengaturan.get(marker)) {
+      if (!rows.some(c => !['UTS','UAS'].includes(c.label.toUpperCase()))) await add('Harian 1',1)
+      await database.pengaturan.put({key:marker,value:'1',updated_at:now})
+    }
+    for (const [index,label] of ['UTS','UAS'].entries()) {
+      if (!rows.some(c => c.label.toUpperCase() === label)) await add(label,900 + index)
+    }
+  })
+}
+
 export async function saveGradeWeights(database: BgyDatabase, kelasId: number, expectedKey: string, input: unknown) {
   const weights = validateGradeWeights(input)
   return database.transaction('rw', [database.kelas, database.pengaturan], async () => {

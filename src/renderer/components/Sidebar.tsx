@@ -7,7 +7,7 @@ const groups = [
     { to: '/siswa/data-siswa', icon: Users, label: 'Data Siswa' },
     { to: '/siswa/presensi', icon: ClipboardCheck, label: 'Presensi' },
     { to: '/siswa/penilaian', icon: ScrollText, label: 'Penilaian' },
-    { to: '/siswa/perilaku', icon: AlertTriangle, label: 'Perilaku' },
+    { to: '/siswa/perilaku', icon: AlertTriangle, label: 'Catatan Perilaku' },
   ] },
   { label: 'Aktivitas Mengajar', icon: BookOpen, children: [
     { to: '/aktivitas/mapel', icon: BookOpen, label: 'Mata Pelajaran' },

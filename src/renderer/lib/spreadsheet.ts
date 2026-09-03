@@ -1,4 +1,5 @@
 import { db } from '../../lib/db'
+import { studentTemplateHeaders } from '../../shared/student-template'
 import { importStudentRows } from '../../lib/student-import'
 import type { SiswaFieldDefinition } from '../../../shared/types'
 
@@ -55,11 +56,11 @@ function cellToString(value: unknown): string {
 
 export async function downloadTemplate(fields: SiswaFieldDefinition[]): Promise<void> {
   const XLSX = await getXLSX()
-  const header = ['Nama', 'NIS', 'JK', 'No Absen', ...fields.map((f) => f.nama_field)]
+  const header = studentTemplateHeaders(fields)
   const sheet = XLSX.utils.aoa_to_sheet([header])
   sheet['!cols'] = [
     { wch: 22 }, { wch: 12 }, { wch: 6 }, { wch: 10 },
-    ...fields.map(() => ({ wch: 20 })),
+    ...header.slice(4).map(() => ({ wch: 20 })),
   ]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, sheet, 'Siswa')
