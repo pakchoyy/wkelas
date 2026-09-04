@@ -1,46 +1,53 @@
 import NavigationGuard from './components/NavigationGuard'
+import { lazy, Suspense } from 'react'
 import { createHashRouter, createRoutesFromElements, RouterProvider, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
 import OnboardingGate from './components/OnboardingGate'
-import Dashboard from './pages/dashboard/Dashboard'
-import DataSiswa from './pages/siswa/data-siswa/DataSiswa'
-import Presensi from './pages/siswa/presensi/Presensi'
-import Penilaian from './pages/siswa/penilaian/Penilaian'
-import Perilaku from './pages/siswa/perilaku/Perilaku'
-import Jadwal from './pages/aktivitas/Jadwal'
-import MataPelajaran from './pages/aktivitas/MataPelajaran'
-import Rencana from './pages/aktivitas/Rencana'
-import Kalender from './pages/aktivitas/Kalender'
-import Jurnal from './pages/aktivitas/Jurnal'
-import ToDo from './pages/aktivitas/ToDo'
-import PerangkatAjar from './pages/perangkat-ajar/PerangkatAjar'
-import Laporan from './pages/laporan/Laporan'
-import Pengaturan from './pages/pengaturan/Pengaturan'
-import BantuanKomunitas from './pages/bantuan/BantuanKomunitas'
-import ProdukBGY from './pages/produk/ProdukBGY'
-import InfoPembaruan from './pages/info/InfoPembaruan'
+const Dashboard = lazy(() => import('./pages/dashboard/Dashboard'))
+const DataSiswa = lazy(() => import('./pages/siswa/data-siswa/DataSiswa'))
+const Presensi = lazy(() => import('./pages/siswa/presensi/Presensi'))
+const Penilaian = lazy(() => import('./pages/siswa/penilaian/Penilaian'))
+const Perilaku = lazy(() => import('./pages/siswa/perilaku/Perilaku'))
+const Jadwal = lazy(() => import('./pages/aktivitas/Jadwal'))
+const MataPelajaran = lazy(() => import('./pages/aktivitas/MataPelajaran'))
+const Rencana = lazy(() => import('./pages/aktivitas/Rencana'))
+const Kalender = lazy(() => import('./pages/aktivitas/Kalender'))
+const Jurnal = lazy(() => import('./pages/aktivitas/Jurnal'))
+const ToDo = lazy(() => import('./pages/aktivitas/ToDo'))
+const PerangkatAjar = lazy(() => import('./pages/perangkat-ajar/PerangkatAjar'))
+const Laporan = lazy(() => import('./pages/laporan/Laporan'))
+const Pengaturan = lazy(() => import('./pages/pengaturan/Pengaturan'))
+const BantuanKomunitas = lazy(() => import('./pages/bantuan/BantuanKomunitas'))
+const ProdukBGY = lazy(() => import('./pages/produk/ProdukBGY'))
+const InfoPembaruan = lazy(() => import('./pages/info/InfoPembaruan'))
+const MulaiDiSini = lazy(() => import('./pages/panduan/MulaiDiSini'))
+const AdminFilePakChoy = lazy(() => import('./pages/admin/AdminFilePakChoy'))
+
+const page = (content: React.ReactNode) => <Suspense fallback={<p role="status" className="p-6 text-sm text-slate-500">Memuat halaman…</p>}>{content}</Suspense>
 
 const router = createHashRouter(createRoutesFromElements(<>
         {/* Login dinonaktifkan sementara selama pengembangan fitur. */}
         <Route path="/login" element={<Navigate to="/" replace />} />
         <Route element={<><NavigationGuard/><OnboardingGate><Layout /></OnboardingGate></>}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/siswa/data-siswa" element={<DataSiswa />} />
-          <Route path="/siswa/presensi" element={<Presensi />} />
-          <Route path="/siswa/penilaian" element={<Penilaian />} />
-          <Route path="/siswa/perilaku" element={<Perilaku />} />
-          <Route path="/aktivitas/jadwal" element={<Jadwal />} />
-          <Route path="/aktivitas/mapel" element={<MataPelajaran />} />
-          <Route path="/aktivitas/rencana" element={<Rencana />} />
-          <Route path="/aktivitas/kalender" element={<Kalender />} />
-          <Route path="/aktivitas/jurnal" element={<Jurnal />} />
-          <Route path="/aktivitas/todo" element={<ToDo />} />
-          <Route path="/perangkat-ajar" element={<PerangkatAjar />} />
-          <Route path="/laporan" element={<Laporan />} />
-          <Route path="/pengaturan" element={<Pengaturan />} />
-          <Route path="/bantuan" element={<BantuanKomunitas />} />
-          <Route path="/produk" element={<ProdukBGY />} />
-          <Route path="/pembaruan" element={<InfoPembaruan />} />
+          <Route path="/" element={page(<Dashboard />)} />
+          <Route path="/siswa/data-siswa" element={page(<DataSiswa />)} />
+          <Route path="/siswa/presensi" element={page(<Presensi />)} />
+          <Route path="/siswa/penilaian" element={page(<Penilaian />)} />
+          <Route path="/siswa/perilaku" element={page(<Perilaku />)} />
+          <Route path="/aktivitas/jadwal" element={page(<Jadwal />)} />
+          <Route path="/aktivitas/mapel" element={page(<MataPelajaran />)} />
+          <Route path="/aktivitas/rencana" element={page(<Rencana />)} />
+          <Route path="/aktivitas/kalender" element={page(<Kalender />)} />
+          <Route path="/aktivitas/jurnal" element={page(<Jurnal />)} />
+          <Route path="/aktivitas/todo" element={page(<ToDo />)} />
+          <Route path="/perangkat-ajar" element={page(<PerangkatAjar />)} />
+          <Route path="/laporan" element={page(<Laporan />)} />
+          <Route path="/pengaturan" element={page(<Pengaturan />)} />
+          <Route path="/bantuan" element={page(<BantuanKomunitas />)} />
+          <Route path="/produk" element={page(<ProdukBGY />)} />
+          <Route path="/pembaruan" element={page(<InfoPembaruan />)} />
+          <Route path="/mulai" element={page(<MulaiDiSini />)} />
+          <Route path="/admin" element={page(<AdminFilePakChoy />)} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
 </>))

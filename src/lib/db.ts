@@ -17,7 +17,7 @@ export interface JurnalHarian { id?: number; kelas_id?: number; tanggal: string;
 export interface CatatanGuru { id?: number; judul: string; isi?: string; tag?: string; warna?: string; is_pinned: number; deleted_at?: string; created_at: string; updated_at: string }
 export interface Todo { id?: number; judul: string; deskripsi?: string; prioritas: string; status?: string; deadline?: string; completed_at?: string; deleted_at?: string; created_at: string; updated_at: string }
 export interface DokumenSaya { id?: number; judul: string; deskripsi?: string; kategori?: string; file_data?: Uint8Array; format_file?: string; ukuran_file?: number; deleted_at?: string; created_at: string; updated_at: string }
-export interface PerangkatAjarCache { id: string; judul: string; jenis: string; mata_pelajaran?: string; jenjang?: string; kelas?: string; fase?: string; file_data?: Uint8Array; file_url: string; ukuran_file?: number; format_file?: string; versi?: string; sudah_diunduh: number; diunduh_at?: string; updated_at: string }
+export interface PerangkatAjarCache { id: string; judul: string; jenis: string; deskripsi?: string; mata_pelajaran?: string; jenjang?: string; kelas?: string; fase?: string; file_data?: Uint8Array; file_url: string; ukuran_file?: number; format_file?: string; versi?: string; status?: 'draft' | 'terbit'; sudah_diunduh: number; diunduh_at?: string; created_at?: string; updated_at: string }
 export interface Pengaturan { key: string; value: string; updated_at: string }
 
 export class BgyDatabase extends Dexie {

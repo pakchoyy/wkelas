@@ -23,7 +23,7 @@ export default function DataSiswa() {
   const [formOpen, setFormOpen] = useState(location.state?.openAddStudent === true)
   const [editSiswa, setEditSiswa] = useState<Siswa | null>(null)
   const [fieldOpen, setFieldOpen] = useState(false)
-  const [importOpen, setImportOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(location.state?.openImport === true)
   const [hapus, setHapus] = useState<{ open: boolean; siswa: Siswa | null }>({ open: false, siswa: null })
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
