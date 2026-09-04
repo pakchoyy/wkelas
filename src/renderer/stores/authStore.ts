@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { isDemoMode } from '../../lib/db'
+import type { AccountPlan } from '../../shared/subscription'
 
 type AuthMode = 'login' | 'demo' | null
 
@@ -7,6 +8,7 @@ interface AuthState {
   mode: AuthMode
   user: { nama: string; email: string } | null
   isLicensed: boolean
+  plan: AccountPlan
   setLogin: (user: { nama: string; email: string }) => void
   setDemo: () => void
   logout: () => void
@@ -18,8 +20,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   mode: isDemoMode() ? 'demo' : 'login',
   user: isDemoMode() ? { nama: 'Data Contoh', email: 'demo@bgy.app' } : { nama: 'Admin Lokal', email: 'admin@lokal' },
   isLicensed: true,
-  setLogin: (user) => set({ mode: 'login', user, isLicensed: false }),
-  setDemo: () => set({ mode: 'demo', user: { nama: 'Data Contoh', email: 'demo@bgy.app' }, isLicensed: true }),
-  logout: () => set({ mode: null, user: null, isLicensed: false }),
+  plan: 'free',
+  setLogin: (user) => set({ mode: 'login', user, isLicensed: true, plan: 'free' }),
+  setDemo: () => set({ mode: 'demo', user: { nama: 'Data Contoh', email: 'demo@bgy.app' }, isLicensed: true, plan: 'free' }),
+  logout: () => set({ mode: null, user: null, isLicensed: false, plan: 'free' }),
   setLicensed: (v) => set({ isLicensed: v }),
 }))

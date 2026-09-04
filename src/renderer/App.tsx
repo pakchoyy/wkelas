@@ -22,12 +22,12 @@ const ProdukBGY = lazy(() => import('./pages/produk/ProdukBGY'))
 const InfoPembaruan = lazy(() => import('./pages/info/InfoPembaruan'))
 const MulaiDiSini = lazy(() => import('./pages/panduan/MulaiDiSini'))
 const AdminFilePakChoy = lazy(() => import('./pages/admin/AdminFilePakChoy'))
+const Login = lazy(() => import('./pages/Login'))
 
 const page = (content: React.ReactNode) => <Suspense fallback={<p role="status" className="p-6 text-sm text-slate-500">Memuat halaman…</p>}>{content}</Suspense>
 
 const router = createHashRouter(createRoutesFromElements(<>
-        {/* Login dinonaktifkan sementara selama pengembangan fitur. */}
-        <Route path="/login" element={<Navigate to="/" replace />} />
+        <Route path="/login" element={page(<Login />)} />
         <Route element={<><NavigationGuard/><OnboardingGate><Layout /></OnboardingGate></>}>
           <Route path="/" element={page(<Dashboard />)} />
           <Route path="/siswa/data-siswa" element={page(<DataSiswa />)} />

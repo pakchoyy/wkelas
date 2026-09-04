@@ -1,121 +1,14 @@
-import { useState } from 'react'
-import { GraduationCap, Loader2 } from 'lucide-react'
-import { useAuthStore } from '../stores/authStore'
-import { seedDemoData } from '../../lib/demo-data'
+import { GraduationCap } from 'lucide-react'
+import { Link } from 'react-router-dom'
 
 export default function Login() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const { setLogin, setDemo } = useAuthStore()
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    setError('')
-    try {
-      // TODO: connect to Supabase Auth
-      // const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-      // if (error) throw error
-      // setLogin({ nama: data.user.email!, email: data.user.email! })
-      // lalu cek lisensi
-      throw new Error('Supabase Auth belum dikonfigurasi')
-    } catch (err: any) {
-      setError(err.message || 'Login gagal')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleDemo = async () => {
-    setLoading(true)
-    setError('')
-    try {
-      await seedDemoData()
-      setDemo()
-    } catch (err: any) {
-      setError(err.message || 'Gagal memuat data demo')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ background: 'var(--bg)' }}>
-      <div
-        className="w-full max-w-sm rounded-2xl p-6"
-        style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow-lg)' }}
-      >
-        <div className="text-center mb-6">
-          <div
-            className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-3"
-            style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)' }}
-          >
-            <GraduationCap size={32} className="text-white" />
-          </div>
-          <h1 className="text-xl font-bold">BGY Wali Kelas</h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--text-light)' }}>
-            Masuk untuk melanjutkan
-          </p>
-        </div>
-
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-              style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-              placeholder="guru@sekolah.sch.id"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="text-sm font-medium text-gray-700 block mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full rounded-lg px-3 py-2.5 text-sm border focus:outline-none focus:ring-2 focus:ring-[#0ea5a0]/30"
-              style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}
-              placeholder="******"
-              required
-            />
-          </div>
-
-          {error && (
-            <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
-              {error}
-            </div>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full rounded-xl py-2.5 text-sm font-semibold text-white transition-all duration-200 active:scale-[0.98] disabled:opacity-50"
-            style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a, #2d6a7f)' }}
-          >
-            {loading ? <Loader2 size={18} className="animate-spin mx-auto" /> : 'Masuk'}
-          </button>
-        </form>
-
-        <div className="mt-4 text-center">
-          <span className="text-xs" style={{ color: 'var(--text-light)' }}>atau</span>
-        </div>
-
-        <button
-          onClick={handleDemo}
-          disabled={loading}
-          className="w-full rounded-xl py-2.5 text-sm font-semibold mt-2 transition-all duration-200 active:scale-[0.98] border disabled:opacity-50"
-          style={{ borderColor: 'var(--border)', color: 'var(--text)' }}
-        >
-          {loading ? <Loader2 size={18} className="animate-spin mx-auto" /> : 'Demo Mode'}
-        </button>
-      </div>
-    </div>
-  )
+  return <main className="grid min-h-dvh place-items-center bg-slate-100 p-4">
+    <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
+      <div className="text-center"><span className="mx-auto grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-800 text-white"><GraduationCap size={32}/></span><h1 className="mt-4 text-2xl font-black text-slate-900">BGY Wali Kelas</h1><p className="mt-2 text-sm leading-6 text-slate-600">Kelola administrasi kelas dalam satu tempat.</p></div>
+      <button type="button" disabled className="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-400"><span className="text-lg font-black">G</span>Masuk dengan Google</button>
+      <p className="mt-3 text-center text-xs leading-5 text-slate-500">Login Google akan diaktifkan setelah Supabase tersambung.</p>
+      <Link to="/" className="mt-5 flex min-h-12 items-center justify-center rounded-xl bg-teal-600 px-4 text-sm font-bold text-white hover:bg-teal-700">Lanjutkan gratis</Link>
+      <aside className="mt-5 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-900"><strong>Semua fitur masih gratis.</strong> Tidak ada trial atau batas waktu selama tahap pengembangan dan pengumpulan masukan.</aside>
+    </section>
+  </main>
 }
