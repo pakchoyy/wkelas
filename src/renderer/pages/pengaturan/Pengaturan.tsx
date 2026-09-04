@@ -21,7 +21,10 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
   const [loading,setLoading] = useState(true)
   const [tab, setTab] = useState<Tab>('profil')
   const location = useLocation()
-  useEffect(() => { setTab('profil') }, [location.key])
+  useEffect(() => {
+    const requested = (location.state as { tab?: Tab } | null)?.tab
+    setTab(requested === 'backup' || requested === 'kelas' ? requested : 'profil')
+  }, [location.key, location.state])
   const [kelas, setKelas] = useState<any>(null)
   const [guru, setGuru] = useState<any>(null)
   const [toast, setToast] = useState('')

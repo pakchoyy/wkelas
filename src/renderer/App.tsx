@@ -16,6 +16,9 @@ import ToDo from './pages/aktivitas/ToDo'
 import PerangkatAjar from './pages/perangkat-ajar/PerangkatAjar'
 import Laporan from './pages/laporan/Laporan'
 import Pengaturan from './pages/pengaturan/Pengaturan'
+import BantuanKomunitas from './pages/bantuan/BantuanKomunitas'
+import ProdukBGY from './pages/produk/ProdukBGY'
+import InfoPembaruan from './pages/info/InfoPembaruan'
 
 const router = createHashRouter(createRoutesFromElements(<>
         {/* Login dinonaktifkan sementara selama pengembangan fitur. */}
@@ -35,6 +38,9 @@ const router = createHashRouter(createRoutesFromElements(<>
           <Route path="/perangkat-ajar" element={<PerangkatAjar />} />
           <Route path="/laporan" element={<Laporan />} />
           <Route path="/pengaturan" element={<Pengaturan />} />
+          <Route path="/bantuan" element={<BantuanKomunitas />} />
+          <Route path="/produk" element={<ProdukBGY />} />
+          <Route path="/pembaruan" element={<InfoPembaruan />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
 </>))

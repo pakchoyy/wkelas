@@ -95,6 +95,19 @@ body {
   animation: slide-up 0.3s ease-out;
 }
 
+@keyframes running-promo-pass {
+  from { transform: translateX(100vw); }
+  to { transform: translateX(-100%); }
+}
+
+.running-promo-message {
+  animation: running-promo-pass 7s linear both;
+}
+
+.running-promo-message:hover {
+  animation-play-state: paused;
+}
+
 @media (max-width: 1023px) {
   .field { font-size: 1rem; }
 }
@@ -102,6 +115,7 @@ body {
   .animate-slide-up { animation: none; }
   .app-layout *, .app-layout *::before, .app-layout *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .dashboard-primary:active { scale: none; }
+  .running-promo-message { inset-inline: 0; justify-content: center; transform: none; }
 }
 @media print {
   @page { size: A4 landscape; margin: 12mm; }
@@ -114,7 +128,7 @@ body {
   .app-layout { height: auto; overflow: visible; display: block; }
   .app-layout > div { display: block; overflow: visible; }
   .app-layout main { overflow: visible; }
-  .mobile-navigation, #mobile-menu { display: none !important; }
+  .mobile-navigation, #mobile-menu, .running-promo { display: none !important; }
 }
 /* Consistent, visible close targets across dialogs, drawers and notices. */
 button:has(> svg.lucide-x) {

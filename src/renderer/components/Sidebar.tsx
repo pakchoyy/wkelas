@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { AlertTriangle, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, FileText, FolderOpen, LayoutDashboard, ScrollText, Settings, Users } from 'lucide-react'
+import { AlertTriangle, BellRing, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, FileText, FolderOpen, HeartHandshake, LayoutDashboard, LayoutGrid, ScrollText, Settings, Users } from 'lucide-react'
 
 const groups = [
   { label: 'Siswa', icon: Users, children: [
@@ -26,7 +26,10 @@ const groups = [
 
 const standaloneItems = [
   { to: '/laporan', icon: FileText, label: 'Laporan' },
+  { to: '/produk', icon: LayoutGrid, label: 'Produk BGY' },
+  { to: '/pembaruan', icon: BellRing, label: 'Yang Baru' },
   { to: '/pengaturan', icon: Settings, label: 'Pengaturan' },
+  { to: '/bantuan', icon: HeartHandshake, label: 'Bantuan & Komunitas' },
 ]
 
 const linkClass = ({ isActive }: { isActive: boolean }) => `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors [&>svg]:shrink-0 ${isActive ? 'bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-inset ring-teal-200' : 'text-slate-600 hover:bg-slate-100'}`

@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { ClipboardCheck, ClipboardList, LayoutDashboard, Menu, X } from 'lucide-react'
 import Header from './Header'
 import Sidebar from './Sidebar'
+import RunningPromo from './RunningPromo'
 
 const quickLinks = [
   {to:'/',label:'Beranda',icon:LayoutDashboard},
@@ -18,6 +19,7 @@ export default function Layout() {
   useEffect(() => {
     setMenuOpen(false)
     main.current?.scrollTo({top:0,left:0})
+    if (location.pathname !== '/bantuan') sessionStorage.setItem('bgy-last-page', location.pathname)
   },[location.pathname])
   useEffect(() => {
     const dialog = drawer.current
@@ -42,6 +44,7 @@ export default function Layout() {
           <div className="min-w-0 animate-slide-up"><Outlet/></div>
         </main>
       </div>
+      <RunningPromo/>
       <nav aria-label="Navigasi cepat" className="mobile-navigation grid shrink-0 grid-cols-4 border-t border-slate-200 bg-white lg:hidden" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
         {quickLinks.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/'} className={({isActive}) => `flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Icon size={19}/>{label}</NavLink>)}
         <button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="mobile-menu" className={`flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${!quickActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Menu size={19}/>Menu</button>

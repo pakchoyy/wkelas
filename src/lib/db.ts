@@ -95,13 +95,13 @@ function getDemoDb(): BgyDatabase {
 }
 
 export function activateMainDb(): BgyDatabase {
-  localStorage.removeItem(DEMO_MODE_KEY)
+  try { localStorage.removeItem(DEMO_MODE_KEY) } catch {}
   demoSelected = false
   return getMainDb()
 }
 
 export function activateDemoDb(): BgyDatabase {
-  localStorage.setItem(DEMO_MODE_KEY, 'true')
+  try { localStorage.setItem(DEMO_MODE_KEY, 'true') } catch {}
   demoSelected = true
   return getDemoDb()
 }

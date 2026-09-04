@@ -7,6 +7,8 @@ import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 import { schoolDayStatus } from '../../../shared/school-day'
+import QuickStartGuide from '../../components/QuickStartGuide'
+import BackupReminderBanner from '../../components/BackupReminderBanner'
 
 export default function Dashboard() {
   const [retry, setRetry] = useState(0)
@@ -16,7 +18,7 @@ export default function Dashboard() {
   const day = date.getDay() || 7
   const dateLabel = new Intl.DateTimeFormat('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }).format(date)
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
-  const [data, setData] = useState<any>({ siswa: [], jadwal: [], todo: [], presensi: [], jurnal: [], mapel: [], kalender: [] })
+  const [data, setData] = useState<any>({ siswa: [], jadwal: [], semuaJadwal: [], todo: [], presensi: [], jurnal: [], mapel: [], kalender: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [schoolDays, setSchoolDays] = useState(5)
@@ -29,7 +31,7 @@ export default function Dashboard() {
       setSchoolDays(days)
       const [siswa, jadwal, todo, presensi, kelas, jurnal, mapel, kalender] = await Promise.all([window.electronAPI.siswa.list(kelasId), window.electronAPI.jadwal.list(kelasId), window.electronAPI.todo.list(), window.electronAPI.presensi.get(kelasId, today), db.kelas.get(kelasId), window.electronAPI.jurnal.list(kelasId), window.electronAPI.mapel.list(kelasId), window.electronAPI.kalender.list(kelasId)])
       const guru = kelas?.guru_id ? await db.guru.get(kelas.guru_id) : undefined
-      setData({ siswa, jadwal: jadwal.filter((j: any) => j.hari === day).sort((a: any, b: any) => a.jam_ke - b.jam_ke), todo, presensi: presensi.filter((p: any) => siswa.some((s: any) => s.id === p.siswa_id)), kelas, guru, jurnal, mapel, kalender })
+      setData({ siswa, jadwal: jadwal.filter((j: any) => j.hari === day).sort((a: any, b: any) => a.jam_ke - b.jam_ke), semuaJadwal: jadwal, todo, presensi: presensi.filter((p: any) => siswa.some((s: any) => s.id === p.siswa_id)), kelas, guru, jurnal, mapel, kalender })
     } catch { setError('Dashboard belum berhasil dimuat. Pilih Coba lagi untuk memuat ulang ringkasan.') } finally { setLoading(false) }
   })() }, [kelasId, today, retry])
   const counts = useMemo(() => { const count = (s: string) => data.presensi.filter((p: any) => p.status === s).length; const todayJournals=data.jurnal.filter((item:any)=>item.tanggal===today); return { hadir: count('H') + count('T'), terlambat: count('T'), sakit: count('S'), izin: count('I'), alpa: count('A'), todo: data.todo.filter((t: any) => t.status !== 'selesai').length, journalMissing: data.jadwal.filter((slot:any)=>!todayJournals.some((item:any)=>String(item.jam_ke)===String(slot.jam_ke)&&item.materi)).length } }, [data, today])
@@ -43,6 +45,8 @@ export default function Dashboard() {
 
   return <div className="dashboard max-w-[1440px] mx-auto space-y-5">
     <DemoNotice/>
+    {!loading && !error && <QuickStartGuide studentCount={data.siswa.length} scheduleCount={data.semuaJadwal.length} attendanceCount={data.presensi.length}/>}
+    <BackupReminderBanner/>
     <p role="status" className="sr-only">{loading ? 'Memuat ringkasan kelas…' : error ? '' : 'Ringkasan kelas sudah dimuat.'}</p>
     {error && <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-800"><p>{error}</p><button onClick={() => setRetry(value => value + 1)} className="min-h-11 rounded-lg border border-red-300 bg-white px-4 font-semibold">Coba lagi</button></div>}
     <section className="dashboard-hero relative overflow-hidden rounded-2xl bg-slate-900 p-5 text-white sm:p-7">

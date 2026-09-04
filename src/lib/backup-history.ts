@@ -1,4 +1,5 @@
 export const BACKUP_HISTORY_KEY = 'bgy-backup-history-v1'
+export const BACKUP_REMINDER_DAYS = 30
 export type BackupHistory = { startedAt: string; filename: string; fingerprint: string }
 
 export function readBackupHistory(raw: string | null): BackupHistory | null {
@@ -21,6 +22,10 @@ export async function backupFingerprint(text: string): Promise<string> {
 export function backupReminder(history: BackupHistory | null, fingerprint: string, now = Date.now()) {
   if (!history) return 'Belum ada riwayat unduhan cadangan pada browser ini. Buat cadangan sebelum menghapus data situs atau pindah perangkat.'
   if (history.fingerprint !== fingerprint) return 'Ada perubahan data sejak unduhan cadangan terakhir. Buat cadangan baru agar perubahan ikut tersalin.'
-  if (now - Date.parse(history.startedAt) >= 7 * 86400000) return 'Cadangan terakhir sudah lebih dari 7 hari. Periksa kembali file cadangan Anda dan simpan salinannya di tempat yang aman.'
+  if (now - Date.parse(history.startedAt) >= BACKUP_REMINDER_DAYS * 86400000) return 'Cadangan terakhir sudah lebih dari 30 hari. Buat cadangan baru dan simpan salinannya di tempat yang aman.'
   return 'Data saat ini sama dengan salinan terakhir yang disiapkan. Tetap pastikan file .bgy sudah tersimpan.'
+}
+
+export function backupIsDue(history: BackupHistory | null, now = Date.now()) {
+  return !history || now - Date.parse(history.startedAt) >= BACKUP_REMINDER_DAYS * 86400000
 }

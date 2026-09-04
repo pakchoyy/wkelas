@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { backupFingerprint, readBackupHistory, backupReminder } from '../src/lib/backup-history.ts'
+import { backupFingerprint, backupIsDue, readBackupHistory, backupReminder } from '../src/lib/backup-history.ts'
 
 test('backup fingerprint ignores export time but detects changed and deleted records',async () => {
   const snapshot = {createdAt:'first',tables:{siswa:[{id:1,nama:'A'}]}}
@@ -17,6 +17,8 @@ test('reminders distinguish changed data, old backup and unchanged data', () => 
   assert.deepEqual(readBackupHistory(JSON.stringify(history)),history)
   assert.match(backupReminder(null,'x'),/Belum ada/)
   assert.match(backupReminder(history,'b'.repeat(64)),/perubahan data/)
-  assert.match(backupReminder(history,history.fingerprint,Date.parse('2026-09-09')),/7 hari/)
+  assert.match(backupReminder(history,history.fingerprint,Date.parse('2026-10-02')),/30 hari/)
   assert.match(backupReminder(history,history.fingerprint,Date.parse('2026-09-02')),/sama/)
+  assert.equal(backupIsDue(history,Date.parse('2026-09-30')),false)
+  assert.equal(backupIsDue(history,Date.parse('2026-10-02')),true)
 })
