@@ -1,6 +1,6 @@
-import { Link } from 'react-router-dom'
-import { BellRing, BookOpenCheck, ExternalLink, LayoutGrid, MessageCircle, Music2, Users } from 'lucide-react'
+import { BookOpenCheck, ExternalLink, MessageCircle, Music2, Users } from 'lucide-react'
 import { APP_UPDATED_AT, APP_VERSION } from '../../../shared/app-info'
+import { BGY_PRODUCTS } from '../../../shared/bgy-products'
 
 const FITUR = ['Presensi harian, rekap semester & Auto Hadir', 'Penilaian, catatan perilaku & rekap nilai', 'Jadwal, Rencana Mengajar & Jurnal Harian', 'Kalender Akademik (otomatis Jatim 2026/2027)', 'Laporan siap cetak & cadangan data .bgy']
 
@@ -26,9 +26,17 @@ export default function Tentang() {
       </ul>
     </section>
 
-    <section aria-label="Jelajahi" className="grid gap-3 sm:grid-cols-2">
-      <Link to="/pembaruan" className="flex min-h-20 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-300 hover:bg-teal-50"><BellRing size={24} className="shrink-0 text-amber-600"/><span><strong className="block text-base text-slate-800">Yang Baru</strong><small className="text-sm text-slate-500">Fitur terbaru aplikasi</small></span></Link>
-      <Link to="/produk" className="flex min-h-20 items-center gap-3 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm hover:border-teal-300 hover:bg-teal-50"><LayoutGrid size={24} className="shrink-0 text-teal-700"/><span><strong className="block text-base text-slate-800">Produk BGY</strong><small className="text-sm text-slate-500">Alat bantu lainnya</small></span></Link>
+    <section aria-label="Produk BGY lainnya" className="rounded-2xl border border-amber-200 bg-gradient-to-b from-amber-50 to-white p-5 shadow-sm sm:p-6">
+      <h2 className="text-base font-extrabold text-slate-800">Produk BGY lainnya</h2>
+      <p className="mt-1 text-sm text-slate-500">Jelajahi alat bantu lain dari Bantu Guru Yuk.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {BGY_PRODUCTS.map((p) => <a key={p.id} href={p.href} target="_blank" rel="noreferrer" className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 hover:border-teal-300 hover:bg-teal-50">
+          <span className="text-xs font-bold uppercase tracking-wide text-teal-700">{p.name}</span>
+          <span className="mt-1 text-sm font-semibold text-slate-800">{p.promoText}</span>
+          <span className="mt-1 text-xs text-slate-500">{p.description}</span>
+          <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-teal-700">{p.action} <ExternalLink size={12}/></span>
+        </a>)}
+      </div>
     </section>
   </div>
 }

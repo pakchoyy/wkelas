@@ -1,8 +1,6 @@
 import { saveCalendarPeriod } from '../../../lib/calendar-storage'
 import { ensureJatimCalendar, isJatimSupported } from '../../../lib/holiday-storage'
-import { JATIM_SOURCE } from '../../../shared/jatim-calendar'
 import { useState, useEffect, useRef } from 'react'
-import { Link } from 'react-router-dom'
 import { CalendarDays, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
@@ -37,26 +35,23 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
   const [toast,setToast]=useState('')
   const [confirmDelete, setConfirmDelete] = useState<KalenderAkademik | null>(null)
   const [view,setView]=useState<'grid'|'daftar'>('grid')
-  const [jatimState,setJatimState]=useState<'unknown'|'ready'|'done'|'unsupported'>('unknown')
   const [yearStart,setYearStart]=useState(()=>{const now=new Date();return now.getMonth()>=6?now.getFullYear():now.getFullYear()-1})
 
   const load = async () => { setData(await window.electronAPI.kalender.list(kelasId)) }
-  useEffect(() => { db.kelas.get(kelasId).then((kelas) => { if (!isJatimSupported(kelas?.tahun_ajaran)) { setJatimState('unsupported'); return }; db.pengaturan.get(`kalender_jatim_2026_${kelasId}`).then((marker) => setJatimState(marker ? 'done' : 'ready')) }).catch(() => setJatimState('unsupported')) }, [kelasId])
-  const seedJatim = async () => {
-    if (lock.current) return
-    lock.current = true; setBusy(true); setError('')
-    try {
-      const count = await ensureJatimCalendar(db, kelasId)
-      setJatimState('done')
-      await refresh()
-      const setting = await db.pengaturan.get(`presensi_${kelasId}`)
-      const cfg = setting?.value ? JSON.parse(setting.value) : {}
-      setPeriod((current) => ({...current,mulai:semester===1?cfg.s1Mulai||current.mulai:cfg.s2Mulai||current.mulai,akhir:semester===1?cfg.s1Akhir||current.akhir:cfg.s2Akhir||current.akhir,hariSekolah:cfg.hariSekolah||current.hariSekolah}))
-      setToast(`Kalender Jatim ditambahkan (${count} kegiatan). Batas semester disamakan.`)
-    } catch (error) { setError(error instanceof Error ? error.message : 'Kalender Jatim gagal ditambahkan. Silakan coba lagi.') }
-    finally { lock.current = false; setBusy(false) }
-  }
-  useEffect(() => { Promise.all([load(), Promise.all([db.kelas.get(kelasId), db.pengaturan.get(`presensi_${kelasId}`)]).then(([kelas, setting]) => { let cfg:any={}; if(setting?.value) try{cfg=JSON.parse(setting.value)}catch{}; const sem=kelas?.semester||1; const year=Number(kelas?.tahun_ajaran?.split('/')[0]) || new Date().getFullYear(); setSemester(sem); if(Number.isFinite(year)) setYearStart(year); setPeriod({ mulai: sem===1 ? cfg.s1Mulai||`${year}-07-01` : cfg.s2Mulai||`${year+1}-01-01`, akhir: sem===1 ? cfg.s1Akhir||`${year}-12-31` : cfg.s2Akhir||`${year+1}-06-30`, hariSekolah: cfg.hariSekolah||5 }) })]).then(() => setReady(true)).catch(() => setError('Kalender gagal dimuat. Muat ulang halaman untuk mencoba lagi.')) }, [kelasId])
+  useEffect(() => { Promise.all([load(), (async () => {
+    const [kelas, setting] = await Promise.all([db.kelas.get(kelasId), db.pengaturan.get(`presensi_${kelasId}`)])
+    // Default kalender Jatim otomatis: 1 Jul 2026 - 30 Jun 2027, tanpa tombol tambah.
+    if (isJatimSupported(kelas?.tahun_ajaran)) {
+      const marker = await db.pengaturan.get(`kalender_jatim_2026_${kelasId}`)
+      if (!marker) { try { await ensureJatimCalendar(db, kelasId) } catch {} }
+    }
+    await load()
+    let cfg:any={}; if(setting?.value) try{cfg=JSON.parse(setting.value)}catch{};
+    const sem=kelas?.semester||1; const year=Number(kelas?.tahun_ajaran?.split('/')[0]) || 2026
+    setSemester(sem); if(Number.isFinite(year)) setYearStart(year)
+    // Default periode ikut Jatim jika belum disetel; fallback 1 Jul - 30 Jun.
+    setPeriod({ mulai: sem===1 ? cfg.s1Mulai||`${year}-07-01` : cfg.s2Mulai||`${year+1}-01-01`, akhir: sem===1 ? cfg.s1Akhir||`${year}-12-31` : cfg.s2Akhir||`${year+1}-06-30`, hariSekolah: cfg.hariSekolah||5 })
+  })()]).then(() => setReady(true)).catch(() => setError('Kalender gagal dimuat. Muat ulang halaman untuk mencoba lagi.')) }, [kelasId])
   useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2800);return()=>clearTimeout(timer)},[toast])
 
   const effectiveDays = (() => { let count=0; const cursor=new Date(`${period.mulai}T12:00:00`); const end=new Date(`${period.akhir}T12:00:00`); while(cursor<=end){ const day=cursor.getDay(); const iso=todayISO(cursor); const holiday=data.some((item)=>NON_EFEKTIF.includes(item.jenis)&&iso>=item.tanggal_mulai&&iso<=(item.tanggal_selesai||item.tanggal_mulai)); const extra=data.some((item)=>item.jenis==='pengganti'&&iso>=item.tanggal_mulai&&iso<=(item.tanggal_selesai||item.tanggal_mulai)); if((day>=1&&day<=period.hariSekolah||extra)&&!holiday) count++; cursor.setDate(cursor.getDate()+1) } return count })()
@@ -112,8 +107,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
         </div>
       </div>
 
-      {jatimState==='ready' && <div className="mb-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm"><p className="font-bold text-emerald-900">Kalender Jatim 2026/2027 belum diisi</p><p className="mt-1 text-xs text-emerald-800">Sekali ketuk: isi libur besar, cuti bersama, libur semester, KTS & hari pengganti, sekalian samakan batas semester resmi. {JATIM_SOURCE}.</p><button disabled={busy} onClick={seedJatim} className="mt-2 min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-bold text-white disabled:opacity-50">+ Isi kalender Jatim 2026/2027</button></div>}
-      {jatimState==='unsupported' && <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm"><p className="font-bold text-amber-900">Tahun ajaran kelas belum 2026/2027</p><p className="mt-1 text-xs text-amber-800">Kalender mengikuti tahun ajaran di bawah ini. Ubah ke 2026/2027 di <Link to="/pengaturan" state={{tab:'kelas'}} className="font-bold underline underline-offset-4">Pengaturan → Kelas & Semester</Link> agar tombol isi kalender Jatim muncul dan semua halaman (Presensi, Rencana, Jurnal, Laporan) memakai tanggal yang benar.</p></div>}
+
       <div className="grid gap-4 mb-5 lg:grid-cols-[1fr_260px]"><div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex items-center gap-2 font-bold"><CalendarDays size={18} className="text-emerald-600"/>Batas Waktu Semester</div><div className="grid gap-3 md:grid-cols-3"><label className="text-xs font-bold text-slate-500">Mulai Semester<input type="date" value={period.mulai} onChange={(e)=>setPeriod({...period,mulai:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Akhir Semester<input type="date" value={period.akhir} onChange={(e)=>setPeriod({...period,akhir:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Sistem Hari Sekolah<select value={period.hariSekolah} onChange={(e)=>setPeriod({...period,hariSekolah:Number(e.target.value)})} className="field mt-1.5"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label></div><div className="mt-3 flex flex-wrap gap-3 items-center justify-between"><p className="text-xs text-slate-400">Periode ini digunakan oleh Presensi, Perilaku, Rencana, dan Jurnal.</p><button onClick={savePeriod} className="min-h-11 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Save size={14}/>Simpan Periode</button></div></div><div className="rounded-2xl bg-indigo-900 p-5 text-white"><div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Hari Efektif Belajar</div><div className="mt-4 text-4xl font-extrabold">{effectiveDays}</div><div className="mt-1 text-xs text-indigo-200">hari setelah akhir pekan dan hari libur</div></div></div>
 
       {view==='grid' && <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Keterangan warna">{Object.entries(JENIS_LABEL).map(([jenis,label])=><span key={jenis} className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{background:JENIS_WARNA[jenis]}}/>{label}</span>)}</div>}

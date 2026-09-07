@@ -7,8 +7,14 @@ export type SetupData = {
 }
 
 export function initialSetup(date = new Date()): SetupData {
+  // Default kalender edisi Jatim 2026/2027: 1 Jul 2026 - 30 Jun 2027.
+  // Kelas baru otomatis pakai periode ini agar kalender langsung sinkron tanpa tombol tambah.
+  const fallback = { tahunAjaran: '2026/2027', semester: 1 as const }
   const start = date.getFullYear() - (date.getMonth() < 6 ? 1 : 0)
-  return { namaKelas: '', tingkat: '1', tahunAjaran: `${start}/${start + 1}`, semester: date.getMonth() < 6 ? 2 : 1, namaSekolah: '', namaWali: '', nip: '' }
+  const computed = { tahunAjaran: `${start}/${start + 1}`, semester: (date.getMonth() < 6 ? 2 : 1) as 1 | 2 }
+  // Untuk rilis 2026/2027, paksa default 2026/2027 sampai Juli 2027 lewat.
+  if (computed.tahunAjaran === '2025/2026' || computed.tahunAjaran === '2026/2027') return { namaKelas: '', tingkat: '1', ...fallback, namaSekolah: '', namaWali: '', nip: '' }
+  return { namaKelas: '', tingkat: '1', ...computed, namaSekolah: '', namaWali: '', nip: '' }
 }
 
 export async function saveInitialClass(db: BgyDatabase, data: SetupData, skip = false) {
