@@ -208,13 +208,10 @@ function PresensiKelas({kelasId}:{kelasId:number}) {
     <div className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-3">
         <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${autoHadir ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><Zap size={19}/></span>
-        <div className="min-w-0 flex-1"><strong className="block text-sm text-slate-800">Auto Hadir {missingCount > 0 && isSchoolDay ? `· ${missingCount} belum dicatat` : '· semua sudah dicatat'}</strong><p className="mt-0.5 text-xs leading-5 text-slate-500">ON = yang belum dicatat otomatis ditandai Hadir. Yang sudah Sakit/Izin/Alpa tidak berubah.</p></div>
+        <div className="min-w-0 flex-1"><strong className="block text-sm text-slate-800">Auto Hadir {missingCount > 0 && isSchoolDay ? `· ${missingCount} belum dicatat` : '· semua sudah dicatat'}</strong><p className="mt-0.5 text-xs leading-5 text-slate-500">Aktif = yang belum dicatat ditandai Hadir. Yang sudah Sakit/Izin/Alpa tidak berubah.</p></div>
         <button type="button" role="switch" aria-checked={autoHadir} aria-label="Auto Hadir" onClick={() => { if (autoHadir) { setAutoHadir(false) } else { autoAttempt.current = ''; setAutoHadir(true) } }} className="grid min-h-11 min-w-11 place-items-center"><span className={`relative block h-6 w-11 rounded-full transition-colors ${autoHadir ? 'bg-emerald-600' : 'bg-slate-300'}`}><span className={`absolute left-0 top-0.5 size-5 rounded-full bg-white shadow transition-transform ${autoHadir ? 'translate-x-5' : 'translate-x-0.5'}`}/></span></button>
       </div>
-      <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
-        <button type="button" onClick={requestFillHadir} disabled={saving || !isSchoolDay || missingCount === 0} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-sm font-bold text-white disabled:opacity-40"><CheckCircle2 size={16}/>Tandai {missingCount > 0 ? `${missingCount} ` : ''}Hadir sekarang</button>
-        {saving && <p role="status" className="text-xs text-slate-500">Menyimpan…</p>}
-      </div>
+      {saving && <p role="status" className="mt-2 text-xs text-slate-500">Menyimpan…</p>}
     </div>
 
     {!isSchoolDay && <div className="rounded-2xl bg-amber-50 border border-amber-200 text-center px-5 py-12 mb-4"><CalendarDays size={34} className="mx-auto text-amber-500 mb-3"/><div className="font-extrabold text-amber-900">{holiday?.judul || 'Hari Libur Sekolah'}</div><p className="text-sm text-amber-700 mt-1">Tidak ada daftar presensi karena tanggal ini bukan hari efektif belajar.</p></div>}
