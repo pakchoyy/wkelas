@@ -11,7 +11,7 @@ import { matchesReportPeriod, reportTable } from '../../../shared/report-data'
 
 type TabLaporan = 'presensi' | 'nilai' | 'perilaku' | 'jurnal' | 'kalender'
 
-const calendarTypeLabel = (value: string) => ({ libur_nasional: 'Libur Nasional', libur_sekolah: 'Libur Sekolah', kegiatan: 'Kegiatan Sekolah', ujian: 'Ujian', pembagian_rapor: 'Pembagian Rapor' }[value] || value.replaceAll('_', ' '))
+const calendarTypeLabel = (value: string) => ({ libur_nasional: 'Libur Nasional', libur_sekolah: 'Libur Sekolah', kts: 'KTS', kpp: 'Kegiatan Puasa', pengganti: 'Hari Pengganti', kegiatan: 'Kegiatan Sekolah', ujian: 'Ujian', pembagian_rapor: 'Pembagian Rapor' }[value] || value.replaceAll('_', ' '))
 const calendarDuration = (start: string, end?: string) => Math.max(1, Math.round((new Date(`${end || start}T12:00:00`).getTime() - new Date(`${start}T12:00:00`).getTime()) / 86400000) + 1)
 
 export default function Laporan() {
