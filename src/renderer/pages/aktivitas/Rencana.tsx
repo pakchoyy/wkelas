@@ -191,6 +191,7 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
           const slots = jadwal.filter((item) => item.hari === dayIndex + 1).sort((a, b) => a.jam_ke - b.jam_ke)
           const isToday = dateISO === todayISO()
           const holiday = holidays.find((item) => ['libur_nasional','libur_sekolah'].includes(item.jenis) && dateISO >= item.tanggal_mulai && dateISO <= (item.tanggal_selesai || item.tanggal_mulai))
+          const special = !holiday && holidays.find((item) => ['kts','kpp','pengganti'].includes(item.jenis) && dateISO >= item.tanggal_mulai && dateISO <= (item.tanggal_selesai || item.tanggal_mulai))
           return (
             <section key={dateISO} className={`${dayIndex === Math.min(selectedDay,hariSekolah-1) ? 'block' : 'hidden md:block'} md:min-h-[330px] overflow-hidden rounded-2xl border ${holiday ? 'border-rose-200' : isToday ? 'border-emerald-400' : 'border-slate-200'} ${holiday ? 'bg-rose-50' : ['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
               <header className={`border-b px-4 py-3 ${holiday ? 'bg-rose-100 text-rose-900' : isToday ? 'bg-emerald-600 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
@@ -199,6 +200,7 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
                   {isToday && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">HARI INI</span>}
                 </div>
                 <span className={`text-xs ${isToday && !holiday ? 'text-emerald-50' : 'text-slate-500'}`}>{date.getDate()} {BULAN[date.getMonth()]} {date.getFullYear()}</span>
+                {special && <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{background:special.jenis==='kts'?'#16a34a':special.jenis==='kpp'?'#ca8a04':'#4f46e5'}}>{special.judul}</span>}
               </header>
               <div className="space-y-2 p-3">
                 {holiday ? <div className="flex min-h-[160px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-center"><CalendarDays size={26} className="mb-2 text-rose-600"/><p className="text-sm font-bold text-rose-800">{holiday.judul}</p><p className="mt-1 text-xs text-rose-700">Tidak ada rencana mengajar pada hari libur.</p></div> : slots.map((slot) => {

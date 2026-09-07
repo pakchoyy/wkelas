@@ -38,6 +38,7 @@ const Pengaturan = lazyWithRetry(() => import('./pages/pengaturan/Pengaturan'))
 const BantuanKomunitas = lazyWithRetry(() => import('./pages/bantuan/BantuanKomunitas'))
 const ProdukBGY = lazyWithRetry(() => import('./pages/produk/ProdukBGY'))
 const InfoPembaruan = lazyWithRetry(() => import('./pages/info/InfoPembaruan'))
+const Tentang = lazyWithRetry(() => import('./pages/info/Tentang'))
 const MulaiDiSini = lazyWithRetry(() => import('./pages/panduan/MulaiDiSini'))
 const AdminFilePakChoy = lazyWithRetry(() => import('./pages/admin/AdminFilePakChoy'))
 const Login = lazyWithRetry(() => import('./pages/Login'))
@@ -64,6 +65,7 @@ const router = createHashRouter(createRoutesFromElements(<>
           <Route path="/bantuan" element={page(<BantuanKomunitas />)} />
           <Route path="/produk" element={page(<ProdukBGY />)} />
           <Route path="/pembaruan" element={page(<InfoPembaruan />)} />
+          <Route path="/tentang" element={page(<Tentang />)} />
           <Route path="/mulai" element={page(<MulaiDiSini />)} />
           <Route path="/admin" element={page(<AdminFilePakChoy />)} />
         </Route>

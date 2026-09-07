@@ -67,6 +67,7 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
   const weeklyRows=jadwal.flatMap((slot)=>{ const tanggal=iso(shift(weekStart,slot.hari-1)); if(isHoliday(tanggal)) return []; const subject=slot.nama_mapel_custom||mapel.find((item)=>item.id===slot.mata_pelajaran_id)?.nama||'Pelajaran'; const journal=data.find((item)=>item.tanggal===tanggal&&String(item.jam_ke)===String(slot.jam_ke)); return [{slot,tanggal,subject,journal}] }).sort((a,b)=>a.tanggal.localeCompare(b.tanggal)||a.slot.jam_ke-b.slot.jam_ke)
   const selectedDate=iso(shift(weekStart,Math.min(selectedDay,schoolDays-1)))
   const selectedStatus=schoolDayStatus(selectedDate,schoolDays,holidays)
+  const selectedSpecial=selectedStatus.active?holidays.find((item)=>['kts','kpp','pengganti'].includes(item.jenis)&&selectedDate>=item.tanggal_mulai&&selectedDate<=(item.tanggal_selesai||item.tanggal_mulai)):null
   const dayRows=weeklyRows.filter(row=>row.tanggal===selectedDate)
   const openNew = () => { setFormError(''); setEditId(null); setForm({ ...blank(), tanggal: month === todayISO().slice(0, 7) ? todayISO() : `${month}-01` }); setShowForm(true) }
   const openEdit = (item: any) => { setFormError(''); setEditId(item.id); setForm({ tanggal: item.tanggal || todayISO(), jam_ke: item.jam_ke || '', mata_pelajaran: item.mata_pelajaran || '', materi: item.materi || '', kegiatan: item.kegiatan || '', kendala: item.kendala || '', refleksi: item.refleksi || '' }); setShowForm(true) }
@@ -146,7 +147,7 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
     <TeachingWeekNavigator value={weekAnchor} schoolDays={schoolDays} selectedDay={Math.min(selectedDay,schoolDays-1)} onChange={setWeekAnchor} onSelectDay={setSelectedDay} holidays={holidays}/>
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="Isian jurnal harian">
       <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 ${selectedStatus.active ? 'border-slate-200 bg-slate-50' : 'border-rose-200 bg-rose-100 text-rose-900'}`}>
-        <h3 className="text-sm font-bold">{dateLabel(selectedDate)}</h3>
+        <h3 className="text-sm font-bold">{dateLabel(selectedDate)}{selectedSpecial && <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{background:selectedSpecial.jenis==='kts'?'#16a34a':selectedSpecial.jenis==='kpp'?'#ca8a04':'#4f46e5'}}>{selectedSpecial.judul}</span>}</h3>
         {selectedStatus.active && dayRows.length>0 && <span className="text-xs text-slate-500 lg:hidden">Geser untuk kolom lainnya →</span>}
       </div>
       {!selectedStatus.active ? <div className="flex min-h-40 flex-col items-center justify-center bg-rose-50 p-5 text-center text-rose-800"><CalendarDays size={28} className="mb-2"/><strong>{selectedStatus.reason}</strong><p className="mt-1 text-sm">Tidak ada kegiatan mengajar pada hari libur.</p></div> : dayRows.length===0 ? <div className="p-8 text-center text-sm text-slate-500">Belum ada jadwal pelajaran pada hari ini.<a href="#/aktivitas/jadwal" className="mx-auto mt-3 block w-fit rounded-lg border border-slate-200 px-3 py-3 font-semibold text-teal-700">Buka Jadwal Pelajaran</a></div> : <>
