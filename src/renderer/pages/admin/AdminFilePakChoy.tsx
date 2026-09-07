@@ -1,14 +1,82 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, FileText, Pencil, Plus, ShieldAlert, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, FileText, LogOut, Pencil, Plus, ShieldAlert, Trash2, Upload } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { db, type PerangkatAjarCache } from '../../../lib/db'
+import { primaryClient, useChoySession, choySignIn, choySignOut } from '../../../lib/choy-auth'
+import { deleteChoyDocument, downloadChoyDocument, listChoyDocuments, publishChoyDocument, updateChoyDocument, uploadChoyDocument } from '../../../lib/document-service'
+import { DOCUMENT_CATEGORIES, documentAudience, documentSize, type ChoyDocument } from '../../../shared/pak-choy-documents'
 
 const CATEGORIES = ['CP','ATP','Prota','Promes','RPM','Modul Ajar','LKPD','Lainnya']
 const emptyForm = { judul:'', jenis:'Modul Ajar', deskripsi:'', mata_pelajaran:'', jenjang:'', kelas:'', versi:'1.0', status:'draft' as 'draft'|'terbit' }
 
 export default function AdminFilePakChoy() {
+  const cloud = primaryClient()
+  if (cloud) return <AdminCloud client={cloud}/>
+  return <AdminLokal/>
+}
+
+// ---------------- Mode cloud (Supabase, butuh login admin) ----------------
+const cloudEmpty = { judul:'', kategori:'Modul Ajar', deskripsi:'', grades:[] as number[] }
+function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient>>}) {
+  const { user, admin, checking } = useChoySession(client)
+  const [items,setItems] = useState<ChoyDocument[]>([])
+  const [loading,setLoading] = useState(true)
+  const [show,setShow] = useState(false)
+  const [editing,setEditing] = useState<ChoyDocument|null>(null)
+  const [form,setForm] = useState(cloudEmpty)
+  const [file,setFile] = useState<File|null>(null)
+  const [busy,setBusy] = useState(false)
+  const [message,setMessage] = useState('')
+  const [login,setLogin] = useState({email:'',password:''})
+  const lock = useRef(false)
+  const [confirmDelete,setConfirmDelete] = useState<ChoyDocument|null>(null)
+  const load = async () => { try { setItems(await listChoyDocuments(client)) } catch { setMessage('Daftar gagal dimuat. Periksa koneksi lalu muat ulang.') } finally { setLoading(false) } }
+  useEffect(() => { if (admin) { void load() } else { setLoading(false) } }, [admin])
+  const doLogin = async (e:React.FormEvent) => { e.preventDefault(); if(lock.current)return; lock.current=true;setBusy(true);setMessage(''); try { await choySignIn(client,login.email,login.password) } catch(err) { setMessage(err instanceof Error?err.message:'Login gagal.') } finally { lock.current=false;setBusy(false) } }
+  const openNew = () => { setEditing(null); setForm(cloudEmpty); setFile(null); setMessage(''); setShow(true) }
+  const openEdit = (item:ChoyDocument) => { setEditing(item); setForm({judul:item.title,kategori:item.category,deskripsi:item.description,grades:[...item.target_grades]}); setFile(null); setMessage(''); setShow(true) }
+  const toggleGrade = (g:number) => setForm(f => ({...f,grades:f.grades.includes(g)?f.grades.filter(x=>x!==g):[...f.grades,g]}))
+  const save = async (e:React.FormEvent) => {
+    e.preventDefault(); if(lock.current)return
+    if(!editing && !file){ setMessage('Pilih berkas yang akan diunggah.'); return }
+    lock.current=true;setBusy(true);setMessage('')
+    try {
+      const details = {title:form.judul,category:form.kategori,description:form.deskripsi,target_grades:form.grades}
+      if (editing) await updateChoyDocument(client,editing,details)
+      else await uploadChoyDocument(client,details,file!)
+      setShow(false); setLoading(true); await load()
+    } catch(err) { setMessage(err instanceof Error?err.message:'Penyimpanan gagal.') }
+    finally { lock.current=false;setBusy(false) }
+  }
+  const flip = async (item:ChoyDocument) => { setMessage(''); try { await publishChoyDocument(client,item,!item.published); await load() } catch(err) { setMessage(err instanceof Error?err.message:'Status gagal diubah.') } }
+  const remove = async () => { if(lock.current||!confirmDelete)return; const item=confirmDelete; setConfirmDelete(null); lock.current=true;setBusy(true); try { await deleteChoyDocument(client,item); await load() } catch(err) { setMessage(err instanceof Error?err.message:'Hapus gagal.') } finally { lock.current=false;setBusy(false) } }
+  return <div className="mx-auto max-w-6xl space-y-5 pb-12">
+    <header className="flex flex-wrap items-start justify-between gap-3"><div><Link to="/" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-teal-700"><ArrowLeft size={17}/>Kembali ke aplikasi</Link><h1 className="text-2xl font-black text-slate-900">Admin File Pak Choy</h1><p className="mt-1 text-sm text-slate-500">Terhubung ke penyimpanan cloud. Yang diterbitkan tampil di semua perangkat.</p></div>{user&&<button onClick={()=>void choySignOut(client)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600"><LogOut size={16}/>Keluar ({user.email})</button>}</header>
+    {message&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{message}</p>}
+    {checking||loading ? <p role="status" className="text-sm text-slate-500">Memuat…</p> : !user ? <form onSubmit={doLogin} className="mx-auto max-w-sm space-y-3 rounded-2xl border border-slate-200 bg-white p-6"><h2 className="font-extrabold text-slate-800">Login admin</h2><label className="block text-sm font-bold">Email<input required type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} className="field mt-1.5"/></label><label className="block text-sm font-bold">Kata sandi<input required type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} className="field mt-1.5"/></label><button disabled={busy} className="action-primary min-h-11 w-full rounded-xl px-4 font-bold disabled:opacity-40">{busy?'Memeriksa…':'Masuk'}</button></form>
+    : !admin ? <aside className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><ShieldAlert className="shrink-0" size={20}/><p><strong>Akun ini bukan admin.</strong> Daftarkan User ID berikut ke tabel <code>pak_choy_admins</code> lewat SQL Editor Supabase:<br/><code className="break-all">{user.id}</code></p></aside>
+    : <>
+      <div><button onClick={openNew} className="action-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold"><Plus size={17}/>Tambah file</button></div>
+      <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-extrabold text-slate-800">{items.length} file tersimpan</h2></div>
+        <div className="divide-y divide-slate-100">{items.map(item=><article key={item.id} className="flex flex-wrap items-center gap-3 p-4 sm:p-5"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-700"><FileText size={20}/></span><div className="min-w-48 flex-1"><h3 className="break-words font-bold text-slate-800">{item.title}</h3><p className="mt-1 text-xs text-slate-500">{item.category} · {documentAudience(item.target_grades)} · {documentSize(item.file_size)}</p></div><button disabled={busy} onClick={()=>void flip(item)} className={`min-h-11 rounded-full px-3 py-1 text-xs font-bold ${item.published?'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-600'}`}>{item.published?'Terbit':'Draft'}</button><button onClick={()=>openEdit(item)} className="grid size-11 place-items-center rounded-xl text-teal-700 hover:bg-teal-50" aria-label={`Edit ${item.title}`}><Pencil size={17}/></button><button disabled={busy} onClick={()=>setConfirmDelete(item)} className="grid size-11 place-items-center rounded-xl text-red-700 hover:bg-red-50" aria-label={`Hapus ${item.title}`}><Trash2 size={17}/></button></article>)}
+        {!items.length&&<div className="grid min-h-52 place-items-center p-6 text-center text-sm text-slate-500"><div><Upload size={30} className="mx-auto mb-3 text-slate-300"/><p>Belum ada file. Pilih Tambah file untuk mulai.</p></div></div>}</div>
+      </section>
+    </>}
+    <ConfirmDialog open={!!confirmDelete} title="Hapus file?" message={confirmDelete ? `Hapus “${confirmDelete.title}” dari cloud? Berkas ikut terhapus permanen.` : ''} onCancel={() => setConfirmDelete(null)} onConfirm={remove} />
+    {show&&<Modal title={editing?'Edit dokumen':'Tambah dokumen'} onClose={()=>{if(!busy)setShow(false)}} footer={<button type="submit" form="admin-cloud-form" disabled={busy||!form.judul.trim()} className="action-primary min-h-11 w-full rounded-xl px-4 font-bold disabled:opacity-40">{busy?'Menyimpan…':editing?'Simpan perubahan':'Unggah file'}</button>}><form id="admin-cloud-form" onSubmit={save}><fieldset disabled={busy} className="space-y-4">
+      {message&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{message}</p>}
+      {!editing&&<label className="relative flex min-h-20 cursor-pointer items-center justify-center gap-2 rounded-xl border border-dashed border-teal-300 bg-teal-50 text-sm font-bold text-teal-800"><Upload size={18}/>{file?file.name:'Pilih berkas (maks 20 MB)'}<input type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.png,.jpg,.jpeg,.webp" className="absolute inset-0 cursor-pointer opacity-0" onChange={e=>setFile(e.target.files?.[0]||null)}/></label>}
+      <label className="block text-sm font-bold">Judul<input required className="field mt-1.5" value={form.judul} onChange={e=>setForm({...form,judul:e.target.value})}/></label>
+      <div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-bold">Kategori<select className="field mt-1.5" value={form.kategori} onChange={e=>setForm({...form,kategori:e.target.value})}>{DOCUMENT_CATEGORIES.map(v=><option key={v}>{v}</option>)}</select></label><div className="text-sm font-bold">Untuk kelas <span className="font-normal text-slate-400">(kosong = semua)</span><div className="mt-1.5 flex flex-wrap gap-1.5">{[1,2,3,4,5,6].map(g=><button type="button" key={g} aria-pressed={form.grades.includes(g)} onClick={()=>toggleGrade(g)} className={`grid size-11 place-items-center rounded-lg border text-sm font-bold ${form.grades.includes(g)?'border-teal-700 bg-teal-700 text-white':'border-slate-200 bg-white text-slate-600'}`}>{g}</button>)}</div></div></div>
+      <label className="block text-sm font-bold">Deskripsi<textarea rows={3} className="field mt-1.5" value={form.deskripsi} onChange={e=>setForm({...form,deskripsi:e.target.value})}/></label>
+    </fieldset></form></Modal>}
+  </div>
+}
+
+// ---------------- Mode lokal (tanpa Supabase) ----------------
+function AdminLokal() {
   const [items,setItems] = useState<PerangkatAjarCache[]>([])
   const [show,setShow] = useState(false)
   const [editing,setEditing] = useState<PerangkatAjarCache|null>(null)
@@ -39,7 +107,7 @@ export default function AdminFilePakChoy() {
   const remove=async()=>{if(lock.current||!confirmDelete) return; const item = confirmDelete; setConfirmDelete(null); lock.current=true;setBusy(true);try{await db.perangkat_ajar_cache.delete(item.id);await load()}finally{lock.current=false;setBusy(false)}}
   return <div className="mx-auto max-w-6xl space-y-5 pb-12">
     <header className="flex flex-wrap items-start justify-between gap-3"><div><Link to="/" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-teal-700"><ArrowLeft size={17}/>Kembali ke aplikasi</Link><h1 className="text-2xl font-black text-slate-900">Admin File Pak Choy</h1><p className="mt-1 text-sm text-slate-500">Kelola file yang tampil pada menu Perangkat Ajar.</p></div><button onClick={openNew} className="action-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold"><Plus size={17}/>Tambah file</button></header>
-    <aside className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><ShieldAlert className="shrink-0" size={20}/><p><strong>Mode admin lokal.</strong> File hanya tersedia pada browser ini. Login admin dan publikasi untuk semua pengguna akan aktif setelah Supabase disambungkan.</p></aside>
+    <aside className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><ShieldAlert className="shrink-0" size={20}/><p><strong>Mode admin lokal.</strong> File hanya tersedia pada browser ini. Isi VITE_SUPABASE_URL dan kunci publik di hosting agar tersambung ke cloud dan ada login admin.</p></aside>
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-extrabold text-slate-800">{items.length} file tersimpan</h2></div>
       <div className="divide-y divide-slate-100">{items.map(item=><article key={item.id} className="flex flex-wrap items-center gap-3 p-4 sm:p-5"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-50 text-teal-700"><FileText size={20}/></span><div className="min-w-48 flex-1"><h3 className="break-words font-bold text-slate-800">{item.judul}</h3><p className="mt-1 text-xs text-slate-500">{item.jenis} · {item.format_file?.toUpperCase()||'FILE'} · {Math.max(1,Math.ceil((item.ukuran_file||0)/1024))} KB</p></div><span className={`rounded-full px-3 py-1 text-xs font-bold ${item.status==='terbit'?'bg-emerald-100 text-emerald-800':'bg-slate-100 text-slate-600'}`}>{item.status==='terbit'?'Terbit':'Draft'}</span><button onClick={()=>openEdit(item)} className="grid size-11 place-items-center rounded-xl text-teal-700 hover:bg-teal-50" aria-label={`Edit ${item.judul}`}><Pencil size={17}/></button><button disabled={busy} onClick={()=>setConfirmDelete(item)} className="grid size-11 place-items-center rounded-xl text-red-700 hover:bg-red-50" aria-label={`Hapus ${item.judul}`}><Trash2 size={17}/></button></article>)}
       {!items.length&&<div className="grid min-h-52 place-items-center p-6 text-center text-sm text-slate-500"><div><Upload size={30} className="mx-auto mb-3 text-slate-300"/><p>Belum ada File Pak Choy. Pilih Tambah file untuk mulai.</p></div></div>}</div>

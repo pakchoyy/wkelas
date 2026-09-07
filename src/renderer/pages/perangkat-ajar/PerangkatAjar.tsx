@@ -4,6 +4,9 @@ import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { Files, FileText, FolderOpen, Plus, Upload, Download, Trash2 } from 'lucide-react'
 import { db, type PerangkatAjarCache } from '../../../lib/db'
+import { backendClients } from '../../../lib/choy-auth'
+import { downloadChoyDocument, listChoyDocuments } from '../../../lib/document-service'
+import { documentAudience, documentSize, type ChoyDocument } from '../../../shared/pak-choy-documents'
 
 const JENIS = ['CP','ATP','Prota','Promes','RPM','Modul Ajar','LKPD']
 export default function PerangkatAjar() {
@@ -20,13 +23,15 @@ export default function PerangkatAjar() {
   const [loading,setLoading] = useState(true)
   const [confirmDelete, setConfirmDelete] = useState<any | null>(null)
   const [officialDocs,setOfficialDocs] = useState<PerangkatAjarCache[]>([])
+  const [cloudDocs,setCloudDocs] = useState<{doc:ChoyDocument;backend:number}[]>([])
   const chooseFile = (selected:File|undefined) => {
     if (!selected) return
     setFile(selected)
     setForm(current=>({...current,judul:current.judul.trim() ? current.judul : selected.name.replace(/\.[^.]+$/,'').replace(/[_-]+/g,' ')}))
     setFormError('')
   }
-  const load = async () => { try {const [mine,official]=await Promise.all([window.electronAPI.dokumenSaya.list(),db.perangkat_ajar_cache.filter(item=>(item.status||'draft')==='terbit').reverse().sortBy('updated_at')]);setDocs(mine);setOfficialDocs(official)} catch {setError('Daftar dokumen gagal dimuat. Muat ulang halaman.')} finally {setLoading(false)} }
+  const load = async () => { try {const [mine,official,cloud]=await Promise.all([window.electronAPI.dokumenSaya.list(),db.perangkat_ajar_cache.filter(item=>(item.status||'draft')==='terbit').reverse().sortBy('updated_at'),Promise.all(backendClients().map((client,backend)=>listChoyDocuments(client).then(docs=>docs.filter(doc=>doc.published).map(doc=>({doc,backend}))).catch(()=>[] as {doc:ChoyDocument;backend:number}[]))).then(lists=>lists.flat())]);setDocs(mine);setOfficialDocs(official);setCloudDocs(cloud)} catch {setError('Daftar dokumen gagal dimuat. Muat ulang halaman.')} finally {setLoading(false)} }
+  const downloadCloud = async (item:{doc:ChoyDocument;backend:number}) => { try { const client=backendClients()[item.backend]; if(!client) throw new Error('Backend tidak tersedia'); await downloadChoyDocument(client,item.doc) } catch { setError('Berkas gagal diunduh. Periksa koneksi lalu coba lagi.') } }
   useEffect(() => {load()},[])
   const upload = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -66,6 +71,7 @@ export default function PerangkatAjar() {
     } catch { setError('File Pak Choy belum dapat diunduh.') }
   }
   const shownOfficial=officialDocs.filter(doc=>category==='Semua'||doc.jenis===category)
+  const shownCloud=cloudDocs.filter(({doc})=>category==='Semua'||doc.category===category)
   return <div className="space-y-3">
     <div className="flex items-center gap-2"><Files size={21} className="text-emerald-600"/><h2 className="text-xl font-bold">Perangkat Ajar</h2></div>
     <div className="flex gap-2">{[['saya','Dokumen Saya'],['resmi','Dokumen Pak Choy']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>setTab(id)} className={`min-h-11 flex-1 rounded-xl border px-2 py-2 text-xs sm:text-sm font-semibold ${tab===id?'border-teal-700 bg-teal-700 text-white':'border-slate-200 bg-white text-slate-600'}`}>{label}</button>)}</div>
@@ -73,8 +79,8 @@ export default function PerangkatAjar() {
     {tab==='resmi' ? <>
       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-slate-500">Kumpulan perangkat ajar dari Pak Choy.</p><Link to="/admin" className="inline-flex min-h-11 items-center text-xs font-bold text-teal-700 underline underline-offset-4">Kelola file admin</Link></div>
       <div className="flex flex-wrap gap-2" aria-label="Kategori dokumen Pak Choy">{['Semua',...JENIS].map(item=><button key={item} aria-pressed={category===item} onClick={()=>setCategory(item)} className={`min-h-11 rounded-lg border px-3 text-xs font-semibold ${category===item?'border-teal-700 bg-teal-700 text-white':'border-slate-200 bg-white text-slate-600'}`}>{item}</button>)}</div>
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{shownOfficial.map(doc=><article key={doc.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-4"><FileText size={22} className="text-teal-700"/><h3 className="mt-3 break-words font-bold text-slate-800">{doc.judul}</h3><p className="mt-1 text-xs text-slate-500">{doc.jenis} · {doc.format_file?.toUpperCase()}</p>{doc.deskripsi&&<p className="mt-3 flex-1 text-sm leading-6 text-slate-600">{doc.deskripsi}</p>}<button onClick={()=>void downloadOfficial(doc)} className="action-mint mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-bold"><Download size={16}/>Unduh</button></article>)}</div>
-      {!shownOfficial.length&&<div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center"><FolderOpen size={30} className="mb-3 text-slate-400"/><h3 className="text-sm font-semibold text-slate-700">{category==='Semua'?'Dokumen Pak Choy belum tersedia':`${category} belum tersedia`}</h3><p className="mt-1 text-xs text-slate-500">Dokumen akan muncul setelah diterbitkan oleh Pak Choy.</p></div>}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{shownCloud.map(({doc,backend})=><article key={`cloud-${backend}-${doc.id}`} className="flex flex-col rounded-xl border border-slate-200 bg-white p-4"><FileText size={22} className="text-teal-700"/><h3 className="mt-3 break-words font-bold text-slate-800">{doc.title}</h3><p className="mt-1 text-xs text-slate-500">{doc.category} · {documentAudience(doc.target_grades)} · {documentSize(doc.file_size)}</p>{doc.description&&<p className="mt-3 flex-1 text-sm leading-6 text-slate-600">{doc.description}</p>}<button onClick={()=>void downloadCloud({doc,backend})} className="action-mint mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-bold"><Download size={16}/>Unduh</button></article>)}{shownOfficial.map(doc=><article key={doc.id} className="flex flex-col rounded-xl border border-slate-200 bg-white p-4"><FileText size={22} className="text-teal-700"/><h3 className="mt-3 break-words font-bold text-slate-800">{doc.judul}</h3><p className="mt-1 text-xs text-slate-500">{doc.jenis} · {doc.format_file?.toUpperCase()}</p>{doc.deskripsi&&<p className="mt-3 flex-1 text-sm leading-6 text-slate-600">{doc.deskripsi}</p>}<button onClick={()=>void downloadOfficial(doc)} className="action-mint mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-bold"><Download size={16}/>Unduh</button></article>)}</div>
+      {!shownOfficial.length&&!shownCloud.length&&<div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center"><FolderOpen size={30} className="mb-3 text-slate-400"/><h3 className="text-sm font-semibold text-slate-700">{category==='Semua'?'Dokumen Pak Choy belum tersedia':`${category} belum tersedia`}</h3><p className="mt-1 text-xs text-slate-500">Dokumen akan muncul setelah diterbitkan oleh Pak Choy.</p></div>}
     </> : <>
       <p className="text-xs text-slate-500">Tersimpan di browser ini. Sertakan berkas dalam backup.</p>
       <button disabled={busy} onClick={()=>{setForm({judul:'',kategori:'',deskripsi:''});setFile(null);setFormError('');setShow(true)}} className="action-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold"><Plus size={17}/>Tambah dokumen</button>
