@@ -35,6 +35,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
   const [toast,setToast]=useState('')
   const [confirmDelete, setConfirmDelete] = useState<KalenderAkademik | null>(null)
   const [view,setView]=useState<'grid'|'daftar'>('grid')
+  const [dayDetail,setDayDetail]=useState<string|null>(null)
   const [yearStart,setYearStart]=useState(()=>{const now=new Date();return now.getMonth()>=6?now.getFullYear():now.getFullYear()-1})
 
   const load = async () => { setData(await window.electronAPI.kalender.list(kelasId)) }
@@ -111,7 +112,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
           <button onClick={() => {setFormError('');setEditId(null);setForm({ tanggal_mulai: todayISO(), tanggal_selesai: '', judul: '', jenis: 'kegiatan', deskripsi: '' });setShowForm(true)}} className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}><Plus size={16} /> Tambah</button>
         </div>
       </div>
-      <p className="mb-4 text-xs text-slate-500">Ketuk tanggal untuk menambah kegiatan · ketuk nama kegiatan/libur untuk mengubah atau menghapus.</p>
+      <p className="mb-4 text-xs text-slate-500">Ketuk tanggal: lihat & ubah kegiatan, atau tambah baru bila kosong.</p>
 
 
       <div className="grid gap-4 mb-5 lg:grid-cols-[1fr_260px]"><div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex items-center gap-2 font-bold"><CalendarDays size={18} className="text-emerald-600"/>Batas Waktu Semester</div><div className="grid gap-3 md:grid-cols-3"><label className="text-xs font-bold text-slate-500">Mulai Semester<input type="date" value={period.mulai} onChange={(e)=>setPeriod({...period,mulai:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Akhir Semester<input type="date" value={period.akhir} onChange={(e)=>setPeriod({...period,akhir:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Sistem Hari Sekolah<select value={period.hariSekolah} onChange={(e)=>setPeriod({...period,hariSekolah:Number(e.target.value)})} className="field mt-1.5"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label></div><div className="mt-3 flex flex-wrap gap-3 items-center justify-between"><p className="text-xs text-slate-400">Periode ini digunakan oleh Presensi, Perilaku, Rencana, dan Jurnal.</p><button onClick={savePeriod} className="min-h-11 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Save size={14}/>Simpan Periode</button></div></div><div className="rounded-2xl bg-indigo-900 p-5 text-white"><div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Hari Efektif Belajar</div><div className="mt-4 text-4xl font-extrabold">{effectiveDays}</div><div className="mt-1 text-xs text-indigo-200">hari setelah akhir pekan dan hari libur</div></div></div>
@@ -137,7 +138,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
                 const isSun=dow===0
                 const weekendOff=isSun||(dow===6&&period.hariSekolah===5)
                 const isToday=iso===todayISO()
-                return <button key={d} onClick={()=>addOn(iso)} aria-label={`${d} ${new Intl.DateTimeFormat('id-ID',{month:'long'}).format(new Date(y,m,1))}${evts.length?`: ${evts.map(e=>e.judul).join(', ')}`: ''}`} title={evts.length?evts.map(e=>e.judul).join(', '):'Tambah kegiatan'} className={`flex min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-xs ${isSun?'font-extrabold text-red-600':weekendOff?'text-slate-400':'font-semibold text-slate-700'} ${isToday?'ring-2 ring-inset ring-teal-600':''}`} style={{background:dom?`${JENIS_WARNA[dom.jenis]||'#6b7280'}1A`:weekendOff?'#f8fafc':'#ffffff'}}>
+                return <button key={d} onClick={()=>{ if (evts.length) setDayDetail(iso); else addOn(iso) }} aria-label={`${d} ${new Intl.DateTimeFormat('id-ID',{month:'long'}).format(new Date(y,m,1))}${evts.length?`: ${evts.map(e=>e.judul).join(', ')}`: ''}`} title={evts.length?evts.map(e=>e.judul).join(', '):'Tambah kegiatan'} className={`flex min-h-11 flex-col items-center justify-center gap-0.5 px-0.5 py-1 text-xs ${isSun?'font-extrabold text-red-600':weekendOff?'text-slate-400':'font-semibold text-slate-700'} ${isToday?'ring-2 ring-inset ring-teal-600':''}`} style={{background:dom?`${JENIS_WARNA[dom.jenis]||'#6b7280'}1A`:weekendOff?'#f8fafc':'#ffffff'}}>
                   <span>{d}</span>
                   {evts.length>0 && <span className="flex gap-0.5" aria-hidden="true">{evts.slice(0,3).map(e=><span key={e.id} className="size-1 rounded-full" style={{background:JENIS_WARNA[e.jenis]||'#6b7280'}}/>)}</span>}
                 </button>
@@ -172,6 +173,9 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
       </div>}
 
       <ConfirmDialog open={!!confirmDelete} title="Hapus kegiatan?" message={confirmDelete ? `Hapus ${confirmDelete.judul}?` : ''} onCancel={() => setConfirmDelete(null)} onConfirm={remove} />
+      {dayDetail && <Modal title={new Intl.DateTimeFormat('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'}).format(new Date(`${dayDetail}T12:00:00`))} onClose={() => setDayDetail(null)} maxWidth="max-w-sm" footer={<span className="flex flex-wrap justify-end gap-2"><button onClick={() => { const iso = dayDetail; setDayDetail(null); addOn(iso) }} className="min-h-11 rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white">+ Tambah kegiatan</button></span>}>
+        <div className="space-y-2">{eventsOn(dayDetail).map((item) => <div key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 p-2.5"><span className="size-3 shrink-0 rounded-full" style={{background:JENIS_WARNA[item.jenis]||'#6b7280'}}/><div className="min-w-0 flex-1"><p className="break-words text-sm font-bold text-slate-800">{item.judul}</p><p className="text-xs text-slate-500">{JENIS_LABEL[item.jenis]||item.jenis} · {eventRange(item)}</p></div><button onClick={() => { setDayDetail(null); openEdit(item) }} aria-label={`Edit ${item.judul}`} className="grid size-11 shrink-0 place-items-center rounded-xl text-teal-700 hover:bg-teal-50"><Pencil size={16}/></button><button onClick={() => { setDayDetail(null); setConfirmDelete(item) }} aria-label={`Hapus ${item.judul}`} className="grid size-11 shrink-0 place-items-center rounded-xl text-red-700 hover:bg-red-50"><Trash2 size={16}/></button></div>)}</div>
+      </Modal>}
       {showForm && (
         <Modal title={editId ? 'Edit Kegiatan' : 'Tambah Kegiatan'} onClose={() => { if (!busy) setShowForm(false) }}>
             <form onSubmit={handleSubmit} className="space-y-3">{formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}

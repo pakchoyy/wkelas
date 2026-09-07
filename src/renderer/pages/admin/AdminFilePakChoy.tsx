@@ -9,7 +9,7 @@ import { deleteChoyDocument, downloadChoyDocument, listChoyDocuments, publishCho
 import { DOCUMENT_CATEGORIES, documentAudience, documentSize, type ChoyDocument } from '../../../shared/pak-choy-documents'
 
 const CATEGORIES = ['CP','ATP','Prota','Promes','RPM','Modul Ajar','LKPD','Lainnya']
-const emptyForm = { judul:'', jenis:'Modul Ajar', deskripsi:'', mata_pelajaran:'', jenjang:'', kelas:'', versi:'1.0', status:'draft' as 'draft'|'terbit' }
+const emptyForm = { judul:'', jenis:'Modul Ajar', deskripsi:'', mata_pelajaran:'', jenjang:'', kelas:'', versi:'1.0', status:'terbit' as 'draft'|'terbit' }
 
 export default function AdminFilePakChoy() {
   const cloud = primaryClient()

@@ -25,7 +25,7 @@ export async function uploadChoyDocument(client:SupabaseClient,details:DocumentD
   const storage=client.storage.from(DOCUMENT_BUCKET)
   const uploaded=await storage.upload(file_path,file,{upsert:false,cacheControl:'0'})
   if(uploaded.error) throw new Error('Berkas gagal diunggah. Periksa koneksi, izin admin, dan batas penyimpanan, lalu coba lagi.')
-  const record={...fields,id,file_path,file_name:file.name,file_size:file.size,published:false}
+  const record={...fields,id,file_path,file_name:file.name,file_size:file.size,published:true}
   const {data,error}=await client.from('pak_choy_documents').insert(record).select().single()
   if(!error) return data as ChoyDocument
   // A lost response can follow a committed insert. Never remove its file blindly.
