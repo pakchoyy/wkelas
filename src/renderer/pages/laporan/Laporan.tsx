@@ -1,7 +1,7 @@
 import { classWeightKey } from '../../../lib/grade-periods'
 import { calculateGrade, readGradeWeights } from '../../../shared/grades'
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { FileDown, Printer } from 'lucide-react'
+import { BarChart3, FileDown, Printer } from 'lucide-react'
 import { useSiswaList } from '../../hooks/useSiswa'
 import { useAppStore } from '../../stores/appStore'
 import { attendancePercent } from '../../../shared/attendance'
@@ -123,7 +123,7 @@ export default function Laporan() {
 
   return (
     <div><style>{`@media print{aside,header,button,.no-print{display:none!important}main{overflow:visible!important;padding:0!important}.report{box-shadow:none!important;border:1px solid #999!important}.report .overflow-x-auto{overflow:visible!important}.report table{min-width:0!important;font-size:9px!important}.report th,.report td{padding:5px!important}body{background:white!important}}`}</style>
-      <div className="mb-4 no-print"><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div>
+      <div className="mb-4 no-print flex items-center gap-2"><BarChart3 size={21} className="text-emerald-600"/><div><h2 className="text-xl font-bold">Pusat Laporan</h2><p className="mt-1 text-sm text-slate-500">Pilih jenis laporan, tentukan periode, lalu ekspor atau cetak.</p></div></div>
       <div className="report mb-4 rounded-xl border border-slate-200 bg-white p-4 text-center"><h1 className="font-extrabold uppercase">Laporan {tabs.find(item=>item.id===tab)?.label}</h1><p className="mt-1 text-sm font-semibold">{identity.sekolah}</p><p className="mt-1 text-xs text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun} · Wali Kelas: {identity.guru}</p></div>
       <p className="mb-4 text-center text-sm text-slate-600">Periode: {tab === 'nilai' ? identity.tahun + ' · Semester ' + identity.semester : (periodeMulai || 'Semua tanggal') + ' s/d ' + (periodeSelesai || 'Semua tanggal')}</p>
       {tab === 'nilai' && <p className="mb-3 text-xs text-slate-600">* Nilai sementara: komponen penilaian belum lengkap.</p>}

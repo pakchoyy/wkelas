@@ -1,7 +1,7 @@
 import TeachingWeekNavigator from '../../components/TeachingWeekNavigator'
 import { createJournalDraft } from '../../../lib/journal-storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, ClipboardCheck, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardCheck, NotebookPen, Plus, Trash2 } from 'lucide-react'
 import type { Jadwal, MataPelajaran, RencanaMengajar } from '../../../shared/types'
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
@@ -176,10 +176,7 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
     <div className="space-y-4">
       {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.message}</div>}
 
-      <div>
-        <h2 className="text-xl font-bold">Rencana Mengajar</h2>
-        <p className="hidden md:block mt-1 text-sm text-slate-500">Isi rencana langsung dari jadwal pelajaran minggu ini.</p>
-      </div>
+      <div className="flex items-center gap-2"><NotebookPen size={21} className="text-emerald-600"/><div><h2 className="text-xl font-bold">Rencana Mengajar</h2><p className="hidden md:block mt-1 text-sm text-slate-500">Isi rencana langsung dari jadwal pelajaran minggu ini.</p></div></div>
 
       <TeachingWeekNavigator value={anchorDate} schoolDays={hariSekolah} selectedDay={Math.min(selectedDay,hariSekolah-1)} onChange={setAnchorDate} onSelectDay={setSelectedDay} holidays={holidays} desktopTabs={false}/>
       <p className="text-xs text-slate-500">Pilih hari, lalu pilih pelajaran untuk mengisi rencana.</p>

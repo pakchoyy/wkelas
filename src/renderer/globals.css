@@ -108,6 +108,15 @@ body {
   animation-play-state: paused;
 }
 
+@keyframes running-promo-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.running-promo-fade {
+  animation: running-promo-fade 0.35s ease;
+}
+
 @media (max-width: 1023px) {
   .field { font-size: 1rem; }
 }
@@ -115,7 +124,7 @@ body {
   .animate-slide-up { animation: none; }
   .app-layout *, .app-layout *::before, .app-layout *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .dashboard-primary:active { scale: none; }
-  .running-promo-track { animation: none; }
+  .running-promo-track, .running-promo-fade { animation: none; }
 }
 @media print {
   @page { size: A4 landscape; margin: 12mm; }

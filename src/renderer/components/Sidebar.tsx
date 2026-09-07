@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { AlertTriangle, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, FileText, FolderOpen, HeartHandshake, LayoutDashboard, ScrollText, Settings, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, Files, FolderOpen, HeartHandshake, LayoutDashboard, NotebookPen, ScrollText, Settings, Users } from 'lucide-react'
 
 const groups = [
   { label: 'Siswa', icon: Users, children: [
@@ -12,12 +12,12 @@ const groups = [
   { label: 'Aktivitas Mengajar', icon: BookOpen, children: [
     { to: '/aktivitas/mapel', icon: BookOpen, label: 'Mata Pelajaran' },
     { to: '/aktivitas/jadwal', icon: Calendar, label: 'Jadwal' },
-    { to: '/aktivitas/rencana', icon: BookOpen, label: 'Rencana Mengajar' },
+    { to: '/aktivitas/rencana', icon: NotebookPen, label: 'Rencana Mengajar' },
     { to: '/aktivitas/jurnal', icon: ClipboardList, label: 'Jurnal Harian' },
   ] },
   { label: 'Referensi Mengajar', icon: FolderOpen, children: [
     { to: '/aktivitas/kalender', icon: CalendarDays, label: 'Kalender Akademik' },
-    { to: '/perangkat-ajar', icon: FileText, label: 'Perangkat Ajar' },
+    { to: '/perangkat-ajar', icon: Files, label: 'Perangkat Ajar' },
   ] },
   { label: 'Lainnya', icon: CheckSquare, children: [
     { to: '/aktivitas/todo', icon: CheckSquare, label: 'Tugas Saya' },
@@ -25,7 +25,7 @@ const groups = [
 ]
 
 const standaloneItems = [
-  { to: '/laporan', icon: FileText, label: 'Laporan' },
+  { to: '/laporan', icon: BarChart3, label: 'Laporan' },
   { to: '/pengaturan', icon: Settings, label: 'Pengaturan' },
   { to: '/bantuan', icon: HeartHandshake, label: 'Bantuan & Komunitas' },
 ]

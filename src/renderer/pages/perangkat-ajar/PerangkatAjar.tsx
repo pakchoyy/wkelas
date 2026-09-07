@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
-import { FileText, FolderOpen, Plus, Upload, Download, Trash2 } from 'lucide-react'
+import { Files, FileText, FolderOpen, Plus, Upload, Download, Trash2 } from 'lucide-react'
 import { db, type PerangkatAjarCache } from '../../../lib/db'
 
 const JENIS = ['CP','ATP','Prota','Promes','RPM','Modul Ajar','LKPD']
@@ -62,7 +62,7 @@ export default function PerangkatAjar() {
   }
   const shownOfficial=officialDocs.filter(doc=>category==='Semua'||doc.jenis===category)
   return <div className="space-y-3">
-    <h2 className="text-xl font-bold">Perangkat Ajar</h2>
+    <div className="flex items-center gap-2"><Files size={21} className="text-emerald-600"/><h2 className="text-xl font-bold">Perangkat Ajar</h2></div>
     <div className="flex gap-2">{[['saya','Dokumen Saya'],['resmi','Dokumen Pak Choy']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>setTab(id)} className={`min-h-11 flex-1 rounded-xl border px-2 py-2 text-xs sm:text-sm font-semibold ${tab===id?'border-teal-700 bg-teal-700 text-white':'border-slate-200 bg-white text-slate-600'}`}>{label}</button>)}</div>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {tab==='resmi' ? <>
