@@ -166,6 +166,21 @@ function PresensiKelas({kelasId}:{kelasId:number}) {
     void fillMissing('H', true)
   }, [autoHadir, kelasId, tanggal, loadedDate, settingsLoaded, loading, isSchoolDay, siswa, tab])
 
+  // Saklar OFF = kembalikan tanggal ini ke belum diisi (hapus semua catatan tanggal itu).
+  const clearDay = async () => {
+    if (savingRef.current || loadedDate !== tanggal) return
+    const view = viewRef.current
+    savingRef.current = true; setSaving(true); setSaveError('')
+    try {
+      await db.presensi.where({kelas_id:kelasId,tanggal}).delete()
+      if (viewRef.current === view) {
+        setStatusMap({})
+        setToast({ type: 'success', text: 'Presensi tanggal ini dikembalikan ke belum diisi.' })
+      }
+    } catch { if (viewRef.current === view) setSaveError('Penghapusan gagal disimpan. Data sebelumnya tetap digunakan. Silakan coba lagi.') }
+    finally { savingRef.current = false; setSaving(false) }
+  }
+
   const saveSettings = async (next: Settings) => {
     if (!next.s1Mulai || !next.s1Akhir || !next.s2Mulai || !next.s2Akhir || next.s1Mulai > next.s1Akhir || next.s2Mulai > next.s2Akhir) {
       setToast({type:'error', text:'Tanggal akhir semester harus sama atau setelah tanggal mulai.'}); return
@@ -178,7 +193,7 @@ function PresensiKelas({kelasId}:{kelasId:number}) {
     {saveError && <div role="alert" className="mb-4 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-white text-amber-600"><AlertCircle size={20}/></span><div className="min-w-0 flex-1"><p className="text-sm font-bold text-amber-900">Perubahan belum tersimpan</p><p className="mt-1 text-sm text-amber-800">{saveError}</p>{autoHadir && <button onClick={() => void fillMissing('H')} className="mt-2 inline-flex min-h-11 items-center text-sm font-bold text-amber-900 underline underline-offset-4">Coba isi Hadir lagi</button>}</div></div>}
     {!loadError && (!settingsLoaded || loadedDate !== tanggal) && <p role="status">Memuat presensi...</p>}
     <fieldset disabled={saving || !settingsLoaded} className="min-w-0">
-    <div className="flex items-center justify-between gap-2 mb-3"><div className="flex gap-1 rounded-xl p-1"><button aria-pressed={tab === 'harian'} onClick={() => setTab('harian')} className={`tab-mint min-h-11 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold ${tab === 'harian' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}><span className="sm:hidden">Harian</span><span className="hidden sm:inline">Presensi Harian</span></button><button aria-pressed={tab === 'rekap'} onClick={() => setTab('rekap')} className={`tab-teal min-h-11 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold ${tab === 'rekap' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}><span className="sm:hidden">Rekap</span><span className="hidden sm:inline">Rekap Semester</span></button></div><button onClick={() => setShowSettings(true)} aria-label="Pengaturan presensi" className="action-teal min-h-11 shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 flex gap-2 items-center"><Settings2 size={16}/><span className="hidden sm:inline">Pengaturan</span></button></div>
+    <div className="flex items-center justify-between gap-2 mb-3"><div className="flex gap-1 rounded-xl p-1"><button aria-pressed={tab === 'harian'} onClick={() => setTab('harian')} className={`tab-mint min-h-11 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold ${tab === 'harian' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}><span className="sm:hidden">Harian</span><span className="hidden sm:inline">Presensi Harian</span></button><button aria-pressed={tab === 'rekap'} onClick={() => setTab('rekap')} className={`tab-mint min-h-11 px-3 sm:px-4 py-2 rounded-lg text-sm font-bold ${tab === 'rekap' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500'}`}><span className="sm:hidden">Rekap</span><span className="hidden sm:inline">Rekap Semester</span></button></div><button onClick={() => setShowSettings(true)} aria-label="Pengaturan presensi" className="action-teal min-h-11 shrink-0 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600 flex gap-2 items-center"><Settings2 size={16}/><span className="hidden sm:inline">Pengaturan</span></button></div>
     {tab === 'rekap' ? <Rekap siswa={siswa} records={rekapRecords} settings={settings} setSettings={setSettings}/> : <>
     <div className="rounded-xl bg-white border border-slate-200 p-2 mb-3">
       <div className="grid grid-cols-[44px_minmax(0,1fr)_44px_44px] gap-2 items-center">
@@ -194,8 +209,8 @@ function PresensiKelas({kelasId}:{kelasId:number}) {
     <div className="mb-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center gap-3">
         <span className={`grid size-10 shrink-0 place-items-center rounded-xl ${autoHadir ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}><Zap size={19}/></span>
-        <div className="min-w-0 flex-1"><strong className="block text-sm text-slate-800">Auto Hadir {missingCount > 0 && isSchoolDay ? `· ${missingCount} belum dicatat` : '· semua sudah dicatat'}</strong><p className="mt-0.5 text-xs leading-5 text-slate-500">ON = yang kosong jadi Hadir, OFF = yang kosong jadi Alpa. Yang sudah diisi manual tidak berubah.</p></div>
-        <button type="button" role="switch" aria-checked={autoHadir} aria-label="Auto Hadir" onClick={() => { if (autoHadir) { setAutoHadir(false); autoAttempt.current = ''; void fillMissing('A') } else { autoAttempt.current = ''; setAutoHadir(true) } }} className="grid min-h-11 min-w-11 place-items-center"><span className={`relative block h-6 w-11 rounded-full transition-colors ${autoHadir ? 'bg-emerald-600' : 'bg-slate-300'}`}><span className={`absolute left-0 top-0.5 size-5 rounded-full bg-white shadow transition-transform ${autoHadir ? 'translate-x-5' : 'translate-x-0.5'}`}/></span></button>
+        <div className="min-w-0 flex-1"><strong className="block text-sm text-slate-800">Auto Hadir {missingCount > 0 && isSchoolDay ? `· ${missingCount} belum dicatat` : '· semua sudah dicatat'}</strong><p className="mt-0.5 text-xs leading-5 text-slate-500">ON = yang kosong jadi Hadir (isian manual aman). OFF = hapus semua isian tanggal ini.</p></div>
+        <button type="button" role="switch" aria-checked={autoHadir} aria-label="Auto Hadir" onClick={() => { if (autoHadir) { setAutoHadir(false); autoAttempt.current = ''; void clearDay() } else { autoAttempt.current = ''; setAutoHadir(true) } }} className="grid min-h-11 min-w-11 place-items-center"><span className={`relative block h-6 w-11 rounded-full transition-colors ${autoHadir ? 'bg-emerald-600' : 'bg-slate-300'}`}><span className={`absolute left-0 top-0.5 size-5 rounded-full bg-white shadow transition-transform ${autoHadir ? 'translate-x-5' : 'translate-x-0.5'}`}/></span></button>
       </div>
       {saving && <p role="status" className="mt-2 text-xs text-slate-500">Menyimpan…</p>}
     </div>
