@@ -4,6 +4,7 @@ import { ClipboardCheck, ClipboardList, LayoutDashboard, Menu, X } from 'lucide-
 import Header from './Header'
 import Sidebar from './Sidebar'
 import RunningPromo from './RunningPromo'
+import PwaInstallPrompt from './PwaInstallPrompt'
 
 const quickLinks = [
   {to:'/',label:'Beranda',icon:LayoutDashboard},
@@ -38,6 +39,7 @@ export default function Layout() {
     <div className="app-layout flex h-dvh min-h-0 flex-col overflow-hidden">
       <a href="#main-content" className="skip-link" onClick={event => { event.preventDefault(); main.current?.focus(); main.current?.scrollTo({top:0}); }}>Lewati ke konten utama</a>
       <Header onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen}/>
+      <PwaInstallPrompt/>
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden w-64 shrink-0 lg:flex"><Sidebar/></div>
         <main ref={main} id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3 sm:p-4 lg:p-6">

@@ -78,6 +78,10 @@ const electronAPI: ElectronAPI = {
       const id = await db.perilaku.add({ ...data, created_at: now, updated_at: now })
       return db.perilaku.get(id)
     },
+    update: async (id: number, data: any) => {
+      await db.perilaku.update(id, { ...data, updated_at: nowISO() })
+      return db.perilaku.get(id)
+    },
     delete: async (id: number) => {
       await db.perilaku.delete(id)
       return { success: true }

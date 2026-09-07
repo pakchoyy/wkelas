@@ -1,4 +1,4 @@
-import { resolveScheduleTime, excelTime, schedulePreset } from '../../../shared/schedule'
+import { resolveScheduleTime, excelTime, schedulePreset, defaultTime } from '../../../shared/schedule'
 import { importSchedule } from '../../../lib/schedule-storage'
 import { useState, useEffect, useRef } from 'react'
 import { Download, Settings2, Trash2, Upload } from 'lucide-react'
@@ -76,7 +76,7 @@ export default function Jadwal() {
     setSettingsTimes({...waktuJam, ...backfill})
     setShowSettings(true)
   }
-  const saveSettings = async () => {
+  const saveSettings = async (applyAll = false) => {
     if (settingsLock.current) return
     settingsLock.current = true; setSettingsBusy(true); setSettingsError('')
     try {
@@ -86,11 +86,15 @@ export default function Jadwal() {
       const finalBreaks = (timing ? timing.istirahat : settingsBreaks.filter(jam => jam >= 1 && jam <= settingsDraft.jumlahJam)).sort((a,b) => a - b)
       if (finalBreaks.length >= settingsDraft.jumlahJam) throw new Error('Sisakan minimal satu JP untuk pelajaran.')
       const finalTimes = {...settingsTimes, ...(timing ? timing.waktuJam : {})}
+      // Samakan jam: baris tanpa jam eksplisit dihitung berurutan (1 JP = menitJP, istirahat 30 mnt),
+      // lalu tulis ke semua jadwal tersimpan. Memperbaiki jam lama seperti 07.00–08.20.
+      if (applyAll) for (let jam = 1; jam <= settingsDraft.jumlahJam; jam++) if (!finalTimes[jam]) finalTimes[jam] = defaultTime(jam, settingsDraft.menitJP, finalBreaks)
       await db.transaction('rw',[db.jadwal,db.pengaturan],async () => {
         const current = await db.jadwal.where({kelas_id:kelasId}).toArray()
         if (current.some(r => r.hari > settingsDraft.hariSekolah || r.jam_ke > settingsDraft.jumlahJam)) throw new Error('Masih ada jadwal di luar batas baru. Pindahkan atau hapus jadwal tersebut terlebih dahulu.')
         if (current.some(row => finalBreaks.includes(row.jam_ke))) throw new Error('Baris istirahat masih berisi mapel. Pindahkan mapelnya sebelum menyimpan.')
         if(timing) for(const row of current) await db.jadwal.update(row.id!,{jam_mulai:timing.waktuJam[row.jam_ke].mulai,jam_selesai:timing.waktuJam[row.jam_ke].selesai})
+        if(applyAll) for(const row of current) { const t = finalTimes[row.jam_ke]; if (t) await db.jadwal.update(row.id!,{jam_mulai:t.mulai,jam_selesai:t.selesai}) }
         const key = `jadwal_${kelasId}`
         const previous = await db.pengaturan.get(key)
         const cfg = previous ? JSON.parse(previous.value) : {}
@@ -101,7 +105,7 @@ export default function Jadwal() {
       setWaktuJam(finalTimes); setIstirahat(finalBreaks)
       await load()
       setHariSekolah(settingsDraft.hariSekolah as 5|6); setJumlahJam(settingsDraft.jumlahJam); setMenitJP(settingsDraft.menitJP); setShowSettings(false)
-      setToast({text:'Pengaturan jadwal tersimpan'})
+      setToast({text: applyAll ? 'Pengaturan tersimpan, jam semua baris ikut disamakan' : 'Pengaturan jadwal tersimpan'})
     } catch(error) { setSettingsError(error instanceof Error ? error.message : 'Pengaturan gagal disimpan.') }
     finally { settingsLock.current = false; setSettingsBusy(false) }
   }
@@ -220,9 +224,9 @@ export default function Jadwal() {
           </tbody>
         </table>
       </div>
-      <p className="mt-2 text-xs text-slate-500">Ubah jam & istirahat lewat tombol Pengaturan di atas. Istirahat umum: 09.00–09.30 dan 12.00–12.30.</p>
+      <p className="mt-2 text-xs text-slate-500">Ubah jam & istirahat lewat tombol Pengaturan di atas. Istirahat umum: 09.00–09.30 dan 12.00–12.30. Jam lama yang tidak sesuai bisa diperbaiki sekaligus lewat "Simpan & samakan jam".</p>
 
-      {showSettings && <Modal title="Pengaturan Jadwal" onClose={()=>{if(!settingsLock.current)setShowSettings(false)}} footer={<button disabled={settingsBusy} onClick={saveSettings} className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-bold">{settingsBusy ? 'Menyimpan…' : 'Simpan'}</button>}>
+      {showSettings && <Modal title="Pengaturan Jadwal" onClose={()=>{if(!settingsLock.current)setShowSettings(false)}} footer={<span className="flex flex-wrap justify-end gap-2"><button disabled={settingsBusy} onClick={() => void saveSettings(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">{settingsBusy ? 'Menyimpan…' : 'Simpan'}</button><button disabled={settingsBusy} onClick={() => void saveSettings(true)} title="Tulis ulang jam semua jadwal tersimpan mengikuti susunan ini" className="rounded-lg bg-emerald-600 text-white px-4 py-2 text-sm font-bold">{settingsBusy ? 'Menyimpan…' : 'Simpan & samakan jam'}</button></span>}>
       {settingsError && <p role="alert" className="mb-3 text-sm text-red-700">{settingsError}</p>}
       <fieldset disabled={settingsBusy} className="min-w-0 space-y-4">
       <p className="text-xs text-slate-600">Hari sekolah berlaku juga untuk Presensi, Rencana Mengajar, dan Jurnal.</p><div className="grid grid-cols-1 sm:grid-cols-3 gap-3"><label className="text-xs font-semibold">Hari sekolah<select value={settingsDraft.hariSekolah} onChange={e=>setSettingsDraft({...settingsDraft,hariSekolah:Number(e.target.value)})} className="field mt-1"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label><label className="text-xs font-semibold">Jumlah baris (termasuk istirahat)<input type="number" min={1} max={16} value={settingsDraft.jumlahJam} onChange={e=>setSettingsDraft({...settingsDraft,jumlahJam:Number(e.target.value)})} className="field mt-1"/></label><label className="text-xs font-semibold">1 JP = berapa menit?<input type="number" min={10} max={90} value={settingsDraft.menitJP} onChange={e=>setSettingsDraft({...settingsDraft,menitJP:Number(e.target.value)})} className="field mt-1"/></label></div>
