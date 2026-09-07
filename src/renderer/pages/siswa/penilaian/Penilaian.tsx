@@ -3,7 +3,7 @@ import {useUnsavedChanges} from '../../../hooks/useUnsavedChanges'
 import { classWeightKey, saveGradeWeights, ensureDefaultGradeColumns } from '../../../../lib/grade-periods'
 import { calculateGrade, DEFAULT_WEIGHTS, readGradeWeights, validateGradeWeights, orderedGradeColumns, nextDailyLabel } from '../../../../shared/grades'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, CircleHelp, ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Save, ScrollText, Search, Settings2, Sparkles, Trash2, X } from 'lucide-react'
+import { AlertCircle, BookOpen, CheckCircle2, CircleHelp, ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Save, ScrollText, Search, Settings2, Sparkles, Trash2, X } from 'lucide-react'
 import { useSiswaList } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
 import { db } from '../../../../lib/db'
@@ -59,7 +59,8 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
   const [weightKey, setWeightKey] = useState('')
   const bobotDirty = showBobot && JSON.stringify(bobotDraft) !== JSON.stringify(bobot)
   const bobotValid = (() => { try { validateGradeWeights(bobotDraft); return true } catch { return false } })()
-  const closeBobot = () => { if (!bobotLock.current && (!bobotDirty || window.confirm('Tutup tanpa menyimpan perubahan bobot?'))) setShowBobot(false) }
+  const [confirmCloseBobot, setConfirmCloseBobot] = useState(false)
+  const closeBobot = () => { if (bobotLock.current) return; if (!bobotDirty) setShowBobot(false); else setConfirmCloseBobot(true) }
   const [columnPage, setColumnPage] = useState(0)
   useUnsavedChanges(dirty.size > 0 || bobotDirty,pending > 0 || bobotSaving)
 
@@ -172,11 +173,11 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
   }
   const confirmDelete = async () => {
     if (!deleteTarget) return
-    if(Object.keys(draftRef.current).length) {window.alert('Simpan perubahan nilai sebelum menghapus mapel atau komponen.');return}
+    if(Object.keys(draftRef.current).length) {setToast({ type: 'error', text: 'Simpan perubahan nilai sebelum menghapus mapel atau komponen.' });return}
     try {
       if (deleteTarget.type === 'mapel') await window.electronAPI.mapel.delete(deleteTarget.id); else await window.electronAPI.kolom.delete(deleteTarget.id)
       setDeleteTarget(null); await (deleteTarget.type === 'mapel' ? loadMapel() : loadKomponen()); setToast({ type: 'success', text: `${deleteTarget.name} berhasil dihapus.` })
-    } catch(error) { window.alert(error instanceof Error ? error.message : 'Data gagal dihapus.') }
+    } catch(error) { setToast({ type: 'error', text: error instanceof Error ? error.message : 'Data gagal dihapus.' }) }
   }
   const openKomponen = (item?: PenilaianKolom) => { setEditKomponen(item || null); const nextNo = komponen.filter((k) => !isFixed(k)).length + 1; setKomponenForm(item ? { label: item.label, bobot: '1', tanggal: item.tanggal || '', catatan: item.catatan || '' } : { label: nextDailyLabel(komponen), bobot: '1', tanggal: '', catatan: '' }); setShowKomponen(true) }
   const selectedMapel = mapelList.find((m) => m.id === mapelId)
@@ -237,6 +238,7 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
       </fieldset>
     </Modal>}
     <ConfirmDialog open={!!deleteTarget} title={deleteTarget?.type === 'mapel' ? 'Hapus Mata Pelajaran' : 'Hapus Komponen Penilaian'} message={deleteTarget?.type === 'mapel' ? `Hapus ${deleteTarget?.name}? Semua komponen dan nilai semua periode ikut terhapus. Mapel yang masih dipakai jadwal/rencana tidak dapat dihapus.` : `Hapus ${deleteTarget?.name}? Semua nilai siswa pada komponen ini akan ikut terhapus.`} onCancel={() => setDeleteTarget(null)} onConfirm={confirmDelete}/>
+    <ConfirmDialog open={confirmCloseBobot} title="Tutup tanpa simpan?" message="Perubahan bobot belum disimpan dan akan hilang." confirmText="Tutup" cancelText="Batal" danger={false} onCancel={() => setConfirmCloseBobot(false)} onConfirm={() => { setConfirmCloseBobot(false); setShowBobot(false) }} />
     {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border bg-white px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'border-emerald-200 text-emerald-800' : 'border-red-200 text-red-800'}`}>{toast.type === 'success' ? <span className="w-8 h-8 rounded-full bg-emerald-100 grid place-items-center"><CheckCircle2 size={18}/></span> : <span className="w-8 h-8 rounded-full bg-red-100 grid place-items-center"><AlertCircle size={18}/></span>}<span>{toast.text}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)} className="ml-3 opacity-50"><X size={15}/></button></div></div>}
   </div>
 }

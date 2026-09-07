@@ -3,6 +3,7 @@ import { updateScheduleTime, importSchedule } from '../../../lib/schedule-storag
 import { useState, useEffect, useRef } from 'react'
 import { Download, Pencil, Settings2, Trash2, Upload } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import type { Jadwal as JadwalType, MataPelajaran } from '../../../shared/types'
 import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
@@ -36,6 +37,9 @@ export default function Jadwal() {
   const [editId, setEditId] = useState<number | null>(null)
   const [toast, setToast] = useState<{ text: string; error?: boolean } | null>(null)
   const [form, setForm] = useState({ hari: 1, jam_ke: 1, jam_mulai: '07:00', jam_selesai: '08:00', mata_pelajaran_id: '', nama_mapel_custom: '', nama_guru: '', ruang: '' })
+  const [confirmImport, setConfirmImport] = useState<{ file: File; rows: number } | null>(null)
+  const [pendingImport, setPendingImport] = useState<{ parsed: any[]; errors: string[] } | null>(null)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
 
   const load = async () => {
     setData(await window.electronAPI.jadwal.list(kelasId))
@@ -154,7 +158,20 @@ export default function Jadwal() {
           parsed.push({line,data:{kelas_id:kelasId,hari,jam_ke:jam,jam_mulai:excelTime(row['Mulai'],time.mulai),jam_selesai:excelTime(row['Selesai'],time.selesai),mata_pelajaran_id:subject?.id || null,nama_mapel_custom:subject ? '' : name,nama_guru:String(row['Guru'] || ''),ruang:String(row['Ruang'] || '')}})
         } catch(error) { errors.push(`Baris ${line}: ${error instanceof Error ? error.message : 'Format tidak valid.'}`) }
       })
-      if (!window.confirm(`Baca ${rows.length} baris jadwal dari ${file.name}? Slot yang sudah terisi akan dilewati. Data lama tidak ditimpa. Baris yang tidak valid akan dilaporkan.`)) return
+      setPendingImport({ parsed, errors })
+      setConfirmImport({ file, rows: rows.length })
+      importLock.current = false; setImporting(false)
+      return
+    } catch(error) { setToast({text:error instanceof Error ? error.message : 'File gagal dibaca.',error:true}); importLock.current = false; setImporting(false) }
+  }
+
+  const confirmImportAction = async () => {
+    if (!pendingImport || !confirmImport) return
+    const { parsed, errors } = pendingImport
+    setConfirmImport(null)
+    setPendingImport(null)
+    importLock.current = true; setImporting(true)
+    try {
       const result = await importSchedule(db,parsed)
       setImportResult({...result,gagal:result.gagal + errors.length,pesan:[...errors,...result.pesan]})
       await load()
@@ -272,7 +289,7 @@ export default function Jadwal() {
                   <input value={form.ruang} onChange={(e) => setForm({ ...form, ruang: e.target.value })} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base sm:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
               </div>
               <div className="flex flex-wrap gap-3 justify-end pt-2">
-                <button type="button" onClick={async () => { if (editId) { if (!window.confirm('Hapus jadwal ini?')) return; await window.electronAPI.jadwal.delete(editId); await load(); setToast({ text: 'Jadwal berhasil dihapus' }) }; setShowForm(false) }}
+                <button type="button" onClick={async () => { if (editId) { setConfirmDeleteId(editId); return } setShowForm(false) }}
                   className="rounded-xl px-4 py-2 text-sm font-semibold text-red-600 border border-red-200" style={{ background: '#fef2f2' }}>
                   <Trash2 size={14} className="inline mr-1" />{editId ? 'Hapus' : 'Batal'}</button>
                 <button type="submit" className="rounded-xl px-6 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}>Simpan</button>
@@ -280,6 +297,8 @@ export default function Jadwal() {
             </form>
         </Modal>
       )}
+      <ConfirmDialog open={!!confirmImport} title="Impor jadwal?" message={confirmImport ? `Baca ${confirmImport.rows} baris jadwal dari ${confirmImport.file.name}? Slot yang sudah terisi akan dilewati. Data lama tidak ditimpa.` : ''} confirmText="Impor" danger={false} onCancel={() => { setConfirmImport(null); setPendingImport(null); importLock.current = false; setImporting(false) }} onConfirm={confirmImportAction} />
+      <ConfirmDialog open={!!confirmDeleteId} title="Hapus jadwal?" message="Jadwal terpilih akan dihapus permanen." onCancel={() => setConfirmDeleteId(null)} onConfirm={async () => { const id = confirmDeleteId; setConfirmDeleteId(null); if (!id) return; await window.electronAPI.jadwal.delete(id); await load(); setToast({ text: 'Jadwal berhasil dihapus' }); setShowForm(false) }} />
     </fieldset>
   )
 }

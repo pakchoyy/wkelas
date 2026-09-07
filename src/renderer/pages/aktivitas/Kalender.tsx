@@ -6,6 +6,7 @@ import { todayISO } from '../../../shared/utils'
 import type { KalenderAkademik } from '../../../shared/types'
 import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
+import ConfirmDialog from '../../components/ConfirmDialog'
 
 const JENIS_WARNA: Record<string, string> = { libur_nasional: '#dc2626', libur_sekolah: '#d97706', ujian: '#2563eb', rapat: '#7c3aed', kegiatan: '#0ea5a0', lainnya: '#6b7280' }
 
@@ -27,6 +28,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
   const [editId,setEditId]=useState<number|null>(null)
   const [semester,setSemester]=useState(1)
   const [toast,setToast]=useState('')
+  const [confirmDelete, setConfirmDelete] = useState<KalenderAkademik | null>(null)
 
   const load = async () => { setData(await window.electronAPI.kalender.list(kelasId)) }
   useEffect(() => { Promise.all([load(), Promise.all([db.kelas.get(kelasId), db.pengaturan.get(`presensi_${kelasId}`)]).then(([kelas, setting]) => { let cfg:any={}; if(setting?.value) try{cfg=JSON.parse(setting.value)}catch{}; const sem=kelas?.semester||1; const year=Number(kelas?.tahun_ajaran?.split('/')[0]) || new Date().getFullYear(); setSemester(sem); setPeriod({ mulai: sem===1 ? cfg.s1Mulai||`${year}-07-01` : cfg.s2Mulai||`${year+1}-01-01`, akhir: sem===1 ? cfg.s1Akhir||`${year}-12-31` : cfg.s2Akhir||`${year+1}-06-30`, hariSekolah: cfg.hariSekolah||5 }) })]).then(() => setReady(true)).catch(() => setError('Kalender gagal dimuat. Muat ulang halaman untuk mencoba lagi.')) }, [kelasId])
@@ -54,8 +56,10 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
     finally { lock.current = false; setBusy(false) }
   }
   const openEdit=(item:KalenderAkademik)=>{setFormError('');setEditId(item.id);setForm({tanggal_mulai:item.tanggal_mulai,tanggal_selesai:item.tanggal_selesai||'',judul:item.judul,jenis:item.jenis,deskripsi:item.deskripsi||''});setShowForm(true)}
-  const remove = async (item: KalenderAkademik) => {
-    if (lock.current || !window.confirm(`Hapus ${item.judul}?`)) return
+  const remove = async () => {
+    if (lock.current || !confirmDelete) return
+    const item = confirmDelete
+    setConfirmDelete(null)
     lock.current = true; setBusy(true); setError('')
     try { await window.electronAPI.kalender.delete(item.id); setToast('Kegiatan berhasil dihapus'); await refresh() }
     catch { setError('Kegiatan gagal dihapus. Silakan coba lagi.') }
@@ -81,7 +85,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
                   <span className="block text-sm font-semibold break-words">{item.judul}</span>
                   <span className="block mt-1 text-sm text-slate-500">{item.tanggal_mulai}{item.tanggal_selesai ? ` - ${item.tanggal_selesai}` : ''}</span>
                 </div>
-                <div className="flex"><button onClick={()=>openEdit(item)} aria-label={`Edit ${item.judul}`} className="min-h-11 rounded-lg px-3 flex items-center gap-2 text-sm text-teal-700"><Pencil size={16}/>Edit</button><button onClick={()=>remove(item)} aria-label={`Hapus ${item.judul}`} className="min-h-11 rounded-lg px-3 flex items-center gap-2 text-sm text-red-700"><Trash2 size={16}/>Hapus</button></div>
+                <div className="flex"><button onClick={()=>openEdit(item)} aria-label={`Edit ${item.judul}`} className="min-h-11 rounded-lg px-3 flex items-center gap-2 text-sm text-teal-700"><Pencil size={16}/>Edit</button><button onClick={()=>setConfirmDelete(item)} aria-label={`Hapus ${item.judul}`} className="min-h-11 rounded-lg px-3 flex items-center gap-2 text-sm text-red-700"><Trash2 size={16}/>Hapus</button></div>
               </div>
               <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: JENIS_WARNA[item.jenis] || '#6b7280' }}>{item.jenis.replaceAll('_', ' ')}</span>
               {item.deskripsi && <p className="text-sm mt-2 text-slate-500 whitespace-pre-wrap break-words">{item.deskripsi}</p>}
@@ -91,6 +95,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
         {data.length === 0 && <p className="text-sm text-center py-8 text-gray-400">Belum ada event</p>}
       </div>
 
+      <ConfirmDialog open={!!confirmDelete} title="Hapus kegiatan?" message={confirmDelete ? `Hapus ${confirmDelete.judul}?` : ''} onCancel={() => setConfirmDelete(null)} onConfirm={remove} />
       {showForm && (
         <Modal title={editId ? 'Edit Kegiatan' : 'Tambah Kegiatan'} onClose={() => { if (!busy) setShowForm(false) }}>
             <form onSubmit={handleSubmit} className="space-y-3">{formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}

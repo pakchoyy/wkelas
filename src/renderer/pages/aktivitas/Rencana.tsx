@@ -6,6 +6,7 @@ import type { Jadwal, MataPelajaran, RencanaMengajar } from '../../../shared/typ
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { teachingSlots, planJournalDraft } from '../../../shared/teaching-flow'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 import { useAppStore } from '../../stores/appStore'
@@ -74,7 +75,9 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
   const baseline = useRef('')
   const dirty = showForm && JSON.stringify(form) !== baseline.current
   useUnsavedChanges(dirty, busy)
-  const closeForm = () => { if (!lock.current && (!dirty || window.confirm('Tutup tanpa menyimpan perubahan rencana?'))) setShowForm(false) }
+  const [confirmClose, setConfirmClose] = useState(false)
+  const [confirmDeleteId, setConfirmDeleteId] = useState<number | null>(null)
+  const closeForm = () => { if (!lock.current) { if (!dirty) setShowForm(false); else setConfirmClose(true) } }
   const [holidays, setHolidays] = useState<any[]>([])
 
   const load = async () => {
@@ -151,7 +154,8 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
   }
 
   const removePlan = async () => {
-    if (!editing || lock.current || !window.confirm('Hapus rencana mengajar ini?')) return
+    if (!editing || lock.current) return
+    setConfirmDeleteId(null)
     lock.current=true;setBusy(true);setFormError('')
     try {await window.electronAPI.rencana.delete(editing.id);setShowForm(false);await load()}
     catch {setFormError('Rencana gagal dihapus atau daftar gagal dimuat ulang.')}
@@ -219,8 +223,10 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
         })}
       </div>
 
+      <ConfirmDialog open={confirmClose} title="Tutup tanpa simpan?" message="Perubahan rencana belum disimpan dan akan hilang." confirmText="Tutup" onCancel={() => setConfirmClose(false)} onConfirm={() => { setConfirmClose(false); setShowForm(false) }} />
+      <ConfirmDialog open={!!confirmDeleteId} title="Hapus rencana?" message="Rencana mengajar ini akan dihapus permanen." onCancel={() => setConfirmDeleteId(null)} onConfirm={removePlan} />
       {showForm && <Modal title={`${editing ? 'Edit' : 'Isi'} Rencana · ${mapelName(selectedJadwal, Number(form.mata_pelajaran_id))}`} onClose={closeForm} maxWidth="max-w-2xl" footer={<>
-        {editing && <button disabled={busy} onClick={removePlan} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16} /> Hapus</button>}
+        {editing && <button disabled={busy} onClick={() => setConfirmDeleteId(editing.id)} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16} /> Hapus</button>}
         {editing && <button disabled={busy} onClick={createJournal} className="flex items-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-bold text-emerald-700"><ClipboardCheck size={16} /> Buat Draft Jurnal</button>}
         <button disabled={busy} type="submit" form="rencana-form" className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Simpan Rencana</button>
       </>}>

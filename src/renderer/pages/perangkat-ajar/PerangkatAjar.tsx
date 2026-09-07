@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import Modal from '../../components/Modal'
+import ConfirmDialog from '../../components/ConfirmDialog'
 import { Files, FileText, FolderOpen, Plus, Upload, Download, Trash2 } from 'lucide-react'
 import { db, type PerangkatAjarCache } from '../../../lib/db'
 
@@ -16,6 +17,7 @@ export default function PerangkatAjar() {
   const [error,setError] = useState('')
   const [formError,setFormError] = useState('')
   const [loading,setLoading] = useState(true)
+  const [confirmDelete, setConfirmDelete] = useState<any | null>(null)
   const [officialDocs,setOfficialDocs] = useState<PerangkatAjarCache[]>([])
   const chooseFile = (selected:File|undefined) => {
     if (!selected) return
@@ -45,8 +47,10 @@ export default function PerangkatAjar() {
       document.body.appendChild(anchor);anchor.click();anchor.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000)
     } catch {setError('Berkas gagal diunduh. Periksa apakah dokumen memiliki berkas tersimpan.')}
   }
-  const remove = async (doc:any) => {
-    if (lock.current || !window.confirm(`Hapus dokumen ${doc.judul}?`)) return
+  const remove = async () => {
+    if (lock.current || !confirmDelete) return
+    const doc = confirmDelete
+    setConfirmDelete(null)
     lock.current=true;setBusy(true);setError('')
     try {await window.electronAPI.dokumenSaya.delete(doc.id);await load()}
     catch {setError('Dokumen gagal dihapus. Silakan coba lagi.')}
@@ -76,9 +80,10 @@ export default function PerangkatAjar() {
       {loading ? <p role="status">Memuat dokumen...</p> : <div className="space-y-3">{docs.map(doc=><article key={doc.id} className="rounded-xl border border-slate-200 bg-white p-4">
         <h3 className="font-bold break-words">{doc.judul}</h3><p className="mt-1 text-sm text-slate-500 break-words">{doc.format_file?.toUpperCase()} {doc.kategori && `· ${doc.kategori}`} · {Math.ceil((doc.ukuran_file || 0)/1024)} KB</p>
         {doc.deskripsi && <p className="mt-2 text-sm whitespace-pre-wrap break-words">{doc.deskripsi}</p>}
-        <div className="mt-3 flex flex-wrap gap-3"><button onClick={()=>download(doc)} className="action-mint inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm"><Download size={16}/>Unduh</button><button disabled={busy} onClick={()=>remove(doc)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-red-200 px-4 text-sm text-red-700"><Trash2 size={16}/>Hapus</button></div>
+        <div className="mt-3 flex flex-wrap gap-3"><button onClick={()=>download(doc)} className="action-mint inline-flex min-h-11 items-center gap-2 rounded-lg border px-4 text-sm"><Download size={16}/>Unduh</button><button disabled={busy} onClick={()=>setConfirmDelete(doc)} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-red-200 px-4 text-sm text-red-700"><Trash2 size={16}/>Hapus</button></div>
       </article>)}{!docs.length && <p className="rounded-lg border border-dashed border-slate-200 bg-white p-5 text-center text-sm text-slate-500">Belum ada berkas. Pilih Tambah dokumen untuk mulai.</p>}</div>}
     </>}
+    <ConfirmDialog open={!!confirmDelete} title="Hapus dokumen?" message={confirmDelete ? `Hapus dokumen ${confirmDelete.judul}?` : ''} onCancel={() => setConfirmDelete(null)} onConfirm={remove} />
     {show && <Modal title="Tambah dokumen saya" onClose={()=>{if(!lock.current)setShow(false)}} footer={<button type="submit" form="document-upload" disabled={!file || !form.judul.trim() || busy} className="action-primary min-h-11 w-full rounded-xl px-4 font-semibold disabled:opacity-40">{busy?'Menyimpan...':'Simpan dokumen'}</button>}><form id="document-upload" onSubmit={upload}><fieldset disabled={busy} className="min-w-0 space-y-4">
       {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
       <div className="rounded-xl border border-dashed border-teal-200 bg-teal-50/50 p-4">
