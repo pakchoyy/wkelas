@@ -22,6 +22,20 @@ export async function ensureIndonesianHolidays(db: BgyDatabase, kelasId: number,
   })
 }
 
+// Hapus entri Maulid 2026 yang salah tanggal (mis. sisa data contoh/manual
+// di 9 Sep 2026). Maulid resmi 2026 = 25 Agu (SKB 3 Menteri), jadi entri
+// libur nasional "Maulid" lain di 2026 pasti keliru. Kembalikan daftar
+// tanggal yang dihapus agar halaman bisa memberi tahu pengguna.
+export async function cleanWrongMaulid(db: BgyDatabase, kelasId: number): Promise<string[]> {
+  const bad = await db.kalender_akademik.where({kelas_id: kelasId}).filter((item) =>
+    item.jenis === 'libur_nasional' && /maulid/i.test(item.judul || '') &&
+    (item.tanggal_mulai || '').startsWith('2026-') && item.tanggal_mulai !== '2026-08-25' &&
+    !(item.tanggal_selesai && item.tanggal_selesai !== item.tanggal_mulai)).toArray()
+  if (!bad.length) return []
+  await db.kalender_akademik.bulkDelete(bad.map((item) => item.id!))
+  return bad.map((item) => item.tanggal_mulai)
+}
+
 export function isJatimSupported(tahunAjaran: string | null | undefined) {
   const years = String(tahunAjaran || '').split('/').map(Number)
   return years[0] === 2026 && years[1] === 2027

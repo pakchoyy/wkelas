@@ -19,17 +19,17 @@ export default function RunningPromo() {
       <div className="running-promo-track hidden h-9 w-max items-center sm:flex">
         {[false, true].map((duplicate) => (
           <div key={duplicate ? 'copy' : 'main'} aria-hidden={duplicate || undefined} className="flex h-9 items-center">
-            {BGY_PRODUCTS.map((item) => (
-              <a key={`${duplicate ? 'copy-' : ''}${item.id}`} href={item.href} target="_blank" rel="noreferrer" tabIndex={duplicate ? -1 : undefined} className="flex h-9 shrink-0 items-center gap-2 whitespace-nowrap px-5 text-xs font-semibold text-white hover:text-teal-100">
+            {BGY_PRODUCTS.map((item, i) => (
+              <a key={`${duplicate ? 'copy-' : ''}${item.id}`} href={item.href} target="_blank" rel="noreferrer" tabIndex={duplicate ? -1 : undefined} className={`flex h-9 shrink-0 items-center gap-2 whitespace-nowrap px-5 text-xs font-semibold ${i % 2 ? 'text-amber-200' : 'text-white'}`}>
                 <span aria-hidden="true" className="text-teal-300">•</span>
                 <span>{item.promoText}</span>
-                <span className="font-extrabold text-amber-200 underline underline-offset-4">{item.action} →</span>
+                <span className="font-extrabold text-emerald-300 underline underline-offset-4">{item.action} →</span>
               </a>
             ))}
           </div>
         ))}
       </div>
-      <a key={promo.id} href={promo.href} target="_blank" rel="noreferrer" className="running-promo-fade flex h-9 items-center justify-center gap-2 whitespace-nowrap px-2 text-center text-xs font-semibold text-white sm:hidden"><span className="truncate">{promo.promoText}</span><span className="shrink-0 font-extrabold text-amber-200 underline underline-offset-4">{promo.action} →</span></a>
+      <a key={promo.id} href={promo.href} target="_blank" rel="noreferrer" className={`running-promo-fade flex h-9 items-center justify-center gap-2 whitespace-nowrap px-2 text-center text-xs font-semibold sm:hidden ${index % 2 ? 'text-amber-200' : 'text-white'}`}><span className="truncate">{promo.promoText}</span><span className="shrink-0 font-extrabold text-emerald-300 underline underline-offset-4">{promo.action} →</span></a>
     </div>
   </aside>
 }

@@ -26,15 +26,16 @@ export default function Tentang() {
       </ul>
     </section>
 
-    <section aria-label="Produk BGY lainnya" className="rounded-2xl border border-amber-200 bg-gradient-to-b from-amber-50 to-white p-5 shadow-sm sm:p-6">
-      <h2 className="text-base font-extrabold text-slate-800">Produk BGY lainnya</h2>
-      <p className="mt-1 text-sm text-slate-500">Jelajahi alat bantu lain dari Bantu Guru Yuk.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {BGY_PRODUCTS.map((p) => <a key={p.id} href={p.href} target="_blank" rel="noreferrer" className="flex flex-col rounded-xl border border-slate-200 bg-white p-4 hover:border-teal-300 hover:bg-teal-50">
-          <span className="text-xs font-bold uppercase tracking-wide text-teal-700">{p.name}</span>
-          <span className="mt-1 text-sm font-semibold text-slate-800">{p.promoText}</span>
-          <span className="mt-1 text-xs text-slate-500">{p.description}</span>
-          <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold text-teal-700">{p.action} <ExternalLink size={12}/></span>
+    <section aria-label="Produk BGY lainnya" className="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-800 via-teal-900 to-indigo-950 p-5 shadow-sm sm:p-6">
+      <h2 className="text-base font-extrabold text-white">Produk BGY lainnya</h2>
+      <p className="mt-1 text-sm text-teal-100">Jelajahi alat bantu lain dari Bantu Guru Yuk.</p>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {BGY_PRODUCTS.map((p, i) => <a key={p.id} href={p.href} target="_blank" rel="noreferrer" className="group flex flex-col rounded-2xl bg-white p-4 shadow transition hover:-translate-y-0.5 hover:shadow-lg">
+          <span aria-hidden="true" className="grid size-10 place-items-center rounded-xl text-base font-black text-white" style={{ background: `linear-gradient(135deg, ${['#0d9488,#0f766e','#d97706,#b45309','#7c3aed,#5b21b6','#2563eb,#1d4ed8'][i % 4]})` }}>{p.name.charAt(0)}</span>
+          <span className="mt-3 text-sm font-extrabold text-slate-900">{p.name}</span>
+          <span className="mt-0.5 text-xs font-semibold text-teal-700">{p.promoText}</span>
+          <span className="mt-1 flex-1 text-xs leading-5 text-slate-500">{p.description}</span>
+          <span className="mt-3 inline-flex min-h-9 items-center justify-center gap-1 rounded-xl bg-teal-700 px-3 text-xs font-bold text-white group-hover:bg-teal-800">{p.action} <ExternalLink size={12}/></span>
         </a>)}
       </div>
     </section>

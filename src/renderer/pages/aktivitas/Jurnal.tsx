@@ -9,6 +9,7 @@ import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { teachingSlots } from '../../../shared/teaching-flow'
+import { cleanWrongMaulid } from '../../../lib/holiday-storage'
 import { schoolDayStatus } from '../../../shared/school-day'
 import TeachingWeekNavigator from '../../components/TeachingWeekNavigator'
 
@@ -49,7 +50,7 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
   const [confirmDelete, setConfirmDelete] = useState(false)
   useUnsavedChanges(Object.keys(drafts).length > 0,pending > 0 || saving)
 
-  const load = async () => { const [journals,schedules,subjects,calendar,attendance,scheduleConfig]=await Promise.all([window.electronAPI.jurnal.list(kelasId),window.electronAPI.jadwal.list(kelasId),window.electronAPI.mapel.list(kelasId),window.electronAPI.kalender.list(kelasId),db.pengaturan.get(`presensi_${kelasId}`),db.pengaturan.get(`jadwal_${kelasId}`)]); setData(journals); setSchoolDays(attendance && JSON.parse(attendance.value).hariSekolah === 6 ? 6 : 5); setJadwal(teachingSlots(schedules, attendance ? JSON.parse(attendance.value).hariSekolah : 5, scheduleConfig ? JSON.parse(scheduleConfig.value) : {})); setMapel(subjects); setHolidays(calendar) }
+  const load = async () => { await cleanWrongMaulid(db, kelasId).catch(() => []); const [journals,schedules,subjects,calendar,attendance,scheduleConfig]=await Promise.all([window.electronAPI.jurnal.list(kelasId),window.electronAPI.jadwal.list(kelasId),window.electronAPI.mapel.list(kelasId),window.electronAPI.kalender.list(kelasId),db.pengaturan.get(`presensi_${kelasId}`),db.pengaturan.get(`jadwal_${kelasId}`)]); setData(journals); setSchoolDays(attendance && JSON.parse(attendance.value).hariSekolah === 6 ? 6 : 5); setJadwal(teachingSlots(schedules, attendance ? JSON.parse(attendance.value).hariSekolah : 5, scheduleConfig ? JSON.parse(scheduleConfig.value) : {})); setMapel(subjects); setHolidays(calendar) }
   useEffect(() => {
     load().catch(() => setQuickError('Jurnal gagal dimuat. Muat ulang halaman.'))
     db.kelas.get(kelasId).then(async (kelas) => {

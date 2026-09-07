@@ -8,6 +8,7 @@ import { db } from '../../../lib/db'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { teachingSlots, planJournalDraft } from '../../../shared/teaching-flow'
+import { cleanWrongMaulid } from '../../../lib/holiday-storage'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 import { useAppStore } from '../../stores/appStore'
 
@@ -81,6 +82,7 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
   const [holidays, setHolidays] = useState<any[]>([])
 
   const load = async () => {
+    await cleanWrongMaulid(db, kelasId).catch(() => [])
     const [plans, schedules, subjects, calendar, attendance, scheduleConfig] = await Promise.all([
       window.electronAPI.rencana.list(kelasId),
       window.electronAPI.jadwal.list(kelasId),

@@ -1,5 +1,5 @@
 import { saveCalendarPeriod } from '../../../lib/calendar-storage'
-import { ensureJatimCalendar, isJatimSupported } from '../../../lib/holiday-storage'
+import { cleanWrongMaulid, ensureJatimCalendar, isJatimSupported } from '../../../lib/holiday-storage'
 import { useState, useEffect, useRef } from 'react'
 import { CalendarDays, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
@@ -45,6 +45,11 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
       const marker = await db.pengaturan.get(`kalender_jatim_2026_${kelasId}`)
       if (!marker) { try { await ensureJatimCalendar(db, kelasId) } catch {} }
     }
+    // Bersihkan entri Maulid salah tanggal (mis. 9 Sep 2026) di semua kelas.
+    try {
+      const removed = await cleanWrongMaulid(db, kelasId)
+      if (removed.length) setToast(`Membersihkan libur Maulid yang salah tanggal (${removed.join(', ')}). Maulid 2026 yang benar 25 Agu.`)
+    } catch {}
     await load()
     let cfg:any={}; if(setting?.value) try{cfg=JSON.parse(setting.value)}catch{};
     const sem=kelas?.semester||1; const year=Number(kelas?.tahun_ajaran?.split('/')[0]) || 2026
@@ -96,7 +101,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
 
   return (
     <div>{error && <p role="alert" className="mb-3 text-red-700">{error}</p>}{!ready && !error && <p role="status">Memuat kalender...</p>}<fieldset disabled={busy || !ready} className="min-w-0">{toast&&<div className="fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl">{toast}</div>}
-      <div className="flex flex-wrap gap-3 items-center justify-between mb-4">
+      <div className="flex flex-wrap gap-3 items-center justify-between mb-1">
         <h2 className="text-xl font-bold">Kalender Akademik</h2>
         <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Tampilan kalender">
@@ -106,6 +111,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
           <button onClick={() => {setFormError('');setEditId(null);setForm({ tanggal_mulai: todayISO(), tanggal_selesai: '', judul: '', jenis: 'kegiatan', deskripsi: '' });setShowForm(true)}} className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}><Plus size={16} /> Tambah</button>
         </div>
       </div>
+      <p className="mb-4 text-xs text-slate-500">Ketuk tanggal untuk menambah kegiatan · ketuk nama kegiatan/libur untuk mengubah atau menghapus.</p>
 
 
       <div className="grid gap-4 mb-5 lg:grid-cols-[1fr_260px]"><div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex items-center gap-2 font-bold"><CalendarDays size={18} className="text-emerald-600"/>Batas Waktu Semester</div><div className="grid gap-3 md:grid-cols-3"><label className="text-xs font-bold text-slate-500">Mulai Semester<input type="date" value={period.mulai} onChange={(e)=>setPeriod({...period,mulai:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Akhir Semester<input type="date" value={period.akhir} onChange={(e)=>setPeriod({...period,akhir:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Sistem Hari Sekolah<select value={period.hariSekolah} onChange={(e)=>setPeriod({...period,hariSekolah:Number(e.target.value)})} className="field mt-1.5"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label></div><div className="mt-3 flex flex-wrap gap-3 items-center justify-between"><p className="text-xs text-slate-400">Periode ini digunakan oleh Presensi, Perilaku, Rencana, dan Jurnal.</p><button onClick={savePeriod} className="min-h-11 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Save size={14}/>Simpan Periode</button></div></div><div className="rounded-2xl bg-indigo-900 p-5 text-white"><div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Hari Efektif Belajar</div><div className="mt-4 text-4xl font-extrabold">{effectiveDays}</div><div className="mt-1 text-xs text-indigo-200">hari setelah akhir pekan dan hari libur</div></div></div>

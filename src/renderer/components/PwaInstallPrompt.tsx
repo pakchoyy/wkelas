@@ -10,6 +10,8 @@ const isInstalled = () =>
   (window.navigator as Navigator & { standalone?: boolean }).standalone === true ||
   localStorage.getItem(FLAG) === '1'
 
+// Muncul di tengah layar setiap aplikasi dibuka sampai pengguna menginstall.
+// "Nanti"/X hanya menutup untuk sesi ini; dibuka lagi muncul lagi.
 export default function PwaInstallPrompt() {
   const [visible, setVisible] = useState(false)
   const [deferred, setDeferred] = useState<PromptEvent | null>(null)
@@ -38,19 +40,19 @@ export default function PwaInstallPrompt() {
     } finally { setBusy(false) }
   }
 
-  return <section aria-label="Install aplikasi" className="relative mx-3 mt-3 shrink-0 overflow-hidden rounded-2xl border border-teal-800/10 bg-white p-4 shadow-sm sm:mx-4 sm:p-4 lg:mx-6">
-    <button onClick={() => setVisible(false)} aria-label="Tutup" className="absolute right-2 top-2 grid size-8 place-items-center rounded-full text-slate-400 hover:bg-slate-100 hover:text-slate-600"><X size={16}/></button>
-    <div className="flex items-start gap-3 pr-6">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-teal-700 text-white"><Download size={18}/></span>
-      <div className="min-w-0 flex-1">
-        <h2 className="text-sm font-extrabold text-slate-900">Install aplikasi Wali Kelas</h2>
-        <p className="mt-1 text-xs leading-5 text-slate-500">{deferred ? 'Buka lebih cepat dari layar utama HP seperti aplikasi biasa.' : 'Android: menu ⋮ Chrome → Install aplikasi. iPhone: Bagikan → Add to Home Screen.'}</p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {deferred && <button disabled={busy} onClick={() => void install()} className="min-h-9 rounded-xl bg-teal-700 px-4 py-2 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50">{busy ? 'Menyiapkan…' : 'Install sekarang'}</button>}
-          <button onClick={() => { localStorage.setItem(FLAG, '1'); setVisible(false) }} className="min-h-9 rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50">Saya sudah install</button>
-          <button onClick={() => setVisible(false)} className="min-h-9 rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:text-slate-700">Nanti</button>
-        </div>
+  return <div role="dialog" aria-modal="true" aria-label="Install aplikasi" className="fixed inset-0 z-[200] grid place-items-center bg-slate-950/50 p-4 print:hidden">
+    <section className="w-full max-w-sm overflow-hidden rounded-3xl bg-white text-center shadow-2xl">
+      <div className="relative bg-gradient-to-br from-teal-700 via-teal-800 to-indigo-900 px-6 pb-6 pt-7">
+        <button onClick={() => setVisible(false)} aria-label="Tutup" className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-white/15 text-white hover:bg-white/25"><X size={16}/></button>
+        <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-white/15 text-white"><Download size={26}/></span>
+        <h2 className="mt-3 text-lg font-black text-white">Install Wali Kelas</h2>
+        <p className="mt-1 text-xs leading-5 text-teal-100">{deferred ? 'Buka lebih cepat dari layar utama HP seperti aplikasi biasa.' : 'Android: menu ⋮ Chrome → Install aplikasi. iPhone: Bagikan → Add to Home Screen.'}</p>
       </div>
-    </div>
-  </section>
+      <div className="space-y-2 p-5">
+        {deferred && <button disabled={busy} onClick={() => void install()} className="min-h-11 w-full rounded-xl bg-teal-700 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50">{busy ? 'Menyiapkan…' : 'Install sekarang'}</button>}
+        <button onClick={() => { localStorage.setItem(FLAG, '1'); setVisible(false) }} className="min-h-11 w-full rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Saya sudah install</button>
+        <button onClick={() => setVisible(false)} className="min-h-9 w-full rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-600">Nanti saja</button>
+      </div>
+    </section>
+  </div>
 }
