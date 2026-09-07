@@ -2,8 +2,9 @@ import { saveClassPeriod } from '../../../lib/grade-periods'
 import { createBackupText } from '../../../lib/backup'
 import { BACKUP_HISTORY_KEY, backupFingerprint, backupReminder, readBackupHistory, type BackupHistory } from '../../../lib/backup-history'
 import { useEffect, useRef, useState } from 'react'
-import { useLocation } from 'react-router-dom'
-import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Upload } from 'lucide-react'
+import { Link, useLocation } from 'react-router-dom'
+import { AlertCircle, BellRing, BookOpen, CheckCircle, Database, Download, LayoutGrid, Rocket, Save, School, Upload } from 'lucide-react'
+import { APP_UPDATED_AT, APP_VERSION } from '../../../shared/app-info'
 import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
@@ -73,6 +74,15 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
       {tab==='kelas'&&<form onSubmit={e=>saveSettings(e,false)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Kelas dan Periode Akademik</h3><p className="mt-1 text-xs text-slate-400">Nilai dan bobot dipisahkan menurut tahun ajaran dan semester. Untuk membuka nilai lama, pilih kembali periode sebelumnya. Data siswa dan jadwal tetap digunakan. Nilai lama yang belum memiliki periode mengikuti periode kelas sebelum perubahan pertama.</p></div><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama kelas<input required value={kelas?.nama_kelas||''} onChange={(e)=>setKelas({...kelas,nama_kelas:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">Tingkat kelas<select value={kelas?.tingkat||'1'} onChange={(e)=>setKelas({...kelas,tingkat:e.target.value})} className="field mt-1.5">{[1,2,3,4,5,6].map(n=><option key={n} value={n}>Kelas {n}</option>)}</select></label><label className="text-sm font-bold">Tahun ajaran<input required value={kelas?.tahun_ajaran||''} onChange={(e)=>setKelas({...kelas,tahun_ajaran:e.target.value})} className="field mt-1.5" placeholder="2026/2027"/></label><label className="text-sm font-bold">Semester<select value={kelas?.semester||1} onChange={(e)=>setKelas({...kelas,semester:Number(e.target.value)})} className="field mt-1.5"><option value={1}>Semester 1 (Ganjil)</option><option value={2}>Semester 2 (Genap)</option></select></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Kelas</button></fieldset></form>}
       {tab==='backup'&&<Backup/>}
     </div>
+    <section aria-label="Tentang aplikasi" className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <h3 className="font-extrabold text-slate-800">Tentang aplikasi</h3>
+      <p className="mt-1 text-sm text-slate-500">Versi {APP_VERSION} · diperbarui {APP_UPDATED_AT}</p>
+      <div className="mt-4 grid gap-2 sm:grid-cols-3">
+        <Link to="/pembaruan" className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-teal-300 hover:bg-teal-50"><BellRing size={16} className="shrink-0 text-amber-600"/>Yang Baru</Link>
+        <Link to="/mulai" className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-teal-300 hover:bg-teal-50"><Rocket size={16} className="shrink-0 text-teal-700"/>Mulai di Sini</Link>
+        <Link to="/produk" className="flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-teal-300 hover:bg-teal-50"><LayoutGrid size={16} className="shrink-0 text-teal-700"/>Produk BGY</Link>
+      </div>
+    </section>
   </div>
 }
 

@@ -1,6 +1,6 @@
 import { useEffect, useId, useState } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { AlertTriangle, BellRing, BookOpen, BookOpenCheck, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, FileText, FolderOpen, HeartHandshake, LayoutDashboard, LayoutGrid, ScrollText, Settings, Users } from 'lucide-react'
+import { AlertTriangle, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, FileText, FolderOpen, HeartHandshake, LayoutDashboard, ScrollText, Settings, Users } from 'lucide-react'
 
 const groups = [
   { label: 'Siswa', icon: Users, children: [
@@ -26,9 +26,6 @@ const groups = [
 
 const standaloneItems = [
   { to: '/laporan', icon: FileText, label: 'Laporan' },
-  { to: '/mulai', icon: BookOpenCheck, label: 'Mulai di Sini' },
-  { to: '/produk', icon: LayoutGrid, label: 'Produk BGY' },
-  { to: '/pembaruan', icon: BellRing, label: 'Yang Baru' },
   { to: '/pengaturan', icon: Settings, label: 'Pengaturan' },
   { to: '/bantuan', icon: HeartHandshake, label: 'Bantuan & Komunitas' },
 ]

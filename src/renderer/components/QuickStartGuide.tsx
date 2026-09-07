@@ -19,5 +19,6 @@ export default function QuickStartGuide({ studentCount, scheduleCount, attendanc
       <span className={`grid size-8 shrink-0 place-items-center rounded-full text-sm font-black ${step.complete ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>{step.complete ? <Check size={17}/> : index + 1}</span>
       <span className="min-w-0 flex-1"><strong className="block text-sm text-slate-800">{step.label}</strong><small className="mt-0.5 block text-slate-500">{step.detail}</small></span><ChevronRight size={16} className="shrink-0 text-slate-400"/>
     </Link>)}</div>
+    <div className="mt-3 text-right"><Link to="/mulai" className="inline-flex min-h-11 items-center gap-1 text-sm font-bold text-teal-700 underline underline-offset-4 hover:text-teal-800">Lihat panduan lengkap 4 langkah<ChevronRight size={15}/></Link></div>
   </section>
 }

@@ -95,16 +95,16 @@ body {
   animation: slide-up 0.3s ease-out;
 }
 
-@keyframes running-promo-pass {
-  from { transform: translateX(100vw); }
-  to { transform: translateX(-100%); }
+@keyframes running-promo-loop {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
-.running-promo-message {
-  animation: running-promo-pass 7s linear both;
+.running-promo-track {
+  animation: running-promo-loop 32s linear infinite;
 }
 
-.running-promo-message:hover {
+.running-promo:hover .running-promo-track {
   animation-play-state: paused;
 }
 
@@ -115,7 +115,7 @@ body {
   .animate-slide-up { animation: none; }
   .app-layout *, .app-layout *::before, .app-layout *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .dashboard-primary:active { scale: none; }
-  .running-promo-message { inset-inline: 0; justify-content: center; transform: none; }
+  .running-promo-track { animation: none; }
 }
 @media print {
   @page { size: A4 landscape; margin: 12mm; }
