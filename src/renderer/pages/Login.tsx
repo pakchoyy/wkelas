@@ -1,7 +1,7 @@
 import { FormEvent, useState } from 'react'
 import { GraduationCap, KeyRound, Mail, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { activateDemoDb } from '../../lib/db'
+import { activateDemoDb, activateMainDb } from '../../lib/db'
 import { seedDemoData } from '../../lib/demo-data'
 import { documentClient } from '../../lib/document-client'
 import { resetUserPassword, signInGoogle, signInUser, signUpUser } from '../../lib/user-auth'
@@ -10,8 +10,8 @@ import { useAuthStore } from '../stores/authStore'
 export default function Login() {
   const client=documentClient(); const navigate=useNavigate()
   const [register,setRegister]=useState(false),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[sent,setSent]=useState(false)
-  const submit=async(e:FormEvent)=>{e.preventDefault();if(busy)return;setBusy(true);setMessage('');setSent(false);try{if(!client)throw new Error('Login cloud belum dikonfigurasi. Gunakan Mode Demo atau isi pengaturan Supabase.');if(register){if(password.length<8)throw new Error('Kata sandi minimal 8 karakter.');const session=await signUpUser(client,email,password);if(session)navigate('/');else setSent(true)}else{await signInUser(client,email,password);navigate('/')}}catch(error){setMessage(error instanceof Error?error.message:'Login belum berhasil.')}finally{setBusy(false)}}
-  const google=async()=>{if(!client){setMessage('Login Google belum dikonfigurasi.');return}setBusy(true);setMessage('');try{await signInGoogle(client)}catch(error){setMessage(error instanceof Error?error.message:'Login Google belum berhasil.')}finally{setBusy(false)}}
+  const submit=async(e:FormEvent)=>{e.preventDefault();if(busy)return;setBusy(true);setMessage('');setSent(false);try{activateMainDb();if(!client)throw new Error('Login cloud belum dikonfigurasi. Gunakan Mode Demo atau isi pengaturan Supabase.');if(register){if(password.length<8)throw new Error('Kata sandi minimal 8 karakter.');const session=await signUpUser(client,email,password);if(session)navigate('/');else setSent(true)}else{await signInUser(client,email,password);navigate('/')}}catch(error){setMessage(error instanceof Error?error.message:'Login belum berhasil.')}finally{setBusy(false)}}
+  const google=async()=>{if(!client){setMessage('Login Google belum dikonfigurasi.');return}setBusy(true);setMessage('');try{activateMainDb();await signInGoogle(client)}catch(error){setMessage(error instanceof Error?error.message:'Login Google belum berhasil.')}finally{setBusy(false)}}
   const reset=async()=>{if(!client||!email.trim()){setMessage('Isi email terlebih dahulu untuk menerima tautan reset.');return}setBusy(true);setMessage('');try{await resetUserPassword(client,email);setSent(true)}catch(error){setMessage(error instanceof Error?error.message:'Tautan reset belum berhasil dikirim.')}finally{setBusy(false)}}
   const demo=async()=>{setBusy(true);setMessage('');try{activateDemoDb();await seedDemoData();useAuthStore.getState().setDemo();navigate('/')}catch{setMessage('Mode Demo belum berhasil dibuka. Coba lagi.')}finally{setBusy(false)}}
   return <main className="grid min-h-dvh place-items-center bg-slate-100 px-4 py-3"><section className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-4 shadow-lg sm:p-5"><div className="text-center"><span className="mx-auto grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-800 text-white"><GraduationCap size={23}/></span><h1 className="mt-2 text-xl font-black text-slate-900">BGY Wali Kelas</h1><p className="mt-1 text-sm leading-5 text-slate-600">{register?'Buat akun guru baru.':'Masuk ke akunmu.'}</p></div>
