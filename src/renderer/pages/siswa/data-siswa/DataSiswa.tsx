@@ -124,7 +124,7 @@ export default function DataSiswa() {
             aria-label="Cari nama, NIS, atau nomor absen"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Cari nama atau NIS..."
+            placeholder="Cari nama atau NIS…"
             className="w-full rounded-xl pl-9 pr-11 py-2.5 text-base lg:text-sm border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
           />
           {search && (
