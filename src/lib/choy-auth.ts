@@ -2,6 +2,16 @@ import { useEffect, useState } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { documentClient, documentClients } from './document-client'
 
+export interface ChoyAdminUser {
+  user_id: string
+  email: string
+  full_name: string
+  avatar_url: string | null
+  provider: string
+  created_at: string
+  last_sign_in_at: string | null
+}
+
 // Backend utama = index 0. Kalau 1 GB backend utama habis, tambah
 // VITE_SUPABASE_URL_2 + VITE_SUPABASE_PUBLISHABLE_KEY_2 (project gratis baru)
 // dan unggahan baru otomatis lari ke sana; file lama tetap terbaca.
@@ -15,6 +25,12 @@ export async function isChoyAdmin(client: SupabaseClient): Promise<boolean> {
   if (!user) return false
   const { data: row } = await client.from('pak_choy_admins').select('user_id').eq('user_id', user.id).maybeSingle()
   return !!row
+}
+
+export async function listChoyUsers(client: SupabaseClient): Promise<ChoyAdminUser[]> {
+  const { data, error } = await client.rpc('admin_list_users')
+  if (error) throw new Error('Daftar pengguna belum tersedia. Jalankan SQL Admin Pengguna di Supabase lalu muat ulang.')
+  return (data || []) as ChoyAdminUser[]
 }
 
 export function useChoySession(client: SupabaseClient | null) {
