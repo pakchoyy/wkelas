@@ -1,14 +1,25 @@
-import { GraduationCap } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { FormEvent, useState } from 'react'
+import { GraduationCap, KeyRound, Mail, ShieldCheck } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
+import { activateDemoDb } from '../../lib/db'
+import { seedDemoData } from '../../lib/demo-data'
+import { documentClient } from '../../lib/document-client'
+import { resetUserPassword, signInGoogle, signInUser, signUpUser } from '../../lib/user-auth'
+import { useAuthStore } from '../stores/authStore'
 
 export default function Login() {
-  return <main className="grid min-h-dvh place-items-center bg-slate-100 p-4">
-    <section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8">
-      <div className="text-center"><span className="mx-auto grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-800 text-white"><GraduationCap size={32}/></span><h1 className="mt-4 text-2xl font-black text-slate-900">BGY Wali Kelas</h1><p className="mt-2 text-sm leading-6 text-slate-600">Kelola administrasi kelas dalam satu tempat.</p></div>
-      <button type="button" disabled className="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-400"><span className="text-lg font-black">G</span>Masuk dengan Google</button>
-      <p className="mt-3 text-center text-xs leading-5 text-slate-500">Login Google akan diaktifkan setelah Supabase tersambung.</p>
-      <Link to="/" className="mt-5 flex min-h-12 items-center justify-center rounded-xl bg-teal-600 px-4 text-sm font-bold text-white hover:bg-teal-700">Lanjutkan gratis</Link>
-      <aside className="mt-5 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-900"><strong>Semua fitur masih gratis.</strong> Tidak ada trial atau batas waktu selama tahap pengembangan dan pengumpulan masukan.</aside>
-    </section>
-  </main>
+  const client=documentClient(); const navigate=useNavigate()
+  const [register,setRegister]=useState(false),[email,setEmail]=useState(''),[password,setPassword]=useState(''),[busy,setBusy]=useState(false),[message,setMessage]=useState(''),[sent,setSent]=useState(false)
+  const submit=async(e:FormEvent)=>{e.preventDefault();if(busy)return;setBusy(true);setMessage('');setSent(false);try{if(!client)throw new Error('Login cloud belum dikonfigurasi. Gunakan Mode Demo atau isi pengaturan Supabase.');if(register){if(password.length<8)throw new Error('Kata sandi minimal 8 karakter.');const session=await signUpUser(client,email,password);if(session)navigate('/');else setSent(true)}else{await signInUser(client,email,password);navigate('/')}}catch(error){setMessage(error instanceof Error?error.message:'Login belum berhasil.')}finally{setBusy(false)}}
+  const google=async()=>{if(!client){setMessage('Login Google belum dikonfigurasi.');return}setBusy(true);setMessage('');try{await signInGoogle(client)}catch(error){setMessage(error instanceof Error?error.message:'Login Google belum berhasil.')}finally{setBusy(false)}}
+  const reset=async()=>{if(!client||!email.trim()){setMessage('Isi email terlebih dahulu untuk menerima tautan reset.');return}setBusy(true);setMessage('');try{await resetUserPassword(client,email);setSent(true)}catch(error){setMessage(error instanceof Error?error.message:'Tautan reset belum berhasil dikirim.')}finally{setBusy(false)}}
+  const demo=async()=>{setBusy(true);setMessage('');try{activateDemoDb();await seedDemoData();useAuthStore.getState().setDemo();navigate('/')}catch{setMessage('Mode Demo belum berhasil dibuka. Coba lagi.')}finally{setBusy(false)}}
+  return <main className="grid min-h-dvh place-items-center bg-slate-100 p-4"><section className="w-full max-w-md rounded-3xl border border-slate-200 bg-white p-6 shadow-xl sm:p-8"><div className="text-center"><span className="mx-auto grid size-16 place-items-center rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-800 text-white"><GraduationCap size={32}/></span><h1 className="mt-4 text-2xl font-black text-slate-900">BGY Wali Kelas</h1><p className="mt-2 text-sm leading-6 text-slate-600">{register?'Buat akun guru untuk menyimpan kelasmu.':'Masuk untuk melanjutkan ke kelasmu.'}</p></div>
+    {message&&<p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700">{message}</p>}{sent&&<p role="status" className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">Periksa emailmu untuk melanjutkan.</p>}
+    <button type="button" disabled={busy||!client} onClick={google} className="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-xl border border-slate-300 bg-white px-4 text-sm font-bold text-slate-700 disabled:opacity-40"><span className="text-lg font-black">G</span>Masuk / daftar dengan Google</button>
+    <div className="my-5 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200"/>atau email<span className="h-px flex-1 bg-slate-200"/></div>
+    <form onSubmit={submit} className="space-y-3"><label className="block text-sm font-bold text-slate-700"><span className="flex items-center gap-2"><Mail size={15}/>Email</span><input required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} className="field mt-1.5" placeholder="guru@sekolah.sch.id"/></label><label className="block text-sm font-bold text-slate-700"><span className="flex items-center gap-2"><KeyRound size={15}/>Kata sandi</span><input required type="password" minLength={8} autoComplete={register?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} className="field mt-1.5" placeholder="Minimal 8 karakter"/></label><button disabled={busy||!client} className="action-primary min-h-12 w-full rounded-xl px-4 text-sm font-bold disabled:opacity-40">{busy?'Memproses...':register?'Daftar dengan email':'Masuk dengan email'}</button></form>
+    <div className="mt-3 flex items-center justify-between text-xs"><button type="button" onClick={()=>{setRegister(v=>!v);setMessage('');setSent(false)}} className="min-h-11 font-semibold text-teal-700">{register?'Sudah punya akun? Masuk':'Belum punya akun? Daftar'}</button>{!register&&<button type="button" onClick={reset} className="min-h-11 font-semibold text-slate-500">Lupa kata sandi?</button>}</div>
+    <button type="button" disabled={busy} onClick={demo} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-900 disabled:opacity-40"><ShieldCheck size={17}/>Coba Mode Demo</button><p className="mt-3 text-center text-[11px] leading-5 text-slate-500">Mode Demo memakai data contoh yang terpisah dari akun asli.</p><Link to="/" className="mt-4 block text-center text-xs font-semibold text-slate-500">Kembali</Link>
+  </section></main>
 }

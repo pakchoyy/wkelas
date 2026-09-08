@@ -16,9 +16,9 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
-  // Akses lokal sementara selama autentikasi belum diaktifkan.
+  // Mode demo tetap lokal; akun cloud diisi setelah Supabase Auth mengembalikan sesi.
   mode: isDemoMode() ? 'demo' : 'login',
-  user: isDemoMode() ? { nama: 'Data Contoh', email: 'demo@bgy.app' } : { nama: 'Admin Lokal', email: 'admin@lokal' },
+  user: isDemoMode() ? { nama: 'Data Contoh', email: 'demo@bgy.app' } : null,
   isLicensed: true,
   plan: 'free',
   setLogin: (user) => set({ mode: 'login', user, isLicensed: true, plan: 'free' }),

@@ -11,7 +11,7 @@ const clients = new Map<string,SupabaseClient>()
 function makeClient(id:string,url:string,key:string):SupabaseClient {
   const hit = clients.get(id)
   if (hit) return hit
-  const created = createClient(url,key,{auth:{storageKey:`pak-choy-admin-auth-${id}`,detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}})
+  const created = createClient(url,key,{auth:{storageKey:`pak-choy-admin-auth-${id}`,detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}})
   clients.set(id,created)
   return created
 }

@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, GraduationCap, School, ShieldCheck } from 'lucide-react'
+import { Navigate } from 'react-router-dom'
 import { activateMainDb, db } from '../../lib/db'
 import { seedDemoData } from '../../lib/demo-data'
 import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import { getPhaseForGrade } from '../../shared/mapelRecommendations'
 import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboarding'
+import { userClient, useUserSession } from '../../lib/user-auth'
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
+  const cloud = userClient()
+  const { user, checking: authChecking } = useUserSession(cloud)
+  const demo = useAuthStore((s) => s.mode === 'demo')
   const [checking, setChecking] = useState(true)
   const [showSetup, setShowSetup] = useState(false)
   const [checkError, setCheckError] = useState(false)
@@ -26,12 +31,14 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
   }, [setKelasAktif])
 
   if (checkError) return <div className="min-h-dvh grid place-items-center p-4"><div role="alert" className="max-w-md space-y-3 rounded-2xl border border-red-200 bg-white p-6"><h1 className="font-bold">Data kelas belum bisa dibuka</h1><p className="text-sm text-slate-600">Coba muat ulang halaman. Jangan hapus data situs karena data kelas tersimpan di browser ini.</p><button onClick={() => window.location.reload()} className="min-h-11 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white">Coba lagi</button></div></div>
+  if (authChecking) return <div role="status" className="min-h-dvh grid place-items-center text-sm text-slate-500">Memeriksa akun...</div>
+  if (cloud && !user && !demo) return <Navigate to="/login" replace />
   if (checking) return <div role="status" className="min-h-dvh grid place-items-center text-sm text-slate-500">Menyiapkan aplikasi...</div>
-  if (showSetup) return <SetupWizard onComplete={() => setShowSetup(false)} />
+  if (showSetup) return <SetupWizard userId={user?.id} onComplete={() => setShowSetup(false)} />
   return <>{children}</>
 }
 
-function SetupWizard({ onComplete }: { onComplete: () => void }) {
+function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () => void }) {
   const [step, setStep] = useState(1)
   const [data, setData] = useState(initialSetup)
   const [saving, setSaving] = useState(false)
@@ -55,7 +62,7 @@ function SetupWizard({ onComplete }: { onComplete: () => void }) {
       return
     }
     activateMainDb()
-    const kelasId = await saveInitialClass(db, data)
+    const kelasId = await saveInitialClass(db, data, userId || 'local')
     setKelasAktif(kelasId)
     onComplete()
     } catch (error) {
