@@ -13,7 +13,7 @@ function makeClient(id:string,url:string,key:string):SupabaseClient {
   if (hit) return hit
   // OAuth code is exchanged explicitly in useUserSession before route guards run.
   // This avoids a HashRouter redirecting to /login while the callback is still pending.
-  const created = createClient(url,key,{auth:{storageKey:`pak-choy-admin-auth-${id}`,detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}})
+  const created = createClient(url,key,{auth:{storageKey:`pak-choy-admin-auth-${id}`,detectSessionInUrl:false,flowType:'pkce',persistSession:true,autoRefreshToken:true}})
   clients.set(id,created)
   return created
 }
