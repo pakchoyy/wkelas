@@ -84,9 +84,9 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
       <div className="compact my-auto w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-xl">
         <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-wrap items-start justify-between gap-3">
           <div><h1 className="font-bold text-lg">Siapkan Kelas Pertama</h1><p className="text-sm text-slate-500">Langkah {step} dari 3 · data tersimpan hanya di perangkat ini</p></div>
-          <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 disabled:opacity-50">{saving ? 'Menyiapkan…' : 'Lewati — isi data contoh'}</button>
+          <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-sm font-bold text-amber-950 transition-[background-color,transform] duration-150 hover:bg-amber-200 active:scale-96 disabled:opacity-50">{saving ? 'Menyiapkan…' : 'Coba data contoh'}</button>
         </div>
-        <p className="px-4 sm:px-6 pt-3 text-sm text-slate-600">Lewati untuk mencoba aplikasi dengan contoh guru, siswa, jadwal, dan nilai. Isian formulir ini tidak digunakan untuk data contoh. Hapus data contoh dari dashboard saat siap membuat kelas sendiri.</p>
+        <p className="mx-4 mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:mx-6">Belum siap mengisi? Gunakan data contoh. Bisa dihapus nanti.</p>
         {error && <p role="alert" className="px-4 sm:px-6 pt-3 text-sm text-red-700">{error}</p>}
         <div className="px-4 sm:px-6 py-3 border-b border-slate-100 flex items-center gap-3">
           {steps.map((item, i) => <div key={item.n} className="contents">
