@@ -2,7 +2,7 @@ import { saveClassPeriod } from '../../../lib/grade-periods'
 import { BACKUP_HISTORY_KEY, readBackupHistory, type BackupHistory } from '../../../lib/backup-history'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Upload } from 'lucide-react'
+import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Sparkles, Upload } from 'lucide-react'
 import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
@@ -65,6 +65,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}{loading && <p role="status">Memuat pengaturan...</p>}
     {toast&&<div className="fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl bg-emerald-600 px-5 py-3 text-sm font-bold text-white shadow-xl">{toast}</div>}
     <div><h2 className="text-xl font-extrabold">Pengaturan</h2><p className="mt-1 text-sm text-slate-500">Data di sini digunakan pada Dashboard, Jurnal, dan laporan.</p></div>
+    <section aria-label="Paket akun" className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-teal-200 bg-teal-50 p-4"><div className="flex min-w-0 items-start gap-3"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-teal-600 text-white"><Sparkles size={18}/></span><div className="min-w-0"><h3 className="font-extrabold text-teal-900">Paket Gratis</h3><p className="mt-0.5 text-sm text-teal-800">Semua fitur masih terbuka selama masa pengembangan.</p></div></div><button type="button" disabled className="min-h-11 rounded-xl border border-teal-200 bg-white px-4 text-sm font-bold text-teal-800 opacity-80">Pro segera hadir</button></section>
     {(classDirty || teacherDirty) && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Belum disimpan: {[teacherDirty && 'Sekolah & Guru', classDirty && 'Kelas & Semester'].filter(Boolean).join(', ')}. Isian tetap ada saat berpindah tab. Simpan pada masing-masing tab sebelum meninggalkan halaman.</p>}
     <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-200/70 p-1 w-fit max-w-full">{tabs.map((item)=><button disabled={busy} aria-pressed={tab===item.id} key={item.id} onClick={()=>setTab(item.id)} className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold ${tab===item.id?'bg-white text-emerald-700 shadow-sm':'text-slate-500'}`}><item.icon size={16}/>{item.label}</button>)}</div>
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
