@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { documentClient } from './document-client'
 import { isDemoMode } from './db'
-import { googleOAuthOptions } from './oauth-login'
+import { createInitialAuthGate, googleOAuthOptions } from './oauth-login'
 import { useAuthStore } from '../renderer/stores/authStore'
 
 export const userClient = documentClient
@@ -19,6 +19,7 @@ export function useUserSession(client: SupabaseClient | null) {
       else if (!isDemoMode()) useAuthStore.getState().logout()
       setChecking(false)
     }
+    const initialAuth = createInitialAuthGate<Session>(apply)
     const finishOAuthCallback = async () => {
       const callback = new URL(window.location.href)
       const code = callback.searchParams.get('code')
@@ -33,8 +34,8 @@ export function useUserSession(client: SupabaseClient | null) {
       const { data } = await client.auth.getSession()
       return data.session
     }
-    finishOAuthCallback().then(apply).catch(()=>apply(null))
-    const {data:{subscription}}=client.auth.onAuthStateChange((_event,next)=>apply(next))
+    finishOAuthCallback().then(initialAuth.resolveInitial).catch(()=>initialAuth.resolveInitial(null))
+    const {data:{subscription}}=client.auth.onAuthStateChange((_event,next)=>initialAuth.onAuthEvent(next))
     return ()=>{cancelled=true;subscription.unsubscribe()}
   },[client])
   return {user:session?.user || null,checking}

@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-const { createSingleFlight, googleOAuthOptions } = await import('../src/lib/oauth-login.ts')
+const { createInitialAuthGate, createSingleFlight, googleOAuthOptions } = await import('../src/lib/oauth-login.ts')
 
 test('rapid repeated clicks start Google login only once', async () => {
   const runOnce = createSingleFlight()
@@ -25,4 +25,19 @@ test('Google login always asks which account to use', () => {
       queryParams: { prompt: 'select_account' },
     },
   })
+})
+
+test('an empty initial auth event cannot send an OAuth callback back to login', () => {
+  const session = { user: { id: 'guru-1' } }
+  const applied = []
+  const gate = createInitialAuthGate(value => applied.push(value))
+
+  gate.onAuthEvent(null)
+  assert.deepEqual(applied, [])
+
+  gate.resolveInitial(session)
+  assert.deepEqual(applied, [session])
+
+  gate.onAuthEvent(null)
+  assert.deepEqual(applied, [session, null])
 })
