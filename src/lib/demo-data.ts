@@ -1,5 +1,5 @@
 import { BgyDatabase, DEMO_DB_NAME, activateDemoDb, activateMainDb } from './db'
-import { initialSetup } from './onboarding'
+import { initialSetup, saveInitialClass } from './onboarding'
 
 const iso = (d: Date) => d.toISOString()
 const now = iso(new Date())
@@ -248,6 +248,9 @@ export async function clearDemoDb(): Promise<void> {
       await table.clear()
     }
   })
-  activateMainDb()
+  const main = activateMainDb()
+  if (await main.kelas.count() === 0) {
+    await saveInitialClass(main, initialSetup(), 'local', true)
+  }
   } finally { db.close() }
 }

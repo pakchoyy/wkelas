@@ -42,8 +42,7 @@ export default function DemoNotice() {
       <button autoFocus type="button" disabled={busy} onClick={() => setConfirming(false)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">Batal</button>
       <button type="button" disabled={busy} onClick={remove} className="min-h-11 rounded-xl bg-red-700 px-4 py-2 text-sm font-semibold text-white hover:bg-red-800 disabled:opacity-50">{busy ? 'Menghapus…' : 'Hapus data contoh'}</button>
     </>}>
-      <p className="text-sm leading-relaxed text-slate-700">Semua data di ruang contoh, termasuk siswa atau perubahan yang Anda tambahkan saat mencoba, akan dihapus. Tindakan ini tidak dapat dibatalkan.</p>
-      <p className="mt-3 text-sm leading-relaxed text-slate-700">Data kelas pribadi yang tersimpan terpisah tetap aman. Setelah selesai, Anda kembali ke kelas pribadi atau pengaturan kelas pertama.</p>
+      <p className="text-sm leading-relaxed text-slate-700">Semua data contoh akan dihapus. Data pribadi tetap aman. Setelah itu, dashboard menampilkan kelas kosong yang siap diisi.</p>
       <p role="status" className="mt-3 text-sm">{busy ? 'Menghapus data contoh…' : ''}</p>
       {error && <p role="alert" className="mt-3 text-sm text-red-800">{error}</p>}
     </Modal>}
