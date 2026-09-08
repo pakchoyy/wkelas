@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react'
 import { GraduationCap, KeyRound, Mail, ShieldCheck } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { activateDemoDb } from '../../lib/db'
 import { seedDemoData } from '../../lib/demo-data'
 import { documentClient } from '../../lib/document-client'
@@ -20,6 +20,6 @@ export default function Login() {
     <div className="my-3 flex items-center gap-3 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200"/>atau email<span className="h-px flex-1 bg-slate-200"/></div>
     <form onSubmit={submit} className="space-y-2.5"><label className="block text-sm font-bold text-slate-700"><span className="flex items-center gap-2"><Mail size={15}/>Email</span><input name="email" required type="email" autoComplete="email" value={email} onChange={e=>setEmail(e.target.value)} className="field mt-1" placeholder="guru@sekolah.sch.id"/></label><label className="block text-sm font-bold text-slate-700"><span className="flex items-center gap-2"><KeyRound size={15}/>Kata sandi</span><input name="password" required type="password" minLength={8} autoComplete={register?'new-password':'current-password'} value={password} onChange={e=>setPassword(e.target.value)} className="field mt-1" placeholder="Minimal 8 karakter"/></label><button disabled={busy||!client} className="action-primary min-h-11 w-full rounded-xl px-4 text-sm font-bold hover:brightness-105 disabled:opacity-40">{busy?'Memproses…':register?'Daftar akun':'Masuk'}</button></form>
     <div className="mt-3 flex items-center justify-between text-xs"><button type="button" onClick={()=>{setRegister(v=>!v);setMessage('');setSent(false)}} className="min-h-11 font-semibold text-teal-700">{register?'Sudah punya akun? Masuk':'Belum punya akun? Daftar'}</button>{!register&&<button type="button" onClick={reset} className="min-h-11 font-semibold text-slate-500">Lupa kata sandi?</button>}</div>
-    <div className="mt-4 border-t border-slate-100 pt-3"><button type="button" disabled={busy} onClick={demo} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-40"><ShieldCheck size={17}/>Coba tanpa akun</button><p className="mt-1.5 text-center text-[11px] leading-5 text-slate-500">Data demo terpisah dan bisa dihapus nanti.</p></div><Link to="/" className="mt-2 block text-center text-xs font-semibold text-slate-500">Kembali</Link>
+    <div className="mt-3 border-t border-slate-100 pt-3"><button type="button" disabled={busy} onClick={demo} className="flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 text-sm font-bold text-amber-900 hover:bg-amber-100 disabled:opacity-40"><ShieldCheck size={17}/>Coba tanpa akun</button><p className="mt-1.5 text-center text-[11px] leading-4 text-slate-500">Data demo terpisah dan bisa dihapus nanti.</p></div>
   </section></main>
 }
