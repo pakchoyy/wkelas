@@ -131,7 +131,7 @@ export default function Laporan() {
 
       <div className="flex gap-1 overflow-x-auto mb-4 rounded-xl p-1 no-print" style={{ background: '#f1f5f9' }}>
         {tabs.map((t) => (
-          <button aria-pressed={tab === t.id} key={t.id} onClick={() => setTab(t.id)} className={`min-h-11 shrink-0 flex-1 px-3 py-2 text-sm font-semibold rounded-lg transition-all ${tab === t.id ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
+          <button aria-pressed={tab === t.id} key={t.id} onClick={() => setTab(t.id)} className={`min-h-11 shrink-0 flex-1 px-3 py-2 text-sm font-semibold rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 ${tab === t.id ? 'bg-white shadow-sm' : 'text-gray-500'}`}>
             {t.label}
           </button>
         ))}
