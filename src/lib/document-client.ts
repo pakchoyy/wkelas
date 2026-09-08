@@ -11,7 +11,9 @@ const clients = new Map<string,SupabaseClient>()
 function makeClient(id:string,url:string,key:string):SupabaseClient {
   const hit = clients.get(id)
   if (hit) return hit
-  const created = createClient(url,key,{auth:{storageKey:`pak-choy-admin-auth-${id}`,detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}})
+  // OAuth code is exchanged explicitly in useUserSession before route guards run.
+  // This avoids a HashRouter redirecting to /login while the callback is still pending.
+  const created = createClient(url,key,{auth:{storageKey:`pak-choy-admin-auth-${id}`,detectSessionInUrl:false,persistSession:true,autoRefreshToken:true}})
   clients.set(id,created)
   return created
 }

@@ -18,7 +18,21 @@ export function useUserSession(client: SupabaseClient | null) {
       else if (!isDemoMode()) useAuthStore.getState().logout()
       setChecking(false)
     }
-    client.auth.getSession().then(({data})=>apply(data.session)).catch(()=>apply(null))
+    const finishOAuthCallback = async () => {
+      const callback = new URL(window.location.href)
+      const code = callback.searchParams.get('code')
+      if (code) {
+        const { data, error } = await client.auth.exchangeCodeForSession(code)
+        if (!error) {
+          callback.searchParams.delete('code')
+          window.history.replaceState({}, '', `${callback.pathname}${callback.search}${callback.hash}`)
+          return data.session
+        }
+      }
+      const { data } = await client.auth.getSession()
+      return data.session
+    }
+    finishOAuthCallback().then(apply).catch(()=>apply(null))
     const {data:{subscription}}=client.auth.onAuthStateChange((_event,next)=>apply(next))
     return ()=>{cancelled=true;subscription.unsubscribe()}
   },[client])
