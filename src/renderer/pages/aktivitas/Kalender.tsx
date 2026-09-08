@@ -36,7 +36,11 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
   const [confirmDelete, setConfirmDelete] = useState<KalenderAkademik | null>(null)
   const [view,setView]=useState<'grid'|'daftar'>('grid')
   const [dayDetail,setDayDetail]=useState<string|null>(null)
-  const [yearStart,setYearStart]=useState(()=>{const now=new Date();return now.getMonth()>=6?now.getFullYear():now.getFullYear()-1})
+  const [baseYear,setBaseYear]=useState(2026)
+  // Salinan batas semester (s1/s2) agar toggle Ganjil/Genap tidak perlu muat ulang.
+  const [semCfg,setSemCfg]=useState<any>({})
+  const periodFor = (sem:number,cfg:any,year:number) => ({ mulai: sem===1 ? cfg.s1Mulai||`${year}-07-01` : cfg.s2Mulai||`${year+1}-01-01`, akhir: sem===1 ? cfg.s1Akhir||`${year}-12-31` : cfg.s2Akhir||`${year+1}-06-30`, hariSekolah: cfg.hariSekolah||5 })
+  const switchSemester = (sem:number) => { setSemester(sem); setPeriod(periodFor(sem,semCfg,baseYear)) }
 
   const load = async () => { setData(await window.electronAPI.kalender.list(kelasId)) }
   useEffect(() => { Promise.all([load(), (async () => {
@@ -54,16 +58,26 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
     await load()
     let cfg:any={}; if(setting?.value) try{cfg=JSON.parse(setting.value)}catch{};
     const sem=kelas?.semester||1; const year=Number(kelas?.tahun_ajaran?.split('/')[0]) || 2026
-    setSemester(sem); if(Number.isFinite(year)) setYearStart(year)
+    setSemester(sem); if(Number.isFinite(year)) setBaseYear(year); setSemCfg(cfg)
     // Default periode ikut Jatim jika belum disetel; fallback 1 Jul - 30 Jun.
-    setPeriod({ mulai: sem===1 ? cfg.s1Mulai||`${year}-07-01` : cfg.s2Mulai||`${year+1}-01-01`, akhir: sem===1 ? cfg.s1Akhir||`${year}-12-31` : cfg.s2Akhir||`${year+1}-06-30`, hariSekolah: cfg.hariSekolah||5 })
+    setPeriod(periodFor(sem,cfg,Number.isFinite(year)?year:2026))
   })()]).then(() => setReady(true)).catch(() => setError('Kalender gagal dimuat. Muat ulang halaman untuk mencoba lagi.')) }, [kelasId])
   useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2800);return()=>clearTimeout(timer)},[toast])
 
   const effectiveDays = (() => { let count=0; const cursor=new Date(`${period.mulai}T12:00:00`); const end=new Date(`${period.akhir}T12:00:00`); while(cursor<=end){ const day=cursor.getDay(); const iso=todayISO(cursor); const holiday=data.some((item)=>NON_EFEKTIF.includes(item.jenis)&&iso>=item.tanggal_mulai&&iso<=(item.tanggal_selesai||item.tanggal_mulai)); const extra=data.some((item)=>item.jenis==='pengganti'&&iso>=item.tanggal_mulai&&iso<=(item.tanggal_selesai||item.tanggal_mulai)); if((day>=1&&day<=period.hariSekolah||extra)&&!holiday) count++; cursor.setDate(cursor.getDate()+1) } return count })()
 
   const pad2 = (n:number) => String(n).padStart(2,'0')
-  const months = Array.from({length:13},(_,i)=>{const m=(6+i)%12;return {y:yearStart+Math.floor((6+i)/12),m}})
+  // Grid hanya bulan dalam Batas Waktu Semester yang tampil (maks 12 bln).
+  const months = (() => {
+    const [y0,m0] = String(period.mulai||'').split('-').map(Number)
+    const [y1,m1] = String(period.akhir||'').split('-').map(Number)
+    if (!y0 || !m0 || !y1 || !m1) return []
+    const list:{y:number;m:number}[] = []
+    let y=y0, m=m0, guard=0
+    while ((y<y1 || (y===y1 && m<=m1)) && guard<12) { list.push({y,m:m-1}); m++; if (m>12){m=1;y++}; guard++ }
+    return list
+  })()
+  const inPeriod = (item:KalenderAkademik) => item.tanggal_mulai<=period.akhir && (item.tanggal_selesai||item.tanggal_mulai)>=period.mulai
   const JENIS_RANK = ['libur_nasional','libur_sekolah','kts','kpp','pengganti','ujian','rapat','kegiatan','lainnya']
   const eventsOn = (iso:string) => data.filter((item)=>iso>=item.tanggal_mulai&&iso<=(item.tanggal_selesai||item.tanggal_mulai))
   const shortDate = (iso:string) => new Intl.DateTimeFormat('id-ID',{day:'numeric',month:'short'}).format(new Date(`${iso}T12:00:00`))
@@ -85,7 +99,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
   const savePeriod = async () => {
     if (lock.current) return
     lock.current = true; setBusy(true); setError('')
-    try { await saveCalendarPeriod(db,kelasId,semester,period); setToast('Periode akademik berhasil disimpan') }
+    try { await saveCalendarPeriod(db,kelasId,semester,period); setSemCfg((cfg:any)=>({...cfg,hariSekolah:period.hariSekolah,[semester===1?'s1Mulai':'s2Mulai']:period.mulai,[semester===1?'s1Akhir':'s2Akhir']:period.akhir})); setToast('Periode akademik berhasil disimpan') }
     catch(error) { setError(error instanceof Error ? error.message : 'Periode gagal disimpan. Silakan coba lagi.') }
     finally { lock.current = false; setBusy(false) }
   }
@@ -115,7 +129,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
       <p className="mb-4 text-xs text-slate-500">Ketuk tanggal: lihat & ubah kegiatan, atau tambah baru bila kosong.</p>
 
 
-      <div className="grid gap-4 mb-5 lg:grid-cols-[1fr_260px]"><div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex items-center gap-2 font-bold"><CalendarDays size={18} className="text-emerald-600"/>Batas Waktu Semester</div><div className="grid gap-3 md:grid-cols-3"><label className="text-xs font-bold text-slate-500">Mulai Semester<input type="date" value={period.mulai} onChange={(e)=>setPeriod({...period,mulai:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Akhir Semester<input type="date" value={period.akhir} onChange={(e)=>setPeriod({...period,akhir:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Sistem Hari Sekolah<select value={period.hariSekolah} onChange={(e)=>setPeriod({...period,hariSekolah:Number(e.target.value)})} className="field mt-1.5"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label></div><div className="mt-3 flex flex-wrap gap-3 items-center justify-between"><p className="text-xs text-slate-400">Periode ini digunakan oleh Presensi, Perilaku, Rencana, dan Jurnal.</p><button onClick={savePeriod} className="min-h-11 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Save size={14}/>Simpan Periode</button></div></div><div className="rounded-2xl bg-indigo-900 p-5 text-white"><div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Hari Efektif Belajar</div><div className="mt-4 text-4xl font-extrabold">{effectiveDays}</div><div className="mt-1 text-xs text-indigo-200">hari setelah akhir pekan dan hari libur</div></div></div>
+      <div className="grid gap-4 mb-5 lg:grid-cols-[1fr_260px]"><div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex flex-wrap items-center gap-2 font-bold"><span className="inline-flex items-center gap-2"><CalendarDays size={18} className="text-emerald-600"/>Batas Waktu Semester</span><span className="ml-auto flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Pilih semester"><button aria-pressed={semester===1} onClick={()=>switchSemester(1)} className={`min-h-9 rounded-lg px-3 text-xs font-bold ${semester===1?'bg-white text-teal-700 shadow-sm':'text-slate-500'}`}>Ganjil</button><button aria-pressed={semester===2} onClick={()=>switchSemester(2)} className={`min-h-9 rounded-lg px-3 text-xs font-bold ${semester===2?'bg-white text-teal-700 shadow-sm':'text-slate-500'}`}>Genap</button></span></div><div className="grid gap-3 md:grid-cols-3"><label className="text-xs font-bold text-slate-500">Mulai Semester<input type="date" value={period.mulai} onChange={(e)=>setPeriod({...period,mulai:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Akhir Semester<input type="date" value={period.akhir} onChange={(e)=>setPeriod({...period,akhir:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Sistem Hari Sekolah<select value={period.hariSekolah} onChange={(e)=>setPeriod({...period,hariSekolah:Number(e.target.value)})} className="field mt-1.5"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label></div><div className="mt-3 flex flex-wrap gap-3 items-center justify-between"><p className="text-xs text-slate-400">Periode ini digunakan oleh Presensi, Perilaku, Rencana, dan Jurnal.</p><button onClick={savePeriod} className="min-h-11 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Save size={14}/>Simpan Periode</button></div></div><div className="rounded-2xl bg-indigo-900 p-5 text-white"><div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Hari Efektif Belajar</div><div className="mt-4 text-4xl font-extrabold">{effectiveDays}</div><div className="mt-1 text-xs text-indigo-200">hari setelah akhir pekan dan hari libur</div></div></div>
 
       {view==='grid' && <div className="mb-4 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600" aria-label="Keterangan warna">{Object.entries(JENIS_LABEL).map(([jenis,label])=><span key={jenis} className="inline-flex items-center gap-1.5"><span className="size-2.5 rounded-full" style={{background:JENIS_WARNA[jenis]}}/>{label}</span>)}</div>}
       {view==='grid' && <div className="grid items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -153,7 +167,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
       </div>}
 
       {view==='daftar' && <div className="space-y-3">
-        {data.map((item) => (
+        {data.filter(inPeriod).map((item) => (
           <div key={item.id} className="rounded-xl p-4 flex items-start gap-3" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}>
             <div className="w-1 h-full rounded-full flex-shrink-0 mt-1" style={{ background: JENIS_WARNA[item.jenis] || '#6b7280', width: 4 }} />
             <div className="flex-1 min-w-0">
@@ -169,7 +183,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
             </div>
           </div>
         ))}
-        {data.length === 0 && <p className="text-sm text-center py-8 text-gray-400">Belum ada event</p>}
+        {data.filter(inPeriod).length === 0 && <p className="text-sm text-center py-8 text-gray-400">Belum ada event pada semester ini</p>}
       </div>}
 
       <ConfirmDialog open={!!confirmDelete} title="Hapus kegiatan?" message={confirmDelete ? `Hapus ${confirmDelete.judul}?` : ''} onCancel={() => setConfirmDelete(null)} onConfirm={remove} />
