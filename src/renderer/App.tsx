@@ -47,6 +47,8 @@ const page = (content: React.ReactNode) => <Suspense fallback={<p role="status" 
 
 const router = createHashRouter(createRoutesFromElements(<>
         <Route path="/login" element={page(<Login />)} errorElement={<RouteError/>} />
+        {/* Panel Pak Choy memakai Supabase Auth sendiri, tanpa membutuhkan kelas lokal guru. */}
+        <Route path="/admin" element={page(<AdminFilePakChoy />)} errorElement={<RouteError/>} />
         <Route element={<><NavigationGuard/><OnboardingGate><Layout /></OnboardingGate></>} errorElement={<RouteError/>}>
           <Route path="/" element={page(<Dashboard />)} />
           <Route path="/siswa/data-siswa" element={page(<DataSiswa />)} />
@@ -67,7 +69,6 @@ const router = createHashRouter(createRoutesFromElements(<>
           <Route path="/pembaruan" element={page(<InfoPembaruan />)} />
           <Route path="/tentang" element={page(<Tentang />)} />
           <Route path="/mulai" element={page(<MulaiDiSini />)} />
-          <Route path="/admin" element={page(<AdminFilePakChoy />)} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
 </>))
