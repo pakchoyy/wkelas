@@ -23,6 +23,7 @@ export interface ElectronAPI {
   perilaku: {
     list: (siswaId?: number) => Promise<any[]>
     create: (data: any) => Promise<any>
+    update: (id: number, data: any) => Promise<any>
     delete: (id: number) => Promise<any>
   }
   presensi: {

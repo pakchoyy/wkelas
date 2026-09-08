@@ -1,7 +1,7 @@
 import { saveCalendarPeriod } from '../../../lib/calendar-storage'
 import { cleanWrongMaulid, ensureJatimCalendar, isJatimSupported } from '../../../lib/holiday-storage'
 import { useState, useEffect, useRef } from 'react'
-import { CalendarDays, Pencil, Plus, Save, Trash2 } from 'lucide-react'
+import { CalendarDays, Info, Pencil, Plus, Save, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 import type { KalenderAkademik } from '../../../shared/types'
@@ -126,7 +126,7 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
           <button onClick={() => {setFormError('');setEditId(null);setForm({ tanggal_mulai: todayISO(), tanggal_selesai: '', judul: '', jenis: 'kegiatan', deskripsi: '' });setShowForm(true)}} className="min-h-11 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white" style={{ background: 'linear-gradient(135deg, #0ea5a0, #0d7a8a)' }}><Plus size={16} /> Tambah</button>
         </div>
       </div>
-      <p className="mb-4 text-xs text-slate-500">Ketuk tanggal: lihat & ubah kegiatan, atau tambah baru bila kosong.</p>
+      <p className="mb-4 flex items-start gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 text-xs font-semibold leading-5 text-sky-900"><Info size={16} className="mt-0.5 shrink-0 text-sky-600"/>Ketuk tanggal: lihat & ubah kegiatan, atau tambah baru bila kosong.</p>
 
 
       <div className="grid gap-4 mb-5 lg:grid-cols-[1fr_260px]"><div className="rounded-2xl border border-slate-200 bg-white p-5"><div className="mb-4 flex flex-wrap items-center gap-2 font-bold"><span className="inline-flex items-center gap-2"><CalendarDays size={18} className="text-emerald-600"/>Batas Waktu Semester</span><span className="ml-auto flex rounded-xl bg-slate-100 p-1" role="group" aria-label="Pilih semester"><button aria-pressed={semester===1} onClick={()=>switchSemester(1)} className={`min-h-9 rounded-lg px-3 text-xs font-bold ${semester===1?'bg-white text-teal-700 shadow-sm':'text-slate-500'}`}>Ganjil</button><button aria-pressed={semester===2} onClick={()=>switchSemester(2)} className={`min-h-9 rounded-lg px-3 text-xs font-bold ${semester===2?'bg-white text-teal-700 shadow-sm':'text-slate-500'}`}>Genap</button></span></div><div className="grid gap-3 md:grid-cols-3"><label className="text-xs font-bold text-slate-500">Mulai Semester<input type="date" value={period.mulai} onChange={(e)=>setPeriod({...period,mulai:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Akhir Semester<input type="date" value={period.akhir} onChange={(e)=>setPeriod({...period,akhir:e.target.value})} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-500">Sistem Hari Sekolah<select value={period.hariSekolah} onChange={(e)=>setPeriod({...period,hariSekolah:Number(e.target.value)})} className="field mt-1.5"><option value={5}>Senin–Jumat</option><option value={6}>Senin–Sabtu</option></select></label></div><div className="mt-3 flex flex-wrap gap-3 items-center justify-between"><p className="text-xs text-slate-400">Periode ini digunakan oleh Presensi, Perilaku, Rencana, dan Jurnal.</p><button onClick={savePeriod} className="min-h-11 flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white"><Save size={14}/>Simpan Periode</button></div></div><div className="rounded-2xl bg-indigo-900 p-5 text-white"><div className="text-xs font-bold uppercase tracking-wider text-emerald-300">Hari Efektif Belajar</div><div className="mt-4 text-4xl font-extrabold">{effectiveDays}</div><div className="mt-1 text-xs text-indigo-200">hari setelah akhir pekan dan hari libur</div></div></div>
@@ -199,17 +199,9 @@ function KalenderKelas({kelasId}: {kelasId:number}) {
                 <div><label className="text-xs font-medium text-gray-700 block mb-1">Selesai</label><input type="date" aria-label="Tanggal selesai (opsional)" value={form.tanggal_selesai} onChange={(e) => setForm({ ...form, tanggal_selesai: e.target.value })} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base lg:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
               </div>
               <div><label className="text-xs font-medium text-gray-700 block mb-1">Jenis</label>
-                <select aria-label="Jenis kegiatan" value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base lg:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}>
-                  <option value="libur_nasional">Libur Nasional</option>
-                  <option value="libur_sekolah">Libur Sekolah</option>
-                  <option value="kts">KTS (masuk, non-efektif)</option>
-                  <option value="kpp">Kegiatan Puasa (masuk, non-efektif)</option>
-                  <option value="pengganti">Hari Pengganti (dihitung efektif)</option>
-                  <option value="ujian">Ujian</option>
-                  <option value="rapat">Rapat</option>
-                  <option value="kegiatan">Kegiatan</option>
-                  <option value="lainnya">Lainnya</option>
-                </select></div>
+                <div className="flex items-center gap-2 rounded-lg border px-3" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }}><span aria-hidden="true" className="size-3 shrink-0 rounded-full" style={{background:JENIS_WARNA[form.jenis]||'#6b7280'}}/><select aria-label="Jenis kegiatan" value={form.jenis} onChange={(e) => setForm({ ...form, jenis: e.target.value })} className="min-w-0 min-h-11 w-full bg-transparent py-2 text-base outline-none lg:text-sm">
+                  {[['libur_nasional','Libur Nasional'],['libur_sekolah','Libur Sekolah'],['kts','KTS (masuk, non-efektif)'],['kpp','Kegiatan Puasa (masuk, non-efektif)'],['pengganti','Hari Pengganti (dihitung efektif)'],['ujian','Ujian'],['rapat','Rapat'],['kegiatan','Kegiatan'],['lainnya','Lainnya']].map(([value,label])=><option key={value} value={value} style={{color:JENIS_WARNA[value]||'#6b7280'}}>● {label}</option>)}
+                </select></div></div>
               <div><label className="text-xs font-medium text-gray-700 block mb-1">Deskripsi</label><textarea aria-label="Deskripsi kegiatan" value={form.deskripsi} onChange={(e) => setForm({ ...form, deskripsi: e.target.value })} rows={2} className="min-w-0 min-h-11 w-full rounded-lg px-3 py-2 text-base lg:text-sm border" style={{ background: 'var(--input-bg)', borderColor: 'var(--border)' }} /></div>
               <div className="flex flex-wrap gap-3 justify-end pt-2">
                 <button type="button" onClick={() => setShowForm(false)} className="min-h-11 rounded-xl px-4 py-2 text-sm font-semibold border" style={{ borderColor: 'var(--border)' }}>Batal</button>

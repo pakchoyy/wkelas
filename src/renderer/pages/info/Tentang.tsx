@@ -6,9 +6,9 @@ const FITUR = ['Presensi harian, rekap semester & Auto Hadir', 'Penilaian, catat
 
 export default function Tentang() {
   return <div className="mx-auto max-w-6xl space-y-6">
-    <header className="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-700 via-teal-800 to-indigo-900 p-6 text-white sm:p-8">
+    <header className="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-800 via-teal-900 to-slate-800 p-6 text-white sm:p-8">
       <p className="text-xs font-bold uppercase tracking-widest text-teal-200">Bantu Guru Yuk</p>
-      <h1 className="mt-1 text-3xl font-black">Wali Kelas</h1>
+      <h1 className="mt-1 text-3xl font-black tracking-tight">Wali Kelas</h1>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-teal-50">Teman kerja wali kelas SD: absensi, nilai, dan perangkat mengajar beres dalam satu aplikasi. Data tersimpan aman di perangkat ini dan bisa dicadangkan sebagai file .bgy.</p>
       <p className="mt-3 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-bold">Versi {APP_VERSION} · diperbarui {APP_UPDATED_AT}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/15 pt-4">
@@ -26,7 +26,7 @@ export default function Tentang() {
       </ul>
     </section>
 
-    <section aria-label="Produk BGY lainnya" className="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-800 via-teal-900 to-indigo-950 p-5 shadow-sm sm:p-6">
+    <section aria-label="Produk BGY lainnya" className="overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-teal-900 to-slate-900 p-5 shadow-sm sm:p-6">
       <h2 className="text-base font-extrabold text-white">Produk BGY lainnya</h2>
       <p className="mt-1 text-sm text-teal-100">Jelajahi alat bantu lain dari Bantu Guru Yuk.</p>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

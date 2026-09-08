@@ -42,7 +42,7 @@ export default function PwaInstallPrompt() {
 
   return <div role="dialog" aria-modal="true" aria-label="Install aplikasi" className="fixed inset-0 z-[200] grid place-items-center bg-slate-950/50 p-4 print:hidden">
     <section className="w-full max-w-sm overflow-hidden rounded-3xl bg-white text-center shadow-2xl">
-      <div className="relative bg-gradient-to-br from-teal-700 via-teal-800 to-indigo-900 px-6 pb-6 pt-7">
+      <div className="relative bg-gradient-to-br from-teal-800 via-teal-900 to-slate-800 px-6 pb-6 pt-7">
         <button onClick={() => setVisible(false)} aria-label="Tutup" className="absolute right-3 top-3 grid size-8 place-items-center rounded-full bg-white/15 text-white hover:bg-white/25"><X size={16}/></button>
         <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-white/15 text-white"><Download size={26}/></span>
         <h2 className="mt-3 text-lg font-black text-white">Install Wali Kelas</h2>

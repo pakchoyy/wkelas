@@ -146,12 +146,25 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
   useEffect(() => { if (columnPage >= totalColumnPages) setColumnPage(totalColumnPages - 1) }, [columnPage, totalColumnPages])
   const average = (sid: number) => { if (!weightKey) return '—'; const result = calculateGrade(komponen,nilaiMap,sid,bobot); return result.akhir === null ? '—' : `${result.akhir.toFixed(1)}${result.lengkap ? '' : ' *'}` }
 
+  // Mapel baru otomatis dapat Harian 1–4 agar tidak mulai dari kosong.
+  const ensureDefaultHarian = async (id: number) => {
+    const existing = (await window.electronAPI.kolom.list(id)).filter((k: PenilaianKolom) => !isFixed(k))
+    if (existing.length) return
+    for (let n = 1; n <= 4; n++) await window.electronAPI.kolom.create({ mata_pelajaran_id: id, label: `Harian ${n}`, bobot: 1, tanggal: null, catatan: null, urutan: n })
+  }
   const submitMapel = async (e: React.FormEvent) => {
     e.preventDefault(); if(mapelLock.current)return
     mapelLock.current=true;setMapelBusy(true);setMapelError('')
     try {
       if(editMapelId) await editSubject(db,kelasId,editMapelId,mapelForm)
-      else { if(!mapelForm.nama.trim()) throw new Error('Nama wajib diisi.'); await window.electronAPI.mapel.create({kelas_id:kelasId,...mapelForm,nama:mapelForm.nama.trim(),urutan:mapelList.length+1}) }
+      else {
+        if(!mapelForm.nama.trim()) throw new Error('Nama wajib diisi.')
+        const created:any = await window.electronAPI.mapel.create({kelas_id:kelasId,...mapelForm,nama:mapelForm.nama.trim(),urutan:mapelList.length+1})
+        await loadMapel()
+        let newId = created?.id
+        if (!newId) { const list = await window.electronAPI.mapel.list(kelasId); newId = list.filter((m:any)=>m.nama===mapelForm.nama.trim()).sort((a:any,b:any)=>b.id-a.id)[0]?.id }
+        if (newId) { await ensureDefaultHarian(newId); setMapelId(newId) }
+      }
       setEditMapelId(null);setMapelForm({nama:'',kode:''});await loadMapel()
       setToast({type:'success',text:'Mata pelajaran tersimpan.'})
     } catch(error) {setMapelError(error instanceof Error ? error.message : 'Mapel gagal disimpan.')}
@@ -160,7 +173,7 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
   const addRecommendations = async () => {
     if(mapelLock.current)return
     mapelLock.current=true;setMapelBusy(true);setMapelError('')
-    try {const count=await addRecommendedSubjects(db,kelasId,tingkat);await loadMapel();setToast({type:'success',text:`${count} mapel ditambahkan.`})}
+    try {const count=await addRecommendedSubjects(db,kelasId,tingkat);await loadMapel();const list=await window.electronAPI.mapel.list(kelasId);for (const m of list) await ensureDefaultHarian(m.id).catch(()=>{});setToast({type:'success',text:`${count} mapel ditambahkan.`})}
     catch {setMapelError('Rekomendasi gagal ditambahkan.')}
     finally {mapelLock.current=false;setMapelBusy(false)}
   }
