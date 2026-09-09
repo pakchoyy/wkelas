@@ -46,7 +46,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
         </div>
 
         <div className="flex min-w-0 items-center gap-1">
-        <Link to="/tentang" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute right-1.5 top-1.5 size-2 rounded-full bg-amber-300 ring-2 ring-teal-800"/>}</Link>
+        <Link to="/pembaruan" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute right-1.5 top-1.5 size-2 rounded-full bg-amber-300 ring-2 ring-teal-800"/>}</Link>
         <Link to="/pengaturan" aria-label={`Buka profil ${nama}`} title={nama} className="flex min-h-11 max-w-[42vw] shrink-0 items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">
           <span className="truncate text-xs font-semibold sm:hidden">{nama.split(/\s+/)[0]}</span>
           <span className="hidden truncate text-sm font-semibold sm:block">{nama}</span>
