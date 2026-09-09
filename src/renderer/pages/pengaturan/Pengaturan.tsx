@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Upload } from 'lucide-react'
 import { db } from '../../../lib/db'
+import { documentClient } from '../../../lib/document-client'
 import { useAppStore } from '../../stores/appStore'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 
@@ -29,6 +30,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
   const [toast, setToast] = useState('')
   const [savedClass, setSavedClass] = useState('null')
   const [savedTeacher, setSavedTeacher] = useState('null')
+  const [account, setAccount] = useState<{email:string;name:string}|null>(null)
   const classDirty = !loading && JSON.stringify(kelas) !== savedClass
   const teacherDirty = !loading && JSON.stringify(guru) !== savedTeacher
   useUnsavedChanges(classDirty || teacherDirty, busy)
@@ -38,7 +40,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     setKelas(k); setGuru(g)
     setSavedClass(JSON.stringify(k)); setSavedTeacher(JSON.stringify(g))
   }
-  useEffect(()=>{load().catch(()=>setError('Pengaturan gagal dimuat. Muat ulang halaman.')).finally(()=>setLoading(false))},[kelasId])
+  useEffect(()=>{load().catch(()=>setError('Pengaturan gagal dimuat. Muat ulang halaman.')).finally(()=>setLoading(false)); const client=documentClient(); if(client) void client.auth.getUser().then(async ({data})=>{ if(!data.user) return; const name=data.user.user_metadata?.full_name || data.user.user_metadata?.name || ''; setAccount({email:data.user.email||'',name}); await client.from('profiles').upsert({id:data.user.id,email:data.user.email||null,full_name:name||null,avatar_url:data.user.user_metadata?.avatar_url||null},{onConflict:'id'}) }).catch(()=>{})},[kelasId])
   useEffect(()=>{if(!toast)return;const timer=setTimeout(()=>setToast(''),2800);return()=>clearTimeout(timer)},[toast])
   const saveSettings = async (event:React.FormEvent,profile:boolean) => {
     event.preventDefault();if(lock.current || loading)return
@@ -49,6 +51,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
         const count=await db.guru.update(guru.id,{nama:guru.nama,nip:guru.nip,nama_sekolah:guru.nama_sekolah,updated_at:new Date().toISOString()})
         if(!count)throw new Error('Data guru tidak ditemukan.')
         setSavedTeacher(JSON.stringify(guru))
+        const client=documentClient(); const {data}=client ? await client.auth.getUser() : {data:{user:null}}; if(client && data.user) await client.from('profiles').upsert({id:data.user.id,email:data.user.email||null,full_name:guru.nama,avatar_url:data.user.user_metadata?.avatar_url||null},{onConflict:'id'})
         setToast('Identitas sekolah dan guru berhasil disimpan')
       } else {
         if(!kelas?.id)throw new Error('Data kelas belum tersedia. Muat ulang halaman.')
@@ -67,6 +70,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     <div><h2 className="text-xl font-extrabold">Pengaturan</h2><p className="mt-1 text-sm text-slate-500">Data di sini digunakan pada Dashboard, Jurnal, dan laporan.</p></div>
     {(classDirty || teacherDirty) && <p role="status" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">Belum disimpan: {[teacherDirty && 'Sekolah & Guru', classDirty && 'Kelas & Semester'].filter(Boolean).join(', ')}. Isian tetap ada saat berpindah tab. Simpan pada masing-masing tab sebelum meninggalkan halaman.</p>}
     <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-200/70 p-1 w-fit max-w-full">{tabs.map((item)=><button disabled={busy} aria-pressed={tab===item.id} key={item.id} onClick={()=>setTab(item.id)} className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold ${tab===item.id?'bg-white text-emerald-700 shadow-sm':'text-slate-500'}`}><item.icon size={16}/>{item.label}</button>)}</div>
+    {tab==='profil'&&account&&<div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm text-teal-900"><strong>Akun masuk</strong><p className="mt-1">{account.name||'Pengguna'} · {account.email}</p><p className="mt-1 text-xs text-teal-700">Profil akun tersimpan otomatis saat tersambung ke cloud.</p></div>}
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       {tab==='profil'&&<form onSubmit={e=>saveSettings(e,true)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Identitas Sekolah dan Guru</h3><p className="mt-1 text-xs text-slate-400">Akan ditampilkan pada kop jurnal dan laporan.</p></div><label className="block text-sm font-bold">Nama sekolah<input required value={guru?.nama_sekolah||''} onChange={(e)=>setGuru({...guru,nama_sekolah:e.target.value})} className="field mt-1.5"/></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama wali kelas<input required value={guru?.nama||''} onChange={(e)=>setGuru({...guru,nama:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">NIP <span className="font-normal text-slate-400">(opsional)</span><input value={guru?.nip||''} onChange={(e)=>setGuru({...guru,nip:e.target.value})} className="field mt-1.5"/></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Identitas</button></fieldset></form>}
       {tab==='kelas'&&<form onSubmit={e=>saveSettings(e,false)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Kelas dan Periode Akademik</h3><p className="mt-1 text-xs text-slate-400">Nilai dan bobot dipisahkan menurut tahun ajaran dan semester. Untuk membuka nilai lama, pilih kembali periode sebelumnya. Data siswa dan jadwal tetap digunakan. Nilai lama yang belum memiliki periode mengikuti periode kelas sebelum perubahan pertama.</p></div><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama kelas<input required value={kelas?.nama_kelas||''} onChange={(e)=>setKelas({...kelas,nama_kelas:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">Tingkat kelas<select value={kelas?.tingkat||'1'} onChange={(e)=>setKelas({...kelas,tingkat:e.target.value})} className="field mt-1.5">{[1,2,3,4,5,6].map(n=><option key={n} value={n}>Kelas {n}</option>)}</select></label><label className="text-sm font-bold">Tahun ajaran<input required value={kelas?.tahun_ajaran||''} onChange={(e)=>setKelas({...kelas,tahun_ajaran:e.target.value})} className="field mt-1.5" placeholder="2026/2027"/></label><label className="text-sm font-bold">Semester<select value={kelas?.semester||1} onChange={(e)=>setKelas({...kelas,semester:Number(e.target.value)})} className="field mt-1.5"><option value={1}>Semester 1 (Ganjil)</option><option value={2}>Semester 2 (Genap)</option></select></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Kelas</button></fieldset></form>}

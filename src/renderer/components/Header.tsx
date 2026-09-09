@@ -1,16 +1,18 @@
-import { Menu, User } from 'lucide-react'
+import { Bell, Menu, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { liveQuery } from 'dexie'
 import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
 import { useAuthStore } from '../stores/authStore'
+import { documentClient } from '../../lib/document-client'
 
 export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; menuOpen:boolean}) {
   const { mode } = useAuthStore()
   const isDemo = mode === 'demo'
   const kelasId = useAppStore(s => s.kelasAktifId) || 1
   const [nama, setNama] = useState('Profil')
+  const [announcementCount, setAnnouncementCount] = useState(0)
   useEffect(() => {
     const subscription = liveQuery(async () => {
       const kelas = await db.kelas.get(kelasId)
@@ -19,6 +21,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
     }).subscribe({ next: setNama, error: () => setNama('Profil') })
     return () => subscription.unsubscribe()
   }, [kelasId, mode])
+  useEffect(() => { const client=documentClient(); if(!client) return; void client.from('announcements').select('id',{count:'exact',head:true}).then(({count})=>setAnnouncementCount(count||0)).catch(()=>{}) }, [mode])
 
   return (
     <>
@@ -43,6 +46,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
         </div>
 
         <div className="flex min-w-0 items-center gap-1">
+        <Link to="/tentang" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute right-1.5 top-1.5 size-2 rounded-full bg-amber-300 ring-2 ring-teal-800"/>}</Link>
         <Link to="/pengaturan" aria-label={`Buka profil ${nama}`} title={nama} className="flex min-h-11 max-w-[42vw] shrink-0 items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">
           <span className="truncate text-xs font-semibold sm:hidden">{nama.split(/\s+/)[0]}</span>
           <span className="hidden truncate text-sm font-semibold sm:block">{nama}</span>

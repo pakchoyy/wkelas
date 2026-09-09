@@ -30,6 +30,7 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
   const [users,setUsers] = useState<ChoyAdminUser[]>([])
   const [usersLoading,setUsersLoading] = useState(true)
   const [usersError,setUsersError] = useState('')
+  const [feedbackCount,setFeedbackCount] = useState<number|null>(null)
   const [show,setShow] = useState(false)
   const [editing,setEditing] = useState<ChoyDocument|null>(null)
   const [form,setForm] = useState(cloudEmpty)
@@ -41,7 +42,7 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
   const [confirmDelete,setConfirmDelete] = useState<ChoyDocument|null>(null)
   const load = async () => { try { setItems(await listChoyDocuments(client)) } catch { setMessage('Daftar gagal dimuat. Periksa koneksi lalu muat ulang.') } finally { setLoading(false) } }
   const loadUsers = async () => { setUsersError(''); try { setUsers(await listChoyUsers(client)) } catch(error) { setUsersError(error instanceof Error?error.message:'Daftar pengguna gagal dimuat.') } finally { setUsersLoading(false) } }
-  useEffect(() => { if (admin) { void load(); void loadUsers() } else { setLoading(false); setUsersLoading(false) } }, [admin])
+  useEffect(() => { if (admin) { void load(); void loadUsers(); void client.from('feedback').select('id',{count:'exact',head:true}).eq('status','baru').then(({count})=>setFeedbackCount(count||0)).catch(()=>setFeedbackCount(null)) } else { setLoading(false); setUsersLoading(false) } }, [admin])
   const doLogin = async (e:React.FormEvent) => { e.preventDefault(); if(lock.current)return; lock.current=true;setBusy(true);setMessage(''); try { await choySignIn(client,login.email,login.password) } catch(err) { setMessage(err instanceof Error?err.message:'Login gagal.') } finally { lock.current=false;setBusy(false) } }
   const openNew = () => { setEditing(null); setForm(cloudEmpty); setFile(null); setMessage(''); setShow(true) }
   const openEdit = (item:ChoyDocument) => { setEditing(item); setForm({judul:item.title,kategori:item.category,deskripsi:item.description,grades:[...item.target_grades]}); setFile(null); setMessage(''); setShow(true) }
@@ -76,10 +77,11 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
           ['file','File Pak Choy',FileText],
         ] as const).map(([value,label,Icon])=><button key={value} type="button" aria-pressed={section===value} onClick={()=>setSection(value)} className={`flex min-h-11 items-center justify-center gap-2 rounded-xl px-2 text-sm font-bold ${section===value?'bg-white text-teal-800 shadow-sm':'text-slate-600 hover:bg-white/60'}`}><Icon size={17}/><span className="hidden sm:inline">{label}</span><span className="sm:hidden">{value==='ringkasan'?'Beranda':value==='pengguna'?'User':value==='masukan'?'Masuk':value==='pengumuman'?'Info':value==='versi'?'Versi':'File'}</span></button>)}
       </nav>
-      {section==='ringkasan'&&<section className="grid gap-3 sm:grid-cols-3">
+      {section==='ringkasan'&&<section className="grid gap-3 sm:grid-cols-4">
         <article className="rounded-2xl border border-teal-100 bg-teal-50 p-5"><p className="text-sm font-bold text-teal-800">Pengguna terdaftar</p><p className="mt-2 text-3xl font-black text-teal-950">{usersLoading?'—':users.length}</p></article>
         <article className="rounded-2xl border border-sky-100 bg-sky-50 p-5"><p className="text-sm font-bold text-sky-800">File tersimpan</p><p className="mt-2 text-3xl font-black text-sky-950">{loading?'—':items.length}</p></article>
         <article className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><p className="text-sm font-bold text-emerald-800">File diterbitkan</p><p className="mt-2 text-3xl font-black text-emerald-950">{loading?'—':items.filter(item=>item.published).length}</p></article>
+        <article className="rounded-2xl border border-amber-100 bg-amber-50 p-5"><p className="text-sm font-bold text-amber-800">Masukan baru</p><p className="mt-2 text-3xl font-black text-amber-950">{feedbackCount===null?'—':feedbackCount}</p></article>
         {usersError&&<p role="alert" className="sm:col-span-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{usersError}</p>}
       </section>}
       {section==='pengguna'&&<section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-extrabold text-slate-800">Pengguna terdaftar</h2><p className="mt-1 text-sm text-slate-500">Akun yang masuk melalui Google atau email.</p></div>
