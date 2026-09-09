@@ -1,4 +1,4 @@
-import { GraduationCap, Menu, User } from 'lucide-react'
+import { Menu, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { liveQuery } from 'dexie'
@@ -36,7 +36,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
       >
         <div className="flex min-w-0 items-center gap-2">
           <button onClick={onOpenMenu} aria-label="Buka menu" aria-expanded={menuOpen} aria-controls="mobile-menu" className="grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15 lg:hidden"><Menu size={22}/></button>
-          <GraduationCap size={22} className="hidden shrink-0 text-white sm:block" />
+          <img src="/icons/logo-bgy.webp" alt="" className="hidden size-7 shrink-0 rounded-lg object-contain sm:block" />
           <span className="truncate text-white font-extrabold" style={{ fontSize: '0.95rem' }}>
             BGY Wali Kelas
           </span>
