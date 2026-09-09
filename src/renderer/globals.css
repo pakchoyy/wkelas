@@ -41,6 +41,8 @@ body {
 .dashboard-primary { background: var(--accent); color: white; transition: background-color 150ms, scale 150ms; }
 .dashboard-primary:hover { background: var(--accent-hover); }
 .dashboard-primary:active { scale: 0.96; }
+.mobile-navigation { box-shadow: 0 -4px 18px rgba(15, 23, 42, 0.08); }
+.mobile-navigation > * { min-height: 3.5rem; touch-action: manipulation; }
 @container (min-width: 56rem) {
   .dashboard-stats { grid-template-columns: repeat(5, minmax(0, 1fr)); }
   .dashboard-stats > :last-child { grid-column: auto; }
@@ -122,6 +124,7 @@ body {
 
 @media (max-width: 1023px) {
   .field { font-size: 1rem; }
+  main#main-content { scroll-padding-block: 1rem; }
 }
 @media (prefers-reduced-motion: reduce) {
   .animate-slide-up { animation: none; }
