@@ -2,6 +2,7 @@ import { FormEvent, useState, type ReactNode } from 'react'
 import { Bug, HeartHandshake, Lightbulb, MessageCircle, Send, UsersRound } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { APP_VERSION } from '../../../shared/app-info'
+import { documentClient } from '../../../lib/document-client'
 
 const whatsappNumber = '6289530713597'
 const categories = [
@@ -14,12 +15,25 @@ export default function BantuanKomunitas() {
   const location = useLocation()
   const [category, setCategory] = useState('Saran')
   const [message, setMessage] = useState('')
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
 
-  const sendToWhatsApp = (event: FormEvent) => {
+  const sendToWhatsApp = async (event: FormEvent) => {
     event.preventDefault()
+    if (sending || !message.trim()) return
+    setSending(true); setSent(false)
     const sourcePage = sessionStorage.getItem('bgy-last-page') || location.pathname
     const text = `Halo Pak Choyy, saya ingin mengirim ${category.toLowerCase()} untuk BGY Wali Kelas:\n\n${message.trim()}\n\nHalaman: ${sourcePage}\nVersi aplikasi: ${APP_VERSION}`
+    const client = documentClient()
+    if (client) {
+      const { data } = await client.auth.getUser()
+      if (data.user) {
+        await client.from('profiles').upsert({ id: data.user.id, email: data.user.email, full_name: data.user.user_metadata?.full_name || data.user.user_metadata?.name || null, avatar_url: data.user.user_metadata?.avatar_url || null }, { onConflict: 'id' })
+        await client.from('feedback').insert({ user_id: data.user.id, category: category === 'Saran' ? 'saran' : category === 'Kritik' ? 'kritik' : 'masalah', message: message.trim(), page: sourcePage, app_version: APP_VERSION })
+      }
+    }
     window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+    setSent(true); setSending(false)
   }
 
   return <div className="mx-auto max-w-4xl space-y-5 pb-16">
@@ -37,7 +51,8 @@ export default function BantuanKomunitas() {
             <div className="grid gap-2 sm:grid-cols-3">{categories.map(({value,label,icon:Icon}) => <label key={value} className={`flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border px-3 py-2 text-sm font-semibold transition ${category === value ? 'border-teal-500 bg-teal-50 text-teal-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}><input type="radio" name="feedback-category" value={value} checked={category === value} onChange={() => setCategory(value)} className="sr-only"/><Icon size={16}/>{label}</label>)}</div>
           </fieldset>
           <label className="block text-sm font-bold text-slate-700">Pesan<textarea required value={message} onChange={event => setMessage(event.target.value)} rows={6} maxLength={1200} placeholder="Ceritakan saran atau masalah yang kamu temukan…" className="field mt-2 resize-y"/></label>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center"><p className="text-xs text-slate-500">Pesan baru dikirim setelah kamu menekan Kirim di WhatsApp.</p><button type="submit" disabled={!message.trim()} className="action-primary ml-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"><Send size={16}/>Lanjut ke WhatsApp</button></div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center"><p className="text-xs text-slate-500">Pesan dicatat untuk admin, lalu WhatsApp dibuka untuk pengiriman.</p><button type="submit" disabled={!message.trim() || sending} className="action-primary ml-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40"><Send size={16}/>{sending?'Menyimpan…':'Kirim masukan'}</button></div>
+          {sent && <p role="status" className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-800"><span aria-hidden="true">✓</span>Masukan berhasil dicatat. Terima kasih!</p>}
         </form>
       </section>
 
