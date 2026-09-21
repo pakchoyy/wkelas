@@ -16,7 +16,7 @@ registerHooks({resolve(specifier,context,next) {
 }})
 const {BgyDatabase} = await import('../src/lib/db.ts')
 const {importStudentRows} = await import('../src/lib/student-import.ts')
-const {saveSchedule,importSchedule,updateScheduleTime} = await import('../src/lib/schedule-storage.ts')
+const {saveSchedule,importSchedule,updateScheduleTime,markScheduleBreak} = await import('../src/lib/schedule-storage.ts')
 const {defaultTime,resolveScheduleTime,excelTime} = await import('../src/shared/schedule.ts')
 async function fixture(t) {
   const db = new BgyDatabase(`import-test-${crypto.randomUUID()}`)
@@ -62,7 +62,7 @@ test('parallel student imports do not duplicate NIS',async t => {
   assert.equal(await db.siswa.count(),1)
 })
 test('time defaults and Excel fractional time agree with second lesson',() => {
-  assert.deepEqual(defaultTime(2),{mulai:'07:40',selesai:'08:15'})
+  assert.deepEqual(defaultTime(2),{mulai:'07:40',selesai:'08:20'})
   assert.deepEqual(resolveScheduleTime(2,{},[]),defaultTime(2))
   assert.equal(excelTime(460/1440,'00:00'),'07:40')
   assert.equal(excelTime('7:40','00:00'),'07:40')
@@ -97,6 +97,18 @@ test('row time edit changes all days atomically and rejects overlaps',async t =>
   await saveSchedule(db,slot({jam_ke:3,jam_mulai:'08:20',jam_selesai:'08:55'}))
   await assert.rejects(updateScheduleTime(db,1,2,{mulai:'07:45',selesai:'08:30'}),/bertabrakan/)
   assert.equal((await db.jadwal.toArray())[0].jam_selesai,'08:15')
+})
+test('marking a row as break removes that row schedules and preserves other rows',async t => {
+  const db = await fixture(t)
+  await saveSchedule(db,slot())
+  await saveSchedule(db,slot({hari:2}))
+  await saveSchedule(db,slot({jam_ke:3,jam_mulai:'08:20',jam_selesai:'08:55'}))
+  await markScheduleBreak(db,1,2)
+  assert.equal(await db.jadwal.filter(row => row.jam_ke === 2).count(),0)
+  assert.equal(await db.jadwal.filter(row => row.jam_ke === 3).count(),1)
+  const cfg = JSON.parse((await db.pengaturan.get('jadwal_1')).value)
+  assert.deepEqual(cfg.istirahat,[2])
+  await assert.rejects(saveSchedule(db,slot()),/istirahat/)
 })
 test('spreadsheet reader preserves formatted leading zeros',async () => {
   const XLSX = await import('xlsx')

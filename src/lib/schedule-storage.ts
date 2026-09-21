@@ -1,5 +1,5 @@
 import type { BgyDatabase } from './db'
-import { validateTime } from '../shared/schedule'
+import { defaultTime, validateTime } from '../shared/schedule'
 
 export async function saveSchedule(database: BgyDatabase, data: any) {
   return database.transaction('rw',[database.jadwal,database.pengaturan,database.mata_pelajaran],async () => {
@@ -40,6 +40,22 @@ export async function updateScheduleTime(database: BgyDatabase, kelasId: number,
     const cfg = stored ? JSON.parse(stored.value) : {}
     await database.jadwal.where({kelas_id:kelasId}).filter(r => r.jam_ke === jam).modify({jam_mulai:time.mulai,jam_selesai:time.selesai,updated_at:new Date().toISOString()})
     await database.pengaturan.put({key,value:JSON.stringify({...cfg,waktuJam:{...cfg.waktuJam,[jam]:time}}),updated_at:new Date().toISOString()})
+  })
+}
+
+export async function markScheduleBreak(database: BgyDatabase, kelasId: number, jam: number) {
+  return database.transaction('rw',[database.jadwal,database.pengaturan],async () => {
+    const key = `jadwal_${kelasId}`
+    const stored = await database.pengaturan.get(key)
+    const cfg = stored ? JSON.parse(stored.value) : {}
+    const total = Number.isInteger(cfg.jumlahJam) ? cfg.jumlahJam : 10
+    if (!Number.isInteger(jam) || jam < 1 || jam > total) throw new Error('Baris jadwal tidak valid.')
+    const breaks = Array.isArray(cfg.istirahat) ? cfg.istirahat.filter((row:number) => row >= 1 && row <= total) : []
+    const nextBreaks = [...new Set([...breaks,jam])].sort((a,b) => a - b)
+    if (nextBreaks.length >= total) throw new Error('Sisakan minimal satu JP untuk pelajaran.')
+    await database.jadwal.where({kelas_id:kelasId}).filter(row => row.jam_ke === jam).delete()
+    await database.pengaturan.put({key,value:JSON.stringify({...cfg,jumlahJam:total,istirahat:nextBreaks,waktuJam:{...cfg.waktuJam,[jam]:cfg.waktuJam?.[jam] || defaultTime(jam,cfg.menitJP || 40,nextBreaks)}}),updated_at:new Date().toISOString()})
+    return {success:true}
   })
 }
 
