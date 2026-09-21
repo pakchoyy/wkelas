@@ -67,6 +67,7 @@ export interface ElectronAPI {
     list: (kelasId: number) => Promise<any[]>
     save: (data: any) => Promise<any>
     delete: (id: number) => Promise<any>
+    deleteAll: (kelasId: number) => Promise<any>
   }
   catatan: {
     list: () => Promise<any[]>

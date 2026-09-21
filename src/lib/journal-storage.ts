@@ -31,3 +31,11 @@ export async function createJournalDraft(db: BgyDatabase, data: any) {
     return db.jurnal_harian.add({...data,created_at:now,updated_at:now})
   })
 }
+
+export async function deleteAllJournalsForClass(db: BgyDatabase, kelasId: number) {
+  return db.transaction('rw', db.jurnal_harian, async () => {
+    const count = await db.jurnal_harian.where({kelas_id: kelasId}).count()
+    await db.jurnal_harian.where({kelas_id: kelasId}).delete()
+    return {count}
+  })
+}

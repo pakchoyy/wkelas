@@ -7,6 +7,7 @@ import { db } from './db'
 import { createBackupText, restoreBackupText } from './backup'
 import { BACKUP_HISTORY_KEY, backupFingerprint } from './backup-history'
 import { deleteAllActiveStudents } from './student-delete'
+import { deleteAllJournalsForClass } from './journal-storage'
 import type { ElectronAPI } from '../main/preload'
 
 function nowISO() {
@@ -242,6 +243,7 @@ const electronAPI: ElectronAPI = {
       await db.jurnal_harian.delete(id)
       return { success: true }
     },
+    deleteAll: async (kelasId: number) => deleteAllJournalsForClass(db, kelasId),
   },
   catatan: {
     list: async () => {

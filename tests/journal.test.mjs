@@ -15,7 +15,7 @@ registerHooks({resolve(specifier,context,next) {
   return next(specifier,context)
 }})
 const {BgyDatabase} = await import('../src/lib/db.ts')
-const {saveJournalField} = await import('../src/lib/journal-storage.ts')
+const {saveJournalField, deleteAllJournalsForClass} = await import('../src/lib/journal-storage.ts')
 const slot={kelas_id:1,tanggal:'2026-09-02',jam_ke:'1',mata_pelajaran:'Matematika'}
 async function fixture(t) {const db=new BgyDatabase(`journal-${crypto.randomUUID()}`);t.after(()=>db.delete());return db}
 test('concurrent first edits create one journal and retain both fields',async t=>{
@@ -59,4 +59,13 @@ test('repeated or concurrent draft creation preserves the existing journal',asyn
  const original=(await db.jurnal_harian.toArray())[0]
  await assert.rejects(createJournalDraft(db,{...slot,materi:'Replacement'}),/sudah ada/)
  assert.equal((await db.jurnal_harian.get(original.id)).materi,original.materi)
+})
+
+test('bulk journal deletion only removes records from selected class',async t=>{
+ const db=await fixture(t)
+ await db.jurnal_harian.bulkAdd([{kelas_id:1,tanggal:'2026-09-01',jam_ke:'1',mata_pelajaran:'A',materi:'A',created_at:'now',updated_at:'now'},{kelas_id:1,tanggal:'2026-09-02',jam_ke:'2',mata_pelajaran:'B',materi:'B',created_at:'now',updated_at:'now'},{kelas_id:2,tanggal:'2026-09-01',jam_ke:'1',mata_pelajaran:'C',materi:'C',created_at:'now',updated_at:'now'}])
+ const result=await deleteAllJournalsForClass(db,1)
+ assert.equal(result.count,2)
+ assert.equal(await db.jurnal_harian.where({kelas_id:1}).count(),0)
+ assert.equal(await db.jurnal_harian.where({kelas_id:2}).count(),1)
 })
