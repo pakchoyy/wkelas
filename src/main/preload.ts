@@ -9,6 +9,7 @@ export interface ElectronAPI {
     create: (data: any) => Promise<any>
     update: (id: number, data: any) => Promise<any>
     delete: (id: number) => Promise<any>
+    deleteAll: (kelasId: number) => Promise<any>
   }
   fieldDef: {
     list: (kelasId: number) => Promise<any[]>

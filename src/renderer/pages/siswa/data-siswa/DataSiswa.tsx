@@ -25,6 +25,7 @@ export default function DataSiswa() {
   const [fieldOpen, setFieldOpen] = useState(false)
   const [importOpen, setImportOpen] = useState(location.state?.openImport === true)
   const [hapus, setHapus] = useState<{ open: boolean; siswa: Siswa | null }>({ open: false, siswa: null })
+  const [hapusSemuaOpen, setHapusSemuaOpen] = useState(false)
   const [toast, setToast] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   useEffect(() => {
@@ -87,6 +88,18 @@ export default function DataSiswa() {
     }
   }
 
+  const handleHapusSemua = async () => {
+    try {
+      const result = await window.electronAPI.siswa.deleteAll(kelasId)
+      setHapusSemuaOpen(false)
+      setFieldValues({})
+      await reload()
+      setToast({ type: 'success', text: `${result.count || siswa.length} siswa berhasil dihapus dari kelas aktif.` })
+    } catch {
+      setToast({ type: 'error', text: 'Gagal menghapus semua siswa. Silakan coba lagi.' })
+    }
+  }
+
   return (
     <div className="max-w-[1440px] mx-auto">
       <div className="flex items-start justify-between mb-3 sm:mb-5 flex-wrap gap-3">
@@ -108,6 +121,14 @@ export default function DataSiswa() {
           >
             <Upload size={16} /><span className="lg:hidden">Impor</span><span className="hidden lg:inline">Import Data</span>
           </button>
+          {siswa.length > 0 && (
+            <button
+              onClick={() => setHapusSemuaOpen(true)}
+              className="min-h-11 flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 lg:px-4"
+            >
+              <Trash2 size={16} /><span className="lg:hidden">Hapus semua</span><span className="hidden lg:inline">Hapus Semua</span>
+            </button>
+          )}
           <button
             onClick={() => { setEditSiswa(null); setFormOpen(true) }}
             className="action-primary min-h-11 flex items-center justify-center gap-1.5 rounded-xl px-3 lg:px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-[0.98]"
@@ -258,6 +279,14 @@ export default function DataSiswa() {
         confirmText="Hapus"
         onCancel={() => setHapus({ open: false, siswa: null })}
         onConfirm={handleHapus}
+      />
+      <ConfirmDialog
+        open={hapusSemuaOpen}
+        title="Hapus Semua Siswa"
+        message={`Hapus semua ${siswa.length} siswa di ${kelasLabel}? Presensi, nilai, catatan perilaku, dan isian kolom tambahan milik siswa-siswa ini ikut dihapus.`}
+        confirmText="Hapus Semua"
+        onCancel={() => setHapusSemuaOpen(false)}
+        onConfirm={handleHapusSemua}
       />
       {toast && <div className="fixed inset-x-0 top-6 z-[500] flex justify-center pointer-events-none px-4"><div className={`pointer-events-auto flex items-center gap-3 rounded-2xl border px-5 py-3.5 shadow-xl text-sm font-semibold ${toast.type === 'success' ? 'bg-white border-emerald-200 text-emerald-800' : 'bg-white border-red-200 text-red-800'}`}>{toast.type === 'success' ? <span className="w-8 h-8 rounded-full bg-emerald-100 grid place-items-center"><CheckCircle2 size={18}/></span> : <span className="w-8 h-8 rounded-full bg-red-100 grid place-items-center"><AlertCircle size={18}/></span>}<span>{toast.text}</span><button aria-label="Tutup pemberitahuan" onClick={() => setToast(null)} className="ml-3 opacity-50 hover:opacity-100"><X size={15}/></button></div></div>}
     </div>

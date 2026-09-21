@@ -19,6 +19,7 @@ const {BgyDatabase} = await import('../src/lib/db.ts')
 const {fillMissingAttendance}=await import('../src/lib/attendance-fill.ts')
 const {editSubject}=await import('../src/lib/subject-storage.ts')
 const {schedulePreset}=await import('../src/shared/schedule.ts')
+const {deleteAllActiveStudents}=await import('../src/lib/student-delete.ts')
 async function fixture(t) {const db=new BgyDatabase(`compact-ui-${crypto.randomUUID()}`);t.after(()=>db.delete());return db}
 
 test('auto attendance fills missing students without overwriting existing status or notes',async t=>{
@@ -53,3 +54,21 @@ test('JP preset places a real break without a hidden five-minute gap',()=>{
  assert.throws(()=>schedulePreset(10,'23:00',35,3,15))
 })
 
+test('bulk student deletion clears active students and their child records only',async t=>{
+ const db=await fixture(t)
+ await db.siswa.bulkAdd([{id:1,kelas_id:1,nama:'A'},{id:2,kelas_id:1,nama:'B'},{id:3,kelas_id:2,nama:'C'},{id:4,kelas_id:1,nama:'D',deleted_at:'old'}])
+ await db.siswa_field_values.bulkAdd([{siswa_id:1,field_id:1,nilai:'x',updated_at:'now'},{siswa_id:3,field_id:1,nilai:'y',updated_at:'now'}])
+ await db.presensi.bulkAdd([{siswa_id:1,kelas_id:1,tanggal:'2026-09-01',status:'H',created_at:'now',updated_at:'now'},{siswa_id:3,kelas_id:2,tanggal:'2026-09-01',status:'H',created_at:'now',updated_at:'now'}])
+ await db.nilai.bulkAdd([{siswa_id:2,kolom_id:1,nilai:90,created_at:'now',updated_at:'now'},{siswa_id:3,kolom_id:1,nilai:80,created_at:'now',updated_at:'now'}])
+ await db.perilaku.bulkAdd([{siswa_id:1,tanggal:'2026-09-01',jenis:'positif',deskripsi:'Baik',created_at:'now',updated_at:'now'},{siswa_id:3,tanggal:'2026-09-01',jenis:'positif',deskripsi:'Baik',created_at:'now',updated_at:'now'}])
+ const result=await deleteAllActiveStudents(db,1)
+ assert.equal(result.count,2)
+ assert.equal((await db.siswa.where({kelas_id:1}).filter(s=>!s.deleted_at).count()),0)
+ assert.equal(await db.siswa_field_values.where({siswa_id:1}).count(),0)
+ assert.equal(await db.presensi.where({kelas_id:1}).count(),0)
+ assert.equal((await db.nilai.toArray()).some(row=>row.siswa_id===2),false)
+ assert.equal((await db.perilaku.toArray()).some(row=>row.siswa_id===1),false)
+ assert.equal((await db.siswa.where({kelas_id:2}).filter(s=>!s.deleted_at).count()),1)
+ assert.equal(await db.presensi.where({kelas_id:2}).count(),1)
+ assert.equal((await db.nilai.toArray()).some(row=>row.siswa_id===3),true)
+})

@@ -6,6 +6,7 @@ import { ensureGradePeriods, listPeriodColumns, subjectPeriod } from './grade-pe
 import { db } from './db'
 import { createBackupText, restoreBackupText } from './backup'
 import { BACKUP_HISTORY_KEY, backupFingerprint } from './backup-history'
+import { deleteAllActiveStudents } from './student-delete'
 import type { ElectronAPI } from '../main/preload'
 
 function nowISO() {
@@ -35,6 +36,7 @@ const electronAPI: ElectronAPI = {
       await db.siswa.update(id, { deleted_at: nowISO() })
       return { success: true }
     },
+    deleteAll: async (kelasId: number) => deleteAllActiveStudents(db, kelasId),
   },
   fieldDef: {
     list: async (kelasId: number) => {
