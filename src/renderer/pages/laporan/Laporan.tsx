@@ -84,7 +84,7 @@ export default function Laporan() {
     { id: 'kalender', label: 'Kalender' },
   ]
 
-  useEffect(()=>{db.kelas.get(kelasId).then(async(kelas)=>{if(!kelas)return;const guru=await db.guru.get(kelas.guru_id);setIdentity({sekolah:guru?.nama_sekolah||'-',kelas:kelas.nama_kelas,semester:String(kelas.semester),tahun:kelas.tahun_ajaran,guru:guru?.nama||'-',logo:guru?.foto_url||''})})},[kelasId])
+  useEffect(()=>{db.kelas.get(kelasId).then(async(kelas)=>{if(!kelas)return;const guru=await db.guru.get(kelas.guru_id);const namaKelas=/^kelas\s/i.test(kelas.nama_kelas)?kelas.nama_kelas:`Kelas ${kelas.nama_kelas}`;setIdentity({sekolah:guru?.nama_sekolah||'-',kelas:namaKelas,semester:String(kelas.semester),tahun:kelas.tahun_ajaran,guru:guru?.nama||'-',logo:guru?.foto_url||''})})},[kelasId])
 
   useEffect(() => {
     let cancelled = false
