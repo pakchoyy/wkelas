@@ -5,6 +5,19 @@ import { documentClient } from '../../../lib/document-client'
 
 type Announcement = { id:string; judul:string; isi:string; jenis:string; created_at:string }
 type Version = { id:string; versi:string; changelog:string; tanggal_rilis:string }
+const ANNOUNCEMENT_READ_KEY = 'bgy-announcements-read'
+
+function markAnnouncementsRead(items: Announcement[]) {
+  if (!items.length) return
+  try {
+    const value = localStorage.getItem(ANNOUNCEMENT_READ_KEY)
+    const parsed = value ? JSON.parse(value) : []
+    const ids = new Set<string>(Array.isArray(parsed) ? parsed : [])
+    items.forEach(item => ids.add(item.id))
+    localStorage.setItem(ANNOUNCEMENT_READ_KEY, JSON.stringify(Array.from(ids)))
+    window.dispatchEvent(new Event('bgy-announcements-read'))
+  } catch {}
+}
 
 export default function InfoPembaruan() {
   const [announcements,setAnnouncements] = useState<Announcement[]>([])
@@ -16,7 +29,11 @@ export default function InfoPembaruan() {
       client.from('announcements').select('id,judul,isi,jenis,created_at').order('created_at',{ascending:false}).limit(10),
       client.from('app_versions').select('id,versi,changelog,tanggal_rilis').order('tanggal_rilis',{ascending:false}).limit(1),
     ]).then(([announcementResult,versionResult]) => {
-      if (!announcementResult.error) setAnnouncements((announcementResult.data || []) as Announcement[])
+      if (!announcementResult.error) {
+        const rows = (announcementResult.data || []) as Announcement[]
+        setAnnouncements(rows)
+        markAnnouncementsRead(rows)
+      }
       if (!versionResult.error) setLatestVersion((versionResult.data?.[0] || null) as Version|null)
     }).catch(() => {})
   }, [])

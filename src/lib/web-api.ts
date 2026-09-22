@@ -291,6 +291,16 @@ const electronAPI: ElectronAPI = {
       await db.todo.update(id, { deleted_at: nowISO() })
       return { success: true }
     },
+    deleteAll: async () => {
+      const now = nowISO()
+      return db.transaction('rw', db.todo, async () => {
+        const rows = await db.todo.filter(t => !t.deleted_at).toArray()
+        for (const item of rows) {
+          if (item.id) await db.todo.update(item.id, { deleted_at: now })
+        }
+        return { success: true, count: rows.length }
+      })
+    },
   },
   dokumenSaya: {
     list: async () => {

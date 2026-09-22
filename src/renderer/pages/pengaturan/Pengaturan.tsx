@@ -2,7 +2,7 @@ import { saveClassPeriod } from '../../../lib/grade-periods'
 import { BACKUP_HISTORY_KEY, readBackupHistory, type BackupHistory } from '../../../lib/backup-history'
 import { useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { AlertCircle, BookOpen, CheckCircle, Database, Download, Save, School, Upload } from 'lucide-react'
+import { AlertCircle, BookOpen, CheckCircle, Database, Download, Image as ImageIcon, Save, School, Upload, X } from 'lucide-react'
 import { db } from '../../../lib/db'
 import { documentClient } from '../../../lib/document-client'
 import { useAppStore } from '../../stores/appStore'
@@ -31,6 +31,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
   const [savedClass, setSavedClass] = useState('null')
   const [savedTeacher, setSavedTeacher] = useState('null')
   const [account, setAccount] = useState<{email:string;name:string}|null>(null)
+  const logoInputRef = useRef<HTMLInputElement | null>(null)
   const classDirty = !loading && JSON.stringify(kelas) !== savedClass
   const teacherDirty = !loading && JSON.stringify(guru) !== savedTeacher
   useUnsavedChanges(classDirty || teacherDirty, busy)
@@ -48,7 +49,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     try {
       if(profile) {
         if(!guru?.id)throw new Error('Data guru belum tersedia. Muat ulang halaman.')
-        const count=await db.guru.update(guru.id,{nama:guru.nama,nip:guru.nip,nama_sekolah:guru.nama_sekolah,updated_at:new Date().toISOString()})
+        const count=await db.guru.update(guru.id,{nama:guru.nama,nip:guru.nip,nama_sekolah:guru.nama_sekolah,foto_url:guru.foto_url||'',updated_at:new Date().toISOString()})
         if(!count)throw new Error('Data guru tidak ditemukan.')
         setSavedTeacher(JSON.stringify(guru))
         const client=documentClient(); const {data}=client ? await client.auth.getUser() : {data:{user:null}}; if(client && data.user) await client.from('profiles').upsert({id:data.user.id,email:data.user.email||null,full_name:guru.nama,avatar_url:data.user.user_metadata?.avatar_url||null},{onConflict:'id'})
@@ -62,6 +63,22 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     finally {lock.current=false;setBusy(false)}
   }
 
+  const pickLogo = async (file?: File) => {
+    if (!file) return
+    setError('')
+    if (!file.type.startsWith('image/')) { setError('Logo harus berupa file gambar.'); return }
+    if (file.size > 512 * 1024) { setError('Ukuran logo maksimal 512 KB agar laporan tetap ringan.'); return }
+    try {
+      const dataUrl = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = () => resolve(String(reader.result || ''))
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      setGuru({...guru,foto_url:dataUrl})
+    } catch { setError('Logo belum berhasil dibaca. Coba pilih gambar lain.') }
+  }
+
 
   const tabs=[{id:'profil' as Tab,label:'Sekolah & Guru',icon:School},{id:'kelas' as Tab,label:'Kelas & Semester',icon:BookOpen},{id:'backup' as Tab,label:'Data & Cadangan',icon:Database}]
   return <div className="mx-auto max-w-4xl space-y-4">
@@ -72,7 +89,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     <div className="flex gap-1 overflow-x-auto rounded-xl bg-slate-200/70 p-1 w-fit max-w-full">{tabs.map((item)=><button disabled={busy} aria-pressed={tab===item.id} key={item.id} onClick={()=>setTab(item.id)} className={`flex items-center gap-2 whitespace-nowrap rounded-lg px-4 py-2.5 text-sm font-bold ${tab===item.id?'bg-white text-emerald-700 shadow-sm':'text-slate-500'}`}><item.icon size={16}/>{item.label}</button>)}</div>
     {tab==='profil'&&account&&<div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm text-teal-900"><strong>Akun masuk</strong><p className="mt-1">{account.name||'Pengguna'} · {account.email}</p><p className="mt-1 text-xs text-teal-700">Profil akun tersimpan otomatis saat tersambung ke cloud.</p></div>}
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      {tab==='profil'&&<form onSubmit={e=>saveSettings(e,true)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Identitas Sekolah dan Guru</h3><p className="mt-1 text-xs text-slate-400">Akan ditampilkan pada kop jurnal dan laporan.</p></div><label className="block text-sm font-bold">Nama sekolah<input required value={guru?.nama_sekolah||''} onChange={(e)=>setGuru({...guru,nama_sekolah:e.target.value})} className="field mt-1.5"/></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama wali kelas<input required value={guru?.nama||''} onChange={(e)=>setGuru({...guru,nama:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">NIP <span className="font-normal text-slate-400">(opsional)</span><input value={guru?.nip||''} onChange={(e)=>setGuru({...guru,nip:e.target.value})} className="field mt-1.5"/></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Identitas</button></fieldset></form>}
+      {tab==='profil'&&<form onSubmit={e=>saveSettings(e,true)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Identitas Sekolah dan Guru</h3><p className="mt-1 text-xs text-slate-400">Akan ditampilkan pada kop jurnal dan laporan.</p></div><label className="block text-sm font-bold">Nama sekolah<input required value={guru?.nama_sekolah||''} onChange={(e)=>setGuru({...guru,nama_sekolah:e.target.value})} className="field mt-1.5"/></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama wali kelas<input required value={guru?.nama||''} onChange={(e)=>setGuru({...guru,nama:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">NIP <span className="font-normal text-slate-400">(opsional)</span><input value={guru?.nip||''} onChange={(e)=>setGuru({...guru,nip:e.target.value})} className="field mt-1.5"/></label></div><section className="rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div className="flex items-center gap-3"><span className="grid size-16 shrink-0 place-items-center overflow-hidden rounded-2xl bg-white text-emerald-700 ring-1 ring-emerald-100">{guru?.foto_url?<img src={guru.foto_url} alt="" className="size-full object-contain"/>:<ImageIcon size={24}/>}</span><div><h4 className="font-extrabold text-slate-800">Personalisasi laporan</h4><p className="mt-1 text-xs leading-5 text-slate-500">Logo ini muncul di kop laporan dan hasil cetak/PDF. Pakai PNG/JPG kecil agar cepat dibuka di HP.</p></div></div><div className="flex flex-wrap gap-2"><button type="button" onClick={()=>logoInputRef.current?.click()} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 text-sm font-bold text-emerald-700"><Upload size={16}/>Pilih Logo</button>{guru?.foto_url&&<button type="button" onClick={()=>setGuru({...guru,foto_url:''})} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-bold text-red-600"><X size={16}/>Hapus</button>}</div></div><input ref={logoInputRef} type="file" accept="image/*" className="hidden" onChange={event=>void pickLogo(event.target.files?.[0])}/></section><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Identitas</button></fieldset></form>}
       {tab==='kelas'&&<form onSubmit={e=>saveSettings(e,false)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Kelas dan Periode Akademik</h3><p className="mt-1 text-xs text-slate-400">Nilai dan bobot dipisahkan menurut tahun ajaran dan semester. Untuk membuka nilai lama, pilih kembali periode sebelumnya. Data siswa dan jadwal tetap digunakan. Nilai lama yang belum memiliki periode mengikuti periode kelas sebelum perubahan pertama.</p></div><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama kelas<input required value={kelas?.nama_kelas||''} onChange={(e)=>setKelas({...kelas,nama_kelas:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">Tingkat kelas<select value={kelas?.tingkat||'1'} onChange={(e)=>setKelas({...kelas,tingkat:e.target.value})} className="field mt-1.5">{[1,2,3,4,5,6].map(n=><option key={n} value={n}>Kelas {n}</option>)}</select></label><label className="text-sm font-bold">Tahun ajaran<input required value={kelas?.tahun_ajaran||''} onChange={(e)=>setKelas({...kelas,tahun_ajaran:e.target.value})} className="field mt-1.5" placeholder="2026/2027"/></label><label className="text-sm font-bold">Semester<select value={kelas?.semester||1} onChange={(e)=>setKelas({...kelas,semester:Number(e.target.value)})} className="field mt-1.5"><option value={1}>Semester 1 (Ganjil)</option><option value={2}>Semester 2 (Genap)</option></select></label></div><button className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Kelas</button></fieldset></form>}
       {tab==='backup'&&<Backup/>}
     </div>

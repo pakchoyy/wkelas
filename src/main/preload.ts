@@ -79,6 +79,7 @@ export interface ElectronAPI {
     save: (data: any) => Promise<any>
     toggle: (id: number) => Promise<any>
     delete: (id: number) => Promise<any>
+    deleteAll: () => Promise<any>
   }
   dokumenSaya: {
     list: () => Promise<any[]>
