@@ -1,7 +1,7 @@
 import { db } from '../../lib/db'
 import { studentTemplateHeaders } from '../../shared/student-template'
 import { importStudentRows } from '../../lib/student-import'
-import type { SiswaFieldDefinition } from '../../../shared/types'
+import type { SiswaFieldDefinition } from '../../shared/types'
 
 async function getXLSX(): Promise<typeof import('xlsx')> {
   return await import('xlsx')
@@ -84,7 +84,14 @@ export async function importRows(rows: string[][], fields: SiswaFieldDefinition[
   return importStudentRows(db, rows, fields, kelasId)
 }
 
+// Batas ukuran menekan risiko file Excel berbahaya (xlsx 0.18 punya celah ReDoS/prototype pollution).
+const MAX_IMPORT_BYTES = 2 * 1024 * 1024
+function assertImportSize(size: number) {
+  if (size > MAX_IMPORT_BYTES) throw new Error('File terlalu besar. Maksimal 2 MB untuk impor.')
+}
+
 export async function readStudentFile(file: File): Promise<string[][]> {
+  assertImportSize(file.size)
   const extension = file.name.split('.').pop()?.toLowerCase()
   if (extension === 'csv') return parseCSV(await file.text())
   if (!['xlsx','xls'].includes(extension || '')) throw new Error('Gunakan file Excel atau CSV.')
@@ -107,6 +114,7 @@ export async function importSiswaXLSX(
   fields: SiswaFieldDefinition[],
   kelasId: number
 ): Promise<ImportResult> {
+  assertImportSize(buffer.byteLength)
   const XLSX = await getXLSX()
   const wb = XLSX.read(buffer, { type: 'array' })
   const sheet = wb.Sheets[wb.SheetNames[0]]

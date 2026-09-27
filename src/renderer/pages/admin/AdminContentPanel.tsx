@@ -27,8 +27,9 @@ export default function AdminContentPanel({ client, kind }: { client: SupabaseCl
   useEffect(()=>{ void load() },[kind])
   const save = async (event:React.FormEvent) => {
     event.preventDefault(); if(saving)return; setSaving(true); setError('')
-    const payload = kind === 'pengumuman' ? {...announcementForm,created_by:(await client.auth.getUser()).data.user?.id||null} : {...versionForm,url_download:versionForm.url_download||null}
-    const {error:saveError} = await client.from(kind === 'pengumuman' ? 'announcements' : 'app_versions').insert(payload)
+    const {error:saveError} = kind === 'pengumuman'
+      ? await client.from('announcements').insert({...announcementForm,created_by:(await client.auth.getUser()).data.user?.id||null})
+      : await client.from('app_versions').insert({...versionForm,url_download:versionForm.url_download||null})
     if(saveError) setError('Belum berhasil disimpan. Periksa kolom isian dan jalankan SQL Admin Konten.')
     else { setShowForm(false); setAnnouncementForm({judul:'',isi:'',jenis:'info',target:'semua'}); setVersionForm({...versionForm,versi:'',changelog:'',url_download:''}); await load() }
     setSaving(false)

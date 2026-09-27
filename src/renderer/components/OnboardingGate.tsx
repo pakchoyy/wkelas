@@ -16,21 +16,24 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
   const [checking, setChecking] = useState(true)
   const [showSetup, setShowSetup] = useState(false)
   const [checkError, setCheckError] = useState(false)
-  const setKelasAktif = useAppStore((s) => s.setKelasAktif)
 
+  const accountId = user?.id || null
   useEffect(() => {
+    // Tunggu sesi selesai agar database yang dibaca milik akun yang benar.
+    if (authChecking) return
     let cancelled = false
+    setChecking(true)
     ;(async () => {
       const kelas = await db.kelas.where('is_aktif').equals(1).first() || await db.kelas.orderBy('id').first()
       if (cancelled) return
-      if (kelas?.id) setKelasAktif(kelas.id)
+      useAppStore.setState({ kelasAktifId: kelas?.id ?? null })
       setShowSetup(!kelas)
       setChecking(false)
     })().catch(() => { if (!cancelled) { setCheckError(true); setChecking(false) } })
     return () => { cancelled = true }
-  }, [setKelasAktif])
+  }, [authChecking, accountId, demo])
 
-  if (checkError) return <div className="min-h-dvh grid place-items-center p-4"><div role="alert" className="max-w-md space-y-3 rounded-2xl border border-red-200 bg-white p-6"><h1 className="font-bold">Data kelas belum bisa dibuka</h1><p className="text-sm text-slate-600">Coba muat ulang halaman. Jangan hapus data situs karena data kelas tersimpan di browser ini.</p><button onClick={() => window.location.reload()} className="min-h-11 rounded-xl bg-emerald-600 px-4 text-sm font-bold text-white">Coba lagi</button></div></div>
+  if (checkError) return <div className="min-h-dvh grid place-items-center p-4"><div role="alert" className="max-w-md space-y-3 rounded-2xl border border-red-200 bg-white p-6"><h1 className="font-bold">Data kelas belum bisa dibuka</h1><p className="text-sm text-slate-600">Coba muat ulang halaman. Jangan hapus data situs karena data kelas tersimpan di browser ini.</p><button onClick={() => window.location.reload()} className="min-h-11 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white">Coba lagi</button></div></div>
   if (authChecking) return <div role="status" className="min-h-dvh grid place-items-center text-sm text-slate-500">Memeriksa akun...</div>
   if (cloud && !user && !demo) return <Navigate to="/login" replace />
   if (checking) return <div role="status" className="min-h-dvh grid place-items-center text-sm text-slate-500">Menyiapkan aplikasi...</div>
@@ -91,7 +94,7 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
         <div className="px-4 sm:px-6 py-3 border-b border-slate-100 flex items-center gap-3">
           {steps.map((item, i) => <div key={item.n} className="contents">
             <div className={`flex items-center gap-2 text-xs font-bold ${step >= item.n ? 'text-emerald-700' : 'text-slate-400'}`}>
-              <span className={`w-6 h-6 rounded-full grid place-items-center border ${step >= item.n ? 'bg-emerald-600 text-white border-emerald-600' : 'border-slate-300'}`}>{step > item.n ? <Check size={13}/> : item.n}</span>
+              <span className={`w-6 h-6 rounded-full grid place-items-center border ${step >= item.n ? 'bg-teal-700 text-white border-emerald-600' : 'border-slate-300'}`}>{step > item.n ? <Check size={13}/> : item.n}</span>
               <span className="hidden sm:inline">{item.label}</span>
             </div>{i < 2 && <div className="h-px bg-slate-200 flex-1" />}
           </div>)}
@@ -121,8 +124,8 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
         </fieldset>
         <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex flex-wrap justify-between gap-3">
           <button disabled={step === 1 || saving} onClick={() => setStep((s) => s - 1)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold disabled:opacity-40 flex items-center gap-2"><ArrowLeft size={16}/> Kembali</button>
-          {step < 3 ? <button disabled={!valid || saving} onClick={() => setStep((s) => s + 1)} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-2">Selanjutnya <ArrowRight size={16}/></button>
-            : <button disabled={saving} onClick={() => finish()} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan...' : 'Buka Dashboard'}</button>}
+          {step < 3 ? <button disabled={!valid || saving} onClick={() => setStep((s) => s + 1)} className="px-5 py-2.5 rounded-xl bg-teal-700 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-2">Selanjutnya <ArrowRight size={16}/></button>
+            : <button disabled={saving} onClick={() => finish()} className="px-5 py-2.5 rounded-xl bg-teal-700 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan...' : 'Buka Dashboard'}</button>}
         </div>
       </div>
     </div>

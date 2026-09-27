@@ -14,8 +14,8 @@ export async function saveJournalField(db: BgyDatabase, target: Target, field: F
     if (target.id && (!existing || existing.kelas_id !== target.kelas_id)) throw new Error('Jurnal tidak ditemukan. Muat ulang halaman.')
     const now = new Date().toISOString()
     if (existing) {
-      await db.jurnal_harian.update(existing.id,{[field]:value,updated_at:now})
-      return db.jurnal_harian.get(existing.id)
+      await db.jurnal_harian.update(existing.id!,{[field]:value,updated_at:now})
+      return db.jurnal_harian.get(existing.id!)
     }
     const id = await db.jurnal_harian.add({...target,materi:'',kegiatan:'',kendala:'',refleksi:'',[field]:value,created_at:now,updated_at:now})
     return db.jurnal_harian.get(id)

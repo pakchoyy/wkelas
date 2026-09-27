@@ -144,7 +144,7 @@ export default function Laporan() {
         </div>}
         {tab === 'nilai' && <p className="text-sm text-slate-500">Nilai periode aktif: {identity.tahun}, semester {identity.semester}. Pilih periode lain di Pengaturan. * Nilai sementara.</p>}
         <div className="flex flex-wrap gap-2 sm:ml-auto">
-          <button onClick={exportExcel} disabled={exporting || loading || !!loadError || invalidPeriod || !reportRows.length} className="min-h-11 flex items-center gap-2 rounded-xl border border-emerald-600 bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-emerald-700 disabled:opacity-40"><FileDown size={16} /> {exporting ? 'Menyiapkan…' : 'Excel'}</button>
+          <button onClick={exportExcel} disabled={exporting || loading || !!loadError || invalidPeriod || !reportRows.length} className="min-h-11 flex items-center gap-2 rounded-xl border border-emerald-600 bg-teal-700 px-4 py-2 text-sm font-bold text-white shadow-sm hover:bg-teal-800 disabled:opacity-40"><FileDown size={16} /> {exporting ? 'Menyiapkan…' : 'Excel'}</button>
           <button disabled={exporting || loading || !!loadError || invalidPeriod} onClick={()=>window.print()} className="min-h-11 flex items-center gap-2 rounded-xl border border-indigo-200 bg-indigo-50 px-4 py-2 text-sm font-bold text-indigo-700 hover:bg-indigo-100 disabled:opacity-40"><Printer size={16} /> Cetak / PDF</button>
         </div>
       </div>

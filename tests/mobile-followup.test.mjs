@@ -5,7 +5,7 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-await import(pathToFileURL(join(process.env.GRADE_TEST_DEPS || join(tmpdir(),'wkelas-grade-tests'), 'node_modules/fake-indexeddb/auto/index.mjs')).href)
+await import('fake-indexeddb/auto')
 registerHooks({resolve(specifier,context,next) {
   if (specifier.startsWith('.') && context.parentURL?.startsWith('file:')) {
     const url = new URL(specifier,context.parentURL)

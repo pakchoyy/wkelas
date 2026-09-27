@@ -5,10 +5,10 @@ import Layout from './components/Layout'
 import OnboardingGate from './components/OnboardingGate'
 import RouteError from './components/RouteError'
 
-function lazyWithRetry<T>(importer: () => Promise<{ default: React.ComponentType<T> } | T>) {
+function lazyWithRetry(importer: () => Promise<{ default: React.ComponentType }>) {
   return lazy(async () => {
     try {
-      return (await importer()) as { default: React.ComponentType<T> }
+      return await importer()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const isChunk = /Failed to fetch dynamically imported module|Loading chunk|ChunkLoadError/i.test(message)
@@ -18,13 +18,14 @@ function lazyWithRetry<T>(importer: () => Promise<{ default: React.ComponentType
       }
       throw error
     }
-  }) as unknown as React.LazyExoticComponent<React.ComponentType<T>>
+  })
 }
 
 const Dashboard = lazyWithRetry(() => import('./pages/dashboard/Dashboard'))
 const DataSiswa = lazyWithRetry(() => import('./pages/siswa/data-siswa/DataSiswa'))
 const Presensi = lazyWithRetry(() => import('./pages/siswa/presensi/Presensi'))
 const Penilaian = lazyWithRetry(() => import('./pages/siswa/penilaian/Penilaian'))
+const ProfilSiswa = lazyWithRetry(() => import('./pages/siswa/profil/ProfilSiswa'))
 const Perilaku = lazyWithRetry(() => import('./pages/siswa/perilaku/Perilaku'))
 const Jadwal = lazyWithRetry(() => import('./pages/aktivitas/Jadwal'))
 const MataPelajaran = lazyWithRetry(() => import('./pages/aktivitas/MataPelajaran'))
@@ -52,6 +53,7 @@ const router = createHashRouter(createRoutesFromElements(<>
         <Route element={<><NavigationGuard/><OnboardingGate><Layout /></OnboardingGate></>} errorElement={<RouteError/>}>
           <Route path="/" element={page(<Dashboard />)} />
           <Route path="/siswa/data-siswa" element={page(<DataSiswa />)} />
+          <Route path="/siswa/profil/:id" element={page(<ProfilSiswa />)} />
           <Route path="/siswa/presensi" element={page(<Presensi />)} />
           <Route path="/siswa/penilaian" element={page(<Penilaian />)} />
           <Route path="/siswa/perilaku" element={page(<Perilaku />)} />

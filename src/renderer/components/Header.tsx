@@ -6,6 +6,7 @@ import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
 import { useAuthStore } from '../stores/authStore'
 import { documentClient } from '../../lib/document-client'
+import ClassSwitcher from './ClassSwitcher'
 
 const ANNOUNCEMENT_READ_KEY = 'bgy-announcements-read'
 
@@ -42,7 +43,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
         if (cancelled || error) return
         const readIds = readAnnouncementIds()
         setAnnouncementCount((data || []).filter(item => !readIds.has(item.id)).length)
-      }).catch(() => {})
+      }, () => {})
     }
     refresh()
     window.addEventListener('storage', refresh)
@@ -53,7 +54,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
   return (
     <>
       {isDemo && (
-        <div className="min-h-7 shrink-0 bg-amber-100 px-3 py-1 flex flex-wrap items-center justify-center gap-x-3 text-xs font-semibold text-amber-900">
+        <div className="demo-bar min-h-7 shrink-0 bg-amber-100 px-3 py-1 flex flex-wrap items-center justify-center gap-x-3 text-xs font-semibold text-amber-900">
           <span>Data contoh aktif</span><Link to="/" className="inline-flex min-h-8 items-center underline underline-offset-2">Kelola data contoh</Link>
         </div>
       )}
@@ -64,7 +65,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
           boxShadow: '0 2px 10px rgba(0,0,0,.18)',
         }}
       >
-        <div className="flex min-w-0 items-center gap-2">
+        <div className="flex min-w-0 flex-1 items-center gap-2">
           <button onClick={onOpenMenu} aria-label="Buka menu" aria-expanded={menuOpen} aria-controls="mobile-menu" className="grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15 lg:hidden"><Menu size={22}/></button>
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white shadow-sm"><img src="/icons/logo-bgy.webp" alt="" className="size-7 rounded-full object-contain" /></span>
           <span className="truncate text-white font-extrabold" style={{ fontSize: '0.95rem' }}>
@@ -72,10 +73,10 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
           </span>
         </div>
 
-        <div className="flex min-w-0 items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
+        <ClassSwitcher/>
         <Link to="/pembaruan" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute -right-0.5 top-1 grid min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 py-0.5 text-[10px] font-black leading-none text-teal-950 ring-2 ring-teal-800">{announcementCount>9?'9+':announcementCount}</span>}</Link>
         <Link to="/pengaturan" aria-label={`Buka profil ${nama}`} title={nama} className="flex min-h-11 max-w-[42vw] shrink-0 items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">
-          <span className="truncate text-xs font-semibold sm:hidden">{nama.split(/\s+/)[0]}</span>
           <span className="hidden truncate text-sm font-semibold sm:block">{nama}</span>
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-white/20"><User size={17}/></span>
         </Link>
