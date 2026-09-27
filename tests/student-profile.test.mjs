@@ -29,3 +29,12 @@ test('alerts flag absence, low grades and repeated concerns only', () => {
 test('attendance percent alert waits for enough recorded days', () => {
   assert.deepEqual(profileAlerts({H:0,S:1,I:0,A:0,T:0,total:1,percent:0},[],0), [])
 })
+
+test('custom thresholds drive alerts and bad settings fall back to defaults', async () => {
+  const { readThresholds } = await import('../src/shared/student-profile.ts')
+  const att = {H:8,S:0,I:0,A:2,T:0,total:10,percent:80}
+  assert.deepEqual(profileAlerts(att,[{mapel:'IPA',akhir:72}],0,{nilai:70,kehadiran:75}), [])
+  assert.deepEqual(profileAlerts(att,[{mapel:'IPA',akhir:72}],0,{nilai:80,kehadiran:90}), ['Kehadiran 80% (di bawah 90%)','Nilai di bawah 80: IPA'])
+  assert.deepEqual(readThresholds('{"nilai":200,"kehadiran":85}'), {nilai:75,kehadiran:85})
+  assert.deepEqual(readThresholds('{"nilai":70,"kehadiran":80}'), {nilai:70,kehadiran:80})
+})

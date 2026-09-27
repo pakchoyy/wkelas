@@ -4,7 +4,7 @@ import { AlertTriangle, ArrowLeft, CalendarCheck, Heart, Printer, ScrollText, Us
 import { db, type Perilaku, type Presensi, type Siswa } from '../../../../lib/db'
 import { classWeightKey } from '../../../../lib/grade-periods'
 import { calculateGrade, readGradeWeights } from '../../../../shared/grades'
-import { PASSING_GRADE, profileAlerts, summarizeAttendance } from '../../../../shared/student-profile'
+import { profileAlerts, readThresholds, summarizeAttendance, thresholdKey, type ProfileThresholds } from '../../../../shared/student-profile'
 import { useAppStore } from '../../../stores/appStore'
 
 type Grade = { mapel: string; harian: number | null; uts: number | null; uas: number | null; akhir: number | null; lengkap: boolean }
@@ -15,6 +15,7 @@ type Profile = {
   presensi: Presensi[]
   grades: Grade[]
   perilaku: Perilaku[]
+  limits: ProfileThresholds
 }
 
 const STATUS_LABEL: Record<string, string> = { H: 'Hadir', S: 'Sakit', I: 'Izin', A: 'Alpa', T: 'Terlambat' }
@@ -39,7 +40,8 @@ async function loadProfile(id: number, kelasId: number): Promise<Profile | null>
     grades.push({ mapel: subject.nama, ...calculateGrade(columns, values, id, weights) })
   }
   const perilaku = (await db.perilaku.where({ siswa_id: id }).toArray()).sort((a, b) => b.tanggal.localeCompare(a.tanggal))
-  return { siswa, kelas: kelas?.nama_kelas || '', periode: kelas ? `${kelas.tahun_ajaran} · Semester ${kelas.semester}` : '', sekolah: guru?.nama_sekolah || '', wali: guru?.nama || '', fields, presensi, grades, perilaku }
+  const limits = readThresholds((await db.pengaturan.get(thresholdKey(kelasId)))?.value)
+  return { limits, siswa, kelas: kelas?.nama_kelas || '', periode: kelas ? `${kelas.tahun_ajaran} · Semester ${kelas.semester}` : '', sekolah: guru?.nama_sekolah || '', wali: guru?.nama || '', fields, presensi, grades, perilaku }
 }
 
 export default function ProfilSiswa() {
@@ -68,7 +70,8 @@ export default function ProfilSiswa() {
   const concerns = perilaku.filter(p => p.jenis !== 'positif').length
   const finals = data.grades.filter(g => g.akhir !== null)
   const average = finals.length ? finals.reduce((sum, g) => sum + g.akhir!, 0) / finals.length : null
-  const alerts = profileAlerts(hadir, data.grades, concerns)
+  const alerts = profileAlerts(hadir, data.grades, concerns, data.limits)
+  const PASSING_GRADE = data.limits.nilai
 
   return <div className="print-portrait mx-auto max-w-5xl space-y-4">
     <div className="no-print flex flex-wrap items-center justify-between gap-2">{back}<button onClick={() => window.print()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white hover:bg-teal-800"><Printer size={17}/>Cetak</button></div>
