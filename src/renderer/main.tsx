@@ -2,7 +2,11 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
 import './globals.css'
+import './theme-dark.css'
+import { initTheme } from './theme'
 import webAPI from '../lib/web-api'
+
+initTheme()
 
 if (!window.electronAPI) {
   window.electronAPI = webAPI as any
