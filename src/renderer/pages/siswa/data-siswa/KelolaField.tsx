@@ -202,7 +202,7 @@ export default function KelolaField({ kelasId, onClose, onChanged }: Props) {
           </div>
           <div className="flex gap-3 justify-end pt-1">
             <button type="button" onClick={() => { setShowForm(false); setEditField(null) }} className="text-sm px-4 py-2 rounded-xl border" style={{ borderColor: 'var(--border)' }}>Batal</button>
-            <button type="submit" disabled={saving} className="text-sm px-4 py-2 rounded-xl text-white font-bold bg-emerald-600 hover:bg-emerald-700">
+            <button type="submit" disabled={saving} className="text-sm px-4 py-2 rounded-xl text-white font-bold bg-teal-700 hover:bg-teal-800">
               {saving ? 'Menyimpan...' : editField ? 'Update' : 'Simpan'}
             </button>
           </div>

@@ -89,7 +89,7 @@ export default function SiswaForm({ siswa, fields, kelasId, onClose, onSaved }: 
             type="submit"
             form="siswa-form"
             disabled={loading}
-            className="rounded-xl px-6 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-[0.98] disabled:opacity-50"
+            className="rounded-xl px-6 py-2.5 text-sm font-bold text-white bg-teal-700 hover:bg-teal-800 transition active:scale-[0.98] disabled:opacity-50"
           >
             {loading ? 'Menyimpan...' : 'Simpan'}
           </button>

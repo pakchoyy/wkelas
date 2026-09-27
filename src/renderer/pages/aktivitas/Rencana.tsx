@@ -175,9 +175,9 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
 
   return (
     <div className="space-y-4">
-      {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-emerald-600'}`}>{toast.message}</div>}
+      {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-teal-700'}`}>{toast.message}</div>}
 
-      <div className="flex items-center gap-2"><NotebookPen size={21} className="text-emerald-600"/><div><h2 className="text-xl font-bold">Rencana Mengajar</h2><p className="hidden md:block mt-1 text-sm text-slate-500">Isi rencana langsung dari jadwal pelajaran minggu ini.</p></div></div>
+      <div className="flex items-center gap-2"><NotebookPen size={21} className="text-emerald-600"/><div><h1 className="text-xl font-bold">Rencana Mengajar</h1><p className="hidden md:block mt-1 text-sm text-slate-500">Isi rencana langsung dari jadwal pelajaran minggu ini.</p></div></div>
 
       <TeachingWeekNavigator value={anchorDate} schoolDays={hariSekolah} selectedDay={Math.min(selectedDay,hariSekolah-1)} onChange={setAnchorDate} onSelectDay={setSelectedDay} holidays={holidays} desktopTabs={false}/>
       <p className="text-xs text-slate-500">Pilih hari, lalu pilih pelajaran untuk mengisi rencana.</p>
@@ -191,7 +191,7 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
           const special = !holiday && holidays.find((item) => ['kts','kpp','pengganti'].includes(item.jenis) && dateISO >= item.tanggal_mulai && dateISO <= (item.tanggal_selesai || item.tanggal_mulai))
           return (
             <section key={dateISO} className={`${dayIndex === Math.min(selectedDay,hariSekolah-1) ? 'block' : 'hidden md:block'} md:min-h-[330px] overflow-hidden rounded-2xl border ${holiday ? 'border-rose-200' : isToday ? 'border-emerald-400' : 'border-slate-200'} ${holiday ? 'bg-rose-50' : ['bg-blue-50/50','bg-emerald-50/50','bg-violet-50/50','bg-amber-50/50','bg-cyan-50/50','bg-rose-50/50'][dayIndex]}`}>
-              <header className={`border-b px-4 py-3 ${holiday ? 'bg-rose-100 text-rose-900' : isToday ? 'bg-emerald-600 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
+              <header className={`border-b px-4 py-3 ${holiday ? 'bg-rose-100 text-rose-900' : isToday ? 'bg-teal-700 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold">{HARI[dayIndex]}</span>
                   {isToday && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">HARI INI</span>}
@@ -230,7 +230,7 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
       {showForm && <Modal title={`${editing ? 'Edit' : 'Isi'} Rencana · ${mapelName(selectedJadwal, Number(form.mata_pelajaran_id))}`} onClose={closeForm} maxWidth="max-w-2xl" footer={<>
         {editing && <button disabled={busy} onClick={() => setConfirmDeleteId(editing.id)} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16} /> Hapus</button>}
         {editing && <button disabled={busy} onClick={createJournal} className="flex items-center gap-2 rounded-xl border border-emerald-200 px-4 py-2.5 text-sm font-bold text-emerald-700"><ClipboardCheck size={16} /> Buat Draft Jurnal</button>}
-        <button disabled={busy} type="submit" form="rencana-form" className="rounded-xl bg-emerald-600 px-5 py-2.5 text-sm font-bold text-white">Simpan Rencana</button>
+        <button disabled={busy} type="submit" form="rencana-form" className="rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-bold text-white">Simpan Rencana</button>
       </>}>
         <form id="rencana-form" onSubmit={savePlan}><p className="mb-3 text-xs text-slate-500">Draft jurnal menyalin tanggal, jam, materi, dan kegiatan dari rencana tersimpan. Simpan perubahan terlebih dahulu; jurnal yang sudah ada tidak ditimpa.</p>{formError && <p role="alert" className="mb-3 text-sm text-red-700">{formError}</p>}<fieldset disabled={busy} className="min-w-0 space-y-4">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">

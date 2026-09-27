@@ -104,7 +104,7 @@ export default function DataSiswa() {
     <div className="max-w-[1440px] mx-auto">
       <div className="flex items-start justify-between mb-3 sm:mb-5 flex-wrap gap-3">
         <div>
-          <div className="flex items-center gap-2 mb-1"><Users size={20} className="text-emerald-600"/><h2 className="text-xl font-extrabold text-slate-900">Data Siswa</h2></div>
+          <div className="flex items-center gap-2 mb-1"><Users size={20} className="text-emerald-600"/><h1 className="text-xl font-extrabold text-slate-900">Data Siswa</h1></div>
           <p className="text-sm text-slate-500">{kelasLabel}</p>
           <div className="flex flex-wrap gap-1.5 mt-2 text-xs font-semibold"><span className="rounded-md bg-teal-100 px-2 py-1 text-teal-800">{siswa.length} siswa</span><span className="rounded-md bg-blue-100 px-2 py-1 text-blue-800">{laki} laki-laki</span><span className="rounded-md bg-violet-100 px-2 py-1 text-violet-800">{perempuan} perempuan</span></div>
         </div>
@@ -131,7 +131,7 @@ export default function DataSiswa() {
           )}
           <button
             onClick={() => { setEditSiswa(null); setFormOpen(true) }}
-            className="action-primary min-h-11 flex items-center justify-center gap-1.5 rounded-xl px-3 lg:px-4 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 transition active:scale-[0.98]"
+            className="action-primary min-h-11 flex items-center justify-center gap-1.5 rounded-xl px-3 lg:px-4 py-2.5 text-sm font-bold text-white bg-teal-700 hover:bg-teal-800 transition active:scale-[0.98]"
           >
             <Plus size={16} /><span className="sm:hidden">Tambah</span><span className="hidden sm:inline">Tambah Siswa</span>
           </button>
@@ -229,7 +229,7 @@ export default function DataSiswa() {
             {filtered.length === 0 && !loading && (
               <tr>
                 <td colSpan={5 + fields.length} className="px-6 py-10 text-center text-sm" style={{ color: 'var(--text-light)' }}>
-                  {isFiltering ? 'Tidak ada siswa yang cocok dengan pencarian atau filter.' : <div className="py-5"><Users size={34} className="mx-auto mb-3 text-slate-300"/><div className="font-bold text-slate-700">Belum ada siswa di kelas ini</div><div className="text-xs mt-1">Tambahkan satu per satu atau impor sekaligus dari Excel.</div><div className="flex justify-center gap-2 mt-4"><button onClick={() => { setEditSiswa(null); setFormOpen(true) }} className="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-bold">Tambah Siswa</button><button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600">Impor Excel</button></div></div>}
+                  {isFiltering ? 'Tidak ada siswa yang cocok dengan pencarian atau filter.' : <div className="py-5"><Users size={34} className="mx-auto mb-3 text-slate-300"/><div className="font-bold text-slate-700">Belum ada siswa di kelas ini</div><div className="text-xs mt-1">Tambahkan satu per satu atau impor sekaligus dari Excel.</div><div className="flex justify-center gap-2 mt-4"><button onClick={() => { setEditSiswa(null); setFormOpen(true) }} className="px-3 py-2 rounded-lg bg-teal-700 text-white text-xs font-bold">Tambah Siswa</button><button onClick={() => setImportOpen(true)} className="px-3 py-2 rounded-lg border border-slate-200 text-xs font-bold text-slate-600">Impor Excel</button></div></div>}
                 </td>
               </tr>
             )}
