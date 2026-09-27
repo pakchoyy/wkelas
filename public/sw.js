@@ -47,3 +47,13 @@ self.addEventListener('fetch', (event) => {
   else if (request.mode === 'navigate') event.respondWith(networkFirst(request))
   else event.respondWith(staleWhileRevalidate(request))
 })
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const target = new URL(event.notification.data?.url || '/', self.location.origin).href
+  event.waitUntil(clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windows) => {
+    const open = windows.find((client) => new URL(client.url).origin === self.location.origin)
+    if (open) return open.focus().then(() => open.navigate(target))
+    return clients.openWindow(target)
+  }))
+})

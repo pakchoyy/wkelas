@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { AlertCircle, CalendarDays, CheckCircle2, Circle, Clock3, ListTodo, Pencil, Plus, Trash2 } from 'lucide-react'
 import { todayISO } from '../../../shared/utils'
+import ReminderToggle from '../../components/ReminderToggle'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
@@ -100,6 +101,7 @@ export default function ToDo() {
   const priorityStyle: Record<string, string> = { rendah: 'bg-slate-100 text-slate-600', normal: 'bg-blue-100 text-blue-700', tinggi: 'bg-red-100 text-red-700' }
 
   return <div className="mx-auto max-w-5xl space-y-4 pb-16">
+    <ReminderToggle/>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}{loading && <p role="status">Memuat tugas...</p>}
     {toast && <div role="status" className="fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl bg-teal-700 px-5 py-3 text-sm font-bold text-white shadow-xl">{toast}</div>}
     <div className="flex flex-wrap gap-3 items-center justify-between"><div><h1 className="text-xl font-extrabold text-slate-900">Tugas Saya</h1><p className="mt-1 text-sm text-slate-500">Pengingat pekerjaan administrasi dan kegiatan mengajar.</p></div><div className="flex flex-wrap gap-2">{data.length > 0 && <button disabled={busy || loading} onClick={() => setConfirmDeleteAllOpen(true)} className="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50"><Trash2 size={17}/>Hapus Semua</button>}<button disabled={busy || loading} onClick={openNew} className="flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17}/>Tambah Tugas</button></div></div>

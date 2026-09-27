@@ -6,6 +6,7 @@ import Sidebar from './Sidebar'
 import RunningPromo from './RunningPromo'
 import PwaInstallPrompt from './PwaInstallPrompt'
 import { useCloudAutoSync } from '../hooks/useCloudAutoSync'
+import { notifyDueTasks } from '../../lib/task-reminder'
 
 const quickLinks = [
   {to:'/',label:'Beranda',icon:LayoutDashboard},
@@ -36,6 +37,12 @@ export default function Layout() {
     return () => desktop.removeEventListener('change',closeOnDesktop)
   },[])
   const sync = useCloudAutoSync()
+  useEffect(() => {
+    const run = () => { if (document.visibilityState === 'visible') void notifyDueTasks().catch(() => {}) }
+    run()
+    document.addEventListener('visibilitychange', run)
+    return () => document.removeEventListener('visibilitychange', run)
+  }, [])
   const quickActive = quickLinks.some(link => link.to === location.pathname)
   return (
     <div className="app-layout flex h-dvh min-h-0 flex-col overflow-hidden">
