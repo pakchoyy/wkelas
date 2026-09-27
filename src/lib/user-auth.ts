@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { documentClient } from './document-client'
-import { isDemoMode } from './db'
+import { isDemoMode, setAccount } from './db'
 import { createInitialAuthGate, googleOAuthOptions } from './oauth-login'
 import { useAuthStore } from '../renderer/stores/authStore'
 
@@ -14,6 +14,7 @@ export function useUserSession(client: SupabaseClient | null) {
     let cancelled=false
     const apply=(next:Session|null) => {
       if(cancelled)return
+      setAccount(next?.user?.id || null)
       setSession(next)
       if(next?.user) useAuthStore.getState().setLogin({nama:String(next.user.user_metadata?.full_name || next.user.user_metadata?.name || next.user.email?.split('@')[0] || 'Guru'),email:next.user.email || ''})
       else if (!isDemoMode()) useAuthStore.getState().logout()
@@ -44,3 +45,4 @@ export async function signInUser(client:SupabaseClient,email:string,password:str
 export async function signUpUser(client:SupabaseClient,email:string,password:string) { const {data,error}=await client.auth.signUp({email:email.trim(),password}); if(error) throw new Error(error.message.includes('already registered')?'Email sudah terdaftar. Pilih Masuk.':'Pendaftaran belum berhasil. Periksa email dan kata sandi lalu coba lagi.'); return data.session }
 export async function signInGoogle(client:SupabaseClient) { const {error}=await client.auth.signInWithOAuth(googleOAuthOptions(window.location.origin)); if(error) throw new Error('Login Google belum aktif di Supabase. Aktifkan provider Google lalu coba lagi.') }
 export async function resetUserPassword(client:SupabaseClient,email:string) { const {error}=await client.auth.resetPasswordForEmail(email.trim(),{redirectTo:`${window.location.origin}/#/login`}); if(error) throw new Error('Email reset kata sandi belum dapat dikirim. Periksa email dan konfigurasi Supabase.') }
+export async function signOutUser(client:SupabaseClient) { await client.auth.signOut(); setAccount(null) }

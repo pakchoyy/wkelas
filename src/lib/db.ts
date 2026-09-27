@@ -1,23 +1,23 @@
 import Dexie, { type Table } from 'dexie'
 
-export interface Guru { id?: number; supabase_uid: string; nama: string; email: string; nip?: string; nama_sekolah?: string; mata_pelajaran?: string; foto_url?: string; tahun_ajaran_aktif: string; semester_aktif: number; created_at: string; updated_at: string }
+export interface Guru { id?: number; supabase_uid: string; nama: string; email: string; nip?: string | null; nama_sekolah?: string | null; mata_pelajaran?: string | null; foto_url?: string | null; tahun_ajaran_aktif: string; semester_aktif: number; created_at: string; updated_at: string }
 export interface Kelas { id?: number; nama_kelas: string; tingkat: string; tahun_ajaran: string; semester: number; is_aktif: number; guru_id: number; created_at: string; updated_at: string }
-export interface Siswa { id?: number; kelas_id: number; nama: string; nis?: string; jenis_kelamin?: string; no_absen?: number; deleted_at?: string; created_at: string; updated_at: string }
-export interface SiswaFieldDef { id?: number; kelas_id: number; nama_field: string; slug: string; tipe: string; pilihan?: string; wajib: number; urutan: number; created_at: string; updated_at: string }
-export interface SiswaFieldVal { id?: number; siswa_id: number; field_id: number; nilai?: string; updated_at: string }
-export interface Presensi { id?: number; siswa_id: number; kelas_id: number; tanggal: string; status: string; keterangan?: string; created_at: string; updated_at: string }
-export interface MataPelajaran { id?: number; kelas_id: number; nama: string; kode?: string; urutan: number; is_aktif?: number; created_at: string }
-export interface PenilaianKolom { periode?: string; id?: number; mata_pelajaran_id: number; label: string; bobot: number; tanggal?: string; urutan: number; catatan?: string; created_at: string; updated_at: string }
-export interface Nilai { id?: number; siswa_id: number; kolom_id: number; nilai?: number; catatan?: string; created_at: string; updated_at: string }
-export interface Perilaku { id?: number; siswa_id: number; tanggal: string; jenis: string; kategori?: string; deskripsi: string; tindak_lanjut?: string; created_at: string; updated_at: string }
-export interface Jadwal { id?: number; kelas_id: number; hari: number; jam_ke: number; jam_mulai: string; jam_selesai: string; mata_pelajaran_id?: number; nama_mapel_custom?: string; nama_guru?: string; ruang?: string; created_at: string; updated_at: string }
-export interface KalenderAkademik { id?: number; kelas_id?: number; tanggal_mulai: string; tanggal_selesai?: string; judul: string; jenis: string; deskripsi?: string; created_at: string }
-export interface RencanaMengajar { id?: number; kelas_id: number; mata_pelajaran_id?: number; tanggal: string; topik: string; tujuan_pembelajaran?: string; kegiatan?: string; media?: string; penilaian?: string; catatan?: string; status?: string; created_at: string; updated_at: string }
-export interface JurnalHarian { id?: number; kelas_id?: number; tanggal: string; jam_ke?: string; mata_pelajaran?: string; materi?: string; kegiatan?: string; kendala?: string; refleksi?: string; created_at: string; updated_at: string }
-export interface CatatanGuru { id?: number; judul: string; isi?: string; tag?: string; warna?: string; is_pinned: number; deleted_at?: string; created_at: string; updated_at: string }
-export interface Todo { id?: number; judul: string; deskripsi?: string; prioritas: string; status?: string; deadline?: string; completed_at?: string; deleted_at?: string; created_at: string; updated_at: string }
-export interface DokumenSaya { id?: number; judul: string; deskripsi?: string; kategori?: string; file_data?: Uint8Array; format_file?: string; ukuran_file?: number; deleted_at?: string; created_at: string; updated_at: string }
-export interface PerangkatAjarCache { id: string; judul: string; jenis: string; deskripsi?: string; mata_pelajaran?: string; jenjang?: string; kelas?: string; fase?: string; file_data?: Uint8Array; file_url: string; ukuran_file?: number; format_file?: string; versi?: string; status?: 'draft' | 'terbit'; sudah_diunduh: number; diunduh_at?: string; created_at?: string; updated_at: string }
+export interface Siswa { id?: number; kelas_id: number; nama: string; nis?: string | null; jenis_kelamin?: string | null; no_absen?: number | null; deleted_at?: string | null; created_at: string; updated_at: string }
+export interface SiswaFieldDef { id?: number; kelas_id: number; nama_field: string; slug: string; tipe: string; pilihan?: string | null; wajib: number; urutan: number; created_at: string; updated_at: string }
+export interface SiswaFieldVal { id?: number; siswa_id: number; field_id: number; nilai?: string | null; updated_at: string }
+export interface Presensi { id?: number; siswa_id: number; kelas_id: number; tanggal: string; status: string; keterangan?: string | null; created_at: string; updated_at: string }
+export interface MataPelajaran { id?: number; kelas_id: number; nama: string; kode?: string | null; urutan: number; is_aktif?: number | null; created_at: string }
+export interface PenilaianKolom { periode?: string | null; id?: number; mata_pelajaran_id: number; label: string; bobot: number; tanggal?: string | null; urutan: number; catatan?: string | null; created_at: string; updated_at: string }
+export interface Nilai { id?: number; siswa_id: number; kolom_id: number; nilai?: number | null; catatan?: string | null; created_at: string; updated_at: string }
+export interface Perilaku { id?: number; siswa_id: number; tanggal: string; jenis: string; kategori?: string | null; deskripsi: string; tindak_lanjut?: string | null; created_at: string; updated_at: string }
+export interface Jadwal { id?: number; kelas_id: number; hari: number; jam_ke: number; jam_mulai: string; jam_selesai: string; mata_pelajaran_id?: number; nama_mapel_custom?: string | null; nama_guru?: string | null; ruang?: string | null; created_at: string; updated_at: string }
+export interface KalenderAkademik { id?: number; kelas_id?: number; tanggal_mulai: string; tanggal_selesai?: string | null; judul: string; jenis: string; deskripsi?: string | null; created_at: string }
+export interface RencanaMengajar { id?: number; kelas_id: number; mata_pelajaran_id?: number; tanggal: string; topik: string; tujuan_pembelajaran?: string | null; kegiatan?: string | null; media?: string | null; penilaian?: string | null; catatan?: string | null; status?: string | null; created_at: string; updated_at: string }
+export interface JurnalHarian { id?: number; kelas_id?: number; tanggal: string; jam_ke?: string | null; mata_pelajaran?: string | null; materi?: string | null; kegiatan?: string | null; kendala?: string | null; refleksi?: string | null; created_at: string; updated_at: string }
+export interface CatatanGuru { id?: number; judul: string; isi?: string | null; tag?: string | null; warna?: string | null; is_pinned: number; deleted_at?: string | null; created_at: string; updated_at: string }
+export interface Todo { id?: number; judul: string; deskripsi?: string | null; prioritas: string; status?: string | null; deadline?: string | null; completed_at?: string | null; deleted_at?: string | null; created_at: string; updated_at: string }
+export interface DokumenSaya { id?: number; judul: string; deskripsi?: string | null; kategori?: string | null; file_data?: Uint8Array; format_file?: string | null; ukuran_file?: number | null; deleted_at?: string | null; created_at: string; updated_at: string }
+export interface PerangkatAjarCache { id: string; judul: string; jenis: string; deskripsi?: string | null; mata_pelajaran?: string | null; jenjang?: string | null; kelas?: string | null; fase?: string | null; file_data?: Uint8Array; file_url: string; ukuran_file?: number | null; format_file?: string | null; versi?: string | null; status?: 'draft' | 'terbit'; sudah_diunduh: number; diunduh_at?: string | null; created_at?: string | null; updated_at: string }
 export interface Pengaturan { key: string; value: string; updated_at: string }
 
 export class BgyDatabase extends Dexie {
@@ -70,6 +70,26 @@ export class BgyDatabase extends Dexie {
 const MAIN_DB_NAME = 'bgy-wali-kelas'
 export const DEMO_DB_NAME = 'bgy-wali-kelas-demo'
 const DEMO_MODE_KEY = 'bgy-demo-mode'
+// Akun pertama yang login di browser ini mewarisi database lama (sebelum ada akun).
+const LEGACY_OWNER_KEY = 'bgy-legacy-db-owner'
+
+let accountUid: string | null = null
+
+export function accountDbName(uid: string | null): string {
+  if (!uid) return MAIN_DB_NAME
+  try {
+    const owner = localStorage.getItem(LEGACY_OWNER_KEY)
+    if (!owner) { localStorage.setItem(LEGACY_OWNER_KEY, uid); return MAIN_DB_NAME }
+    if (owner === uid) return MAIN_DB_NAME
+  } catch {}
+  return `${MAIN_DB_NAME}-u-${uid.replace(/[^a-zA-Z0-9-]/g, '')}`
+}
+
+// Dipanggil saat sesi akun berubah agar data tiap guru terpisah di perangkat yang sama.
+export function setAccount(uid: string | null): void {
+  accountUid = uid
+  if (!demoSelected) getMainDb()
+}
 
 function savedDemoMode(): boolean {
   try { return localStorage.getItem(DEMO_MODE_KEY) === 'true' } catch { return false }
@@ -81,8 +101,9 @@ export function isDemoMode(): boolean { return demoSelected }
 let activeDb: BgyDatabase | null = null
 
 function getMainDb(): BgyDatabase {
-  if (!activeDb || activeDb.name !== MAIN_DB_NAME) {
-    activeDb = new BgyDatabase()
+  const name = accountDbName(accountUid)
+  if (!activeDb || activeDb.name !== name) {
+    activeDb = new BgyDatabase(name)
   }
   return activeDb
 }

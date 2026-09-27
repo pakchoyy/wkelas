@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { documentClient, documentClients } from './document-client'
+import { isOwnerEmail } from '../shared/cloud-access'
 
 export interface ChoyAdminUser {
   user_id: string
@@ -22,7 +23,7 @@ export function backendClients(): SupabaseClient[] {
 export async function isChoyAdmin(client: SupabaseClient): Promise<boolean> {
   const { data } = await client.auth.getUser()
   const user: User | null = data?.user || null
-  if (!user) return false
+  if (!user || !isOwnerEmail(user.email)) return false
   const { data: row } = await client.from('pak_choy_admins').select('user_id').eq('user_id', user.id).maybeSingle()
   return !!row
 }
