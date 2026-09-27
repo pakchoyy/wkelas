@@ -5,8 +5,7 @@ import { existsSync } from 'node:fs'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
-// Install with: pnpm --dir <temp>/wkelas-grade-tests add fake-indexeddb --ignore-scripts
-await import(pathToFileURL(join(process.env.GRADE_TEST_DEPS || join(tmpdir(),'wkelas-grade-tests'), 'node_modules/fake-indexeddb/auto/index.mjs')).href)
+await import('fake-indexeddb/auto')
 registerHooks({resolve(specifier,context,next) {
   if (specifier.startsWith('.') && context.parentURL?.startsWith('file:')) {
     const url = new URL(specifier,context.parentURL)
@@ -27,7 +26,7 @@ test('academic defaults follow July boundary', () => {
 })
 test('skip creates editable starter class without fake subjects or students', async t => {
  const db = await fixture(t)
- const id = await saveInitialClass(db,initialSetup(),true)
+ const id = await saveInitialClass(db,initialSetup(),'local',true)
  assert.equal((await db.kelas.get(id)).nama_kelas,'Kelas Saya')
  assert.equal(await db.mata_pelajaran.count(),0)
  assert.equal(await db.siswa.count(),0)

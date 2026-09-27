@@ -5,10 +5,10 @@ import Layout from './components/Layout'
 import OnboardingGate from './components/OnboardingGate'
 import RouteError from './components/RouteError'
 
-function lazyWithRetry<T>(importer: () => Promise<{ default: React.ComponentType<T> } | T>) {
+function lazyWithRetry(importer: () => Promise<{ default: React.ComponentType }>) {
   return lazy(async () => {
     try {
-      return (await importer()) as { default: React.ComponentType<T> }
+      return await importer()
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const isChunk = /Failed to fetch dynamically imported module|Loading chunk|ChunkLoadError/i.test(message)
@@ -18,7 +18,7 @@ function lazyWithRetry<T>(importer: () => Promise<{ default: React.ComponentType
       }
       throw error
     }
-  }) as unknown as React.LazyExoticComponent<React.ComponentType<T>>
+  })
 }
 
 const Dashboard = lazyWithRetry(() => import('./pages/dashboard/Dashboard'))

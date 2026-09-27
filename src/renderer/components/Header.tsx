@@ -42,7 +42,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
         if (cancelled || error) return
         const readIds = readAnnouncementIds()
         setAnnouncementCount((data || []).filter(item => !readIds.has(item.id)).length)
-      }).catch(() => {})
+      }, () => {})
     }
     refresh()
     window.addEventListener('storage', refresh)
