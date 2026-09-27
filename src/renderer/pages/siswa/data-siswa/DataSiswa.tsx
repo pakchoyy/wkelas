@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { Plus, Upload, Settings2, Search, Pencil, Trash2, X, Users, ChevronDown, CheckCircle2, AlertCircle } from 'lucide-react'
 import { db } from '../../../../lib/db'
 import { useSiswaList, useFieldDefs } from '../../../hooks/useSiswa'
@@ -168,7 +168,7 @@ export default function DataSiswa() {
           <details className="min-w-0 flex-1 group">
             <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
               <span className="w-5 shrink-0 text-xs text-slate-500">{student.no_absen || index + 1}</span>
-              <span className="min-w-0 flex-1"><span className="block break-words text-sm font-semibold text-slate-800">{student.nama}</span><span className="block text-xs text-slate-500">NIS {student.nis || '—'} · {student.jenis_kelamin || 'JK —'}</span></span>
+              <span className="min-w-0 flex-1"><Link to={`/siswa/profil/${student.id}`} className="block break-words text-sm font-semibold text-teal-800 underline-offset-2 hover:underline">{student.nama}</Link><span className="block text-xs text-slate-500">NIS {student.nis || '—'} · {student.jenis_kelamin || 'JK —'}</span></span>
               <ChevronDown size={15} className="shrink-0 text-slate-500 group-open:rotate-180"/>
             </summary>
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-slate-100 py-3 text-xs">
@@ -202,7 +202,7 @@ export default function DataSiswa() {
             {filtered.map((s, i) => (
               <tr key={s.id} className={`border-b border-slate-100 hover:bg-emerald-50/60 transition-colors ${i % 2 ? 'bg-slate-50/60' : 'bg-white'}`}>
                 <td className="px-5 py-3.5 font-bold text-slate-600">{i + 1}</td>
-                <td className="px-6 py-3.5 font-semibold text-slate-800">{s.nama}</td>
+                <td className="px-6 py-3.5 font-semibold"><Link to={`/siswa/profil/${s.id}`} title="Lihat profil siswa" className="text-teal-800 underline-offset-2 hover:underline">{s.nama}</Link></td>
                 <td className="px-6 py-3.5" style={{ color: 'var(--text-light)' }}>{s.nis || '-'}</td>
                 <td className="px-6 py-3.5">{s.jenis_kelamin || '-'}</td>
                 {fields.map((f) => (

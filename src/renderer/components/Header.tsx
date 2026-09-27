@@ -53,7 +53,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
   return (
     <>
       {isDemo && (
-        <div className="min-h-7 shrink-0 bg-amber-100 px-3 py-1 flex flex-wrap items-center justify-center gap-x-3 text-xs font-semibold text-amber-900">
+        <div className="demo-bar min-h-7 shrink-0 bg-amber-100 px-3 py-1 flex flex-wrap items-center justify-center gap-x-3 text-xs font-semibold text-amber-900">
           <span>Data contoh aktif</span><Link to="/" className="inline-flex min-h-8 items-center underline underline-offset-2">Kelola data contoh</Link>
         </div>
       )}

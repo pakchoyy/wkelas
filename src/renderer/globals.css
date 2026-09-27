@@ -149,7 +149,10 @@ body {
   .app-layout > div { display: block; overflow: visible; }
   .app-layout main { overflow: visible; }
   .mobile-navigation, #mobile-menu, .running-promo { display: none !important; }
+  .no-print, .app-header, .app-layout aside, .skip-link, .demo-bar { display: none !important; }
 }
+@page portrait { size: A4 portrait; margin: 12mm; }
+@media print { .print-portrait { page: portrait; } }
 /* Consistent, visible close targets across dialogs, drawers and notices. */
 button:has(> svg.lucide-x) {
   display: inline-grid;

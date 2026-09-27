@@ -25,6 +25,7 @@ const Dashboard = lazyWithRetry(() => import('./pages/dashboard/Dashboard'))
 const DataSiswa = lazyWithRetry(() => import('./pages/siswa/data-siswa/DataSiswa'))
 const Presensi = lazyWithRetry(() => import('./pages/siswa/presensi/Presensi'))
 const Penilaian = lazyWithRetry(() => import('./pages/siswa/penilaian/Penilaian'))
+const ProfilSiswa = lazyWithRetry(() => import('./pages/siswa/profil/ProfilSiswa'))
 const Perilaku = lazyWithRetry(() => import('./pages/siswa/perilaku/Perilaku'))
 const Jadwal = lazyWithRetry(() => import('./pages/aktivitas/Jadwal'))
 const MataPelajaran = lazyWithRetry(() => import('./pages/aktivitas/MataPelajaran'))
@@ -52,6 +53,7 @@ const router = createHashRouter(createRoutesFromElements(<>
         <Route element={<><NavigationGuard/><OnboardingGate><Layout /></OnboardingGate></>} errorElement={<RouteError/>}>
           <Route path="/" element={page(<Dashboard />)} />
           <Route path="/siswa/data-siswa" element={page(<DataSiswa />)} />
+          <Route path="/siswa/profil/:id" element={page(<ProfilSiswa />)} />
           <Route path="/siswa/presensi" element={page(<Presensi />)} />
           <Route path="/siswa/penilaian" element={page(<Penilaian />)} />
           <Route path="/siswa/perilaku" element={page(<Perilaku />)} />
