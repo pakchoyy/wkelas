@@ -64,6 +64,10 @@ export class BgyDatabase extends Dexie {
       perangkat_ajar_cache: 'id',
       pengaturan: '&key',
     })
+    // Slug kolom tambahan cukup unik per kelas agar tiap kelas bisa punya kolom yang sama.
+    this.version(2).stores({
+      siswa_field_definitions: '++id, kelas_id, slug, &[kelas_id+slug]',
+    })
   }
 }
 
