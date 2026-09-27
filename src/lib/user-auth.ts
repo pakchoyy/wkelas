@@ -16,7 +16,7 @@ export function useUserSession(client: SupabaseClient | null) {
       if(cancelled)return
       setAccount(next?.user?.id || null)
       setSession(next)
-      if(next?.user) useAuthStore.getState().setLogin({nama:String(next.user.user_metadata?.full_name || next.user.user_metadata?.name || next.user.email?.split('@')[0] || 'Guru'),email:next.user.email || ''})
+      if(next?.user) useAuthStore.getState().setLogin({nama:String(next.user.user_metadata?.full_name || next.user.user_metadata?.name || next.user.email?.split('@')[0] || 'Guru'),email:next.user.email || '',id:next.user.id})
       else if (!isDemoMode()) useAuthStore.getState().logout()
       setChecking(false)
     }

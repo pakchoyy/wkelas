@@ -6,6 +6,7 @@ import { AlertCircle, BookOpen, CheckCircle, Database, Download, Image as ImageI
 import { db } from '../../../lib/db'
 import { documentClient } from '../../../lib/document-client'
 import { useAppStore } from '../../stores/appStore'
+import CloudSyncCard from '../../components/CloudSyncCard'
 import { useUnsavedChanges } from '../../hooks/useUnsavedChanges'
 
 type Tab = 'profil' | 'kelas' | 'personalisasi' | 'backup'
@@ -141,6 +142,7 @@ function Backup() {
       <button disabled={busy} onClick={() => run('restore')} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left text-slate-700 disabled:opacity-50"><Upload size={20}/><span><strong className="block">Pulihkan Data</strong><small>Dari file .bgy</small></span></button>
     </div>
     {busy && <p role="status" className="text-sm text-slate-500">Memproses…</p>}
+    <CloudSyncCard/>
     {msg && <div role={msg.ok ? 'status' : 'alert'} className={`flex items-center gap-2 rounded-xl p-3 text-sm font-semibold ${msg.ok?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-700'}`}>{msg.ok ? <CheckCircle size={17}/> : <AlertCircle size={17}/>} {msg.text}</div>}
   </div>
 }

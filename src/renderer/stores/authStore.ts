@@ -7,10 +7,10 @@ type AuthMode = 'login' | 'demo' | null
 
 interface AuthState {
   mode: AuthMode
-  user: { nama: string; email: string } | null
+  user: { nama: string; email: string; id?: string } | null
   isLicensed: boolean
   plan: AccountPlan
-  setLogin: (user: { nama: string; email: string }) => void
+  setLogin: (user: { nama: string; email: string; id?: string }) => void
   setDemo: () => void
   logout: () => void
   setLicensed: (v: boolean) => void
