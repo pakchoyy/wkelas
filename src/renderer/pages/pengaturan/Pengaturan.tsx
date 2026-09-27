@@ -7,6 +7,7 @@ import { db } from '../../../lib/db'
 import { documentClient } from '../../../lib/document-client'
 import { useAppStore } from '../../stores/appStore'
 import CloudSyncCard from '../../components/CloudSyncCard'
+import Modal from '../../components/Modal'
 import ProfileThresholdSettings from '../../components/ProfileThresholdSettings'
 import ClassManager from '../../components/ClassManager'
 import ThemePicker from '../../components/ThemePicker'
@@ -120,18 +121,26 @@ function Backup() {
     try { setHistory(readBackupHistory(localStorage.getItem(BACKUP_HISTORY_KEY))) } catch { setHistory(null) }
   }
   useEffect(() => { checkHistory() }, [])
+  const [protect, setProtect] = useState(false)
+  const [pw, setPw] = useState({ a: '', b: '' })
+  const [ask, setAsk] = useState<{ value: string; resolve: (v: string | null) => void } | null>(null)
+  const askPassword = () => new Promise<string | null>(resolve => setAsk({ value: '', resolve }))
   const run = async (action: 'create' | 'restore') => {
     if (lock.current) return
+    if (action === 'create' && protect) {
+      if (pw.a.length < 8) { setMsg({ok:false,text:'Kata sandi cadangan minimal 8 karakter.'}); return }
+      if (pw.a !== pw.b) { setMsg({ok:false,text:'Ulangi kata sandi belum sama.'}); return }
+    }
     lock.current = true
     setBusy(true)
     setMsg(null)
     try {
-      const result = await window.electronAPI.backup[action]()
+      const result = action === 'create' ? await window.electronAPI.backup.create(protect ? pw.a : undefined) : await window.electronAPI.backup.restore(askPassword)
       if (!result.success) {
         setMsg({ok:false,text:result.error || 'Pemilihan file dibatalkan. Data tidak diubah.'})
         return
       }
-      if (action === 'create') { setMsg({ok:true,text:`Cadangan tersimpan: ${result.path}.`}); checkHistory() }
+      if (action === 'create') { setMsg({ok:true,text:`Cadangan tersimpan: ${result.path}.${protect ? ' File dilindungi kata sandi — simpan kata sandinya, tanpa itu file tidak bisa dibuka.' : ''}`}); checkHistory() }
       else {
         setMsg({ok:true,text:'Data berhasil dipulihkan. Aplikasi akan dimuat ulang.'})
         setTimeout(() => window.location.reload(), 1300)
@@ -147,7 +156,20 @@ function Backup() {
       <button disabled={busy} onClick={() => run('create')} className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-left text-emerald-800 disabled:opacity-50"><Download size={20}/><span><strong className="block">Buat Cadangan</strong><small>Simpan ke file .bgy</small></span></button>
       <button disabled={busy} onClick={() => run('restore')} className="flex items-center gap-3 rounded-xl border border-slate-200 p-4 text-left text-slate-700 disabled:opacity-50"><Upload size={20}/><span><strong className="block">Pulihkan Data</strong><small>Dari file .bgy</small></span></button>
     </div>
+    <div className="rounded-xl border border-slate-200 p-3">
+      <label className="flex min-h-10 items-center gap-2 text-sm font-bold text-slate-700"><input type="checkbox" checked={protect} onChange={e => setProtect(e.target.checked)} className="size-4 accent-teal-700"/>Lindungi cadangan dengan kata sandi</label>
+      <p className="text-xs text-slate-500">File berisi data siswa. Dengan kata sandi, isi file tidak bisa dibaca orang lain bila file tersebar.</p>
+      {protect && <div className="mt-3 grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-bold">Kata sandi<input type="password" autoComplete="new-password" value={pw.a} onChange={e => setPw({ ...pw, a: e.target.value })} className="field mt-1.5" placeholder="Minimal 8 karakter"/></label>
+        <label className="text-sm font-bold">Ulangi kata sandi<input type="password" autoComplete="new-password" value={pw.b} onChange={e => setPw({ ...pw, b: e.target.value })} className="field mt-1.5"/></label>
+      </div>}
+    </div>
     {busy && <p role="status" className="text-sm text-slate-500">Memproses…</p>}
+    {ask && <Modal title="Buka cadangan terlindungi" onClose={() => { ask.resolve(null); setAsk(null) }} footer={<button type="submit" form="backup-pw-form" className="min-h-11 w-full rounded-xl bg-teal-700 px-4 font-bold text-white">Buka file</button>}>
+      <form id="backup-pw-form" onSubmit={e => { e.preventDefault(); ask.resolve(ask.value); setAsk(null) }}>
+        <label className="block text-sm font-bold">Kata sandi cadangan<input type="password" autoFocus value={ask.value} onChange={e => setAsk({ ...ask, value: e.target.value })} className="field mt-1.5"/></label>
+      </form>
+    </Modal>}
     <CloudSyncCard/>
     {msg && <div role={msg.ok ? 'status' : 'alert'} className={`flex items-center gap-2 rounded-xl p-3 text-sm font-semibold ${msg.ok?'bg-emerald-50 text-emerald-700':'bg-red-50 text-red-700'}`}>{msg.ok ? <CheckCircle size={17}/> : <AlertCircle size={17}/>} {msg.text}</div>}
   </div>
