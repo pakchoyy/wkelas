@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { CloudDownload, CloudUpload, Cloud, Lock } from 'lucide-react'
 import { documentClient } from '../../lib/document-client'
@@ -11,7 +12,7 @@ export default function CloudSyncCard() {
   const client = documentClient()
   const uid = mode === 'login' ? user?.id || null : null
   if (!client || !uid) return null
-  if (plan !== 'pro') return <section className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"><Lock size={20} className="shrink-0 text-slate-500"/><div><h4 className="font-bold text-slate-800">Sinkron Cloud · Khusus Pro</h4><p className="mt-1">Data otomatis tersalin ke cloud dan bisa dibuka di HP maupun laptop. Tersedia saat paket Pro dibuka.</p></div></section>
+  if (plan !== 'pro') return <section className="flex items-start gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"><Lock size={20} className="shrink-0 text-slate-500"/><div><h4 className="font-bold text-slate-800">Sinkron Cloud · Khusus Pro</h4><p className="mt-1">Data otomatis tersalin ke cloud dan bisa dibuka di HP maupun laptop. Aktifkan Pro untuk memakainya. <Link to="/aktivasi" className="font-bold text-teal-700 underline underline-offset-2">Aktivasi Pro</Link></p></div></section>
   return <ProSync client={client} uid={uid}/>
 }
 

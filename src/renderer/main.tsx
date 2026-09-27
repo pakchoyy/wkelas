@@ -5,10 +5,12 @@ import './globals.css'
 import './theme-dark.css'
 import { initTheme } from './theme'
 import { initInstallCapture } from './pwa-install'
+import { capturePendingActivation } from '../lib/pro-license'
 import webAPI from '../lib/web-api'
 
 initTheme()
 initInstallCapture()
+capturePendingActivation()
 
 if (!window.electronAPI) {
   window.electronAPI = webAPI as any

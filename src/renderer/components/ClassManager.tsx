@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import { ArrowUpRight, Check, Lock, Plus } from 'lucide-react'
 import Modal from './Modal'
@@ -61,7 +62,7 @@ export default function ClassManager() {
     {pro ? <div className="flex flex-wrap gap-2">
       <button type="button" onClick={() => open('tambah')} className="flex min-h-11 items-center gap-2 rounded-xl border border-teal-300 bg-white px-4 text-sm font-bold text-teal-800 hover:bg-teal-50"><Plus size={16}/>Tambah Kelas</button>
       <button type="button" onClick={() => open('naik')} className="flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white hover:bg-teal-800"><ArrowUpRight size={16}/>Naik Kelas</button>
-    </div> : <p className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600"><Lock size={16} className="mt-0.5 shrink-0"/>Tambah kelas dan naik kelas tersedia untuk akun Pro. Kelas yang sudah ada tetap bisa dibuka.</p>}
+    </div> : <p className="flex items-start gap-2 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600"><Lock size={16} className="mt-0.5 shrink-0"/>Tambah kelas dan naik kelas tersedia untuk akun Pro. Kelas yang sudah ada tetap bisa dibuka. <Link to="/aktivasi" className="font-bold text-teal-700 underline underline-offset-2">Aktivasi Pro</Link></p>}
     {msg && <p role="status" className="rounded-lg bg-emerald-50 p-2.5 text-sm font-semibold text-emerald-800">{msg}</p>}
 
     {mode && <Modal title={mode === 'naik' ? `Naik kelas dari ${active?.nama_kelas}` : 'Tambah kelas'} onClose={() => { if (!busy) setMode(null) }}

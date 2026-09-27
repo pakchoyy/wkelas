@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="theme-color" content="#0d7a8a" />
+    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
+    <title>Aktivasi Pro · BGY Wali Kelas</title>
+  </head>
+  <body>
+    <main class="card">
+      <img src="/icons/icon-192.png" alt="" class="logo" />
+      <h1>Aktivasi Pro Wali Kelas</h1>
+      <p class="muted">Terima kasih sudah membeli! Masukkan email yang kamu pakai saat pembelian untuk mendapatkan kode aktivasi.</p>
+      <form id="form">
+        <label>Email pembelian<input id="email" type="email" required autocomplete="email" placeholder="guru@sekolah.sch.id" /></label>
+        <button id="submit" type="submit">Dapatkan Kode</button>
+      </form>
+      <p id="error" class="error" role="alert" hidden></p>
+      <section id="result" hidden>
+        <p class="muted">Kode aktivasi kamu:</p>
+        <div class="code-row"><code id="code"></code><button id="copy" type="button" class="secondary">Salin</button></div>
+        <a id="open" class="primary">Buka aplikasi &amp; aktifkan</a>
+        <ol class="steps">
+          <li>Ketuk tombol di atas, lalu masuk ke akun Wali Kelas.</li>
+          <li>Di halaman <strong>Aktivasi Pro</strong>, email dan kode sudah terisi. Ketuk <strong>Aktifkan Pro</strong>.</li>
+          <li>Pro aktif 6 bulan (satu semester) sejak aktivasi.</li>
+        </ol>
+        <p class="muted small">Simpan kode ini. Kode yang sama dipakai bila kamu ganti HP.</p>
+      </section>
+      <a class="wa" href="https://wa.me/6289530713597" target="_blank" rel="noreferrer">Kendala? Hubungi admin lewat WhatsApp</a>
+    </main>
+    <script type="module" src="/src/aktivasi/main.ts"></script>
+  </body>
+</html>
