@@ -11,13 +11,19 @@ $$;
 revoke all on function public.is_pak_choy_admin() from public;
 grant execute on function public.is_pak_choy_admin() to anon, authenticated;
 
--- 2. Pengguna hanya boleh menulis kolom identitas profil, bukan role.
-revoke insert, update on public.profiles from authenticated;
-grant insert (id, email, full_name, avatar_url) on public.profiles to authenticated;
-grant update (id, email, full_name, avatar_url, updated_at) on public.profiles to authenticated;
-drop policy if exists "profile_update_own" on public.profiles;
-create policy "profile_update_own" on public.profiles for update to authenticated
-  using (auth.uid() = id) with check (auth.uid() = id);
+-- 2. Pengguna tidak boleh mengubah kolom hak akses profilnya sendiri.
+-- Tabel profiles dipakai bersama aplikasi lain, jadi kolom dibaca dinamis.
+do $$
+declare cols text;
+begin
+  select string_agg(quote_ident(column_name), ', ') into cols
+  from information_schema.columns
+  where table_schema = 'public' and table_name = 'profiles'
+    and column_name not in ('role', 'is_admin', 'plan', 'created_at');
+  execute 'revoke insert, update on public.profiles from authenticated';
+  execute format('grant insert (%s) on public.profiles to authenticated', cols);
+  execute format('grant update (%s) on public.profiles to authenticated', cols);
+end $$;
 
 -- 3. Masukan: pengguna tidak bisa mengatur status sendiri; admin hanya mengubah status.
 revoke insert, update on public.feedback from authenticated;
