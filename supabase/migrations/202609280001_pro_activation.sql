@@ -31,7 +31,7 @@ $$;
 
 -- Aktif bila is_pro dan (bukan paket berjangka atau active_until masih di depan).
 create or replace function public.bgy_row_active(r public.bgy_users) returns boolean
-language sql immutable set search_path = '' as $$
+language sql stable set search_path = '' as $$
   select r.is_pro and (r.plan_type not in ('annual', 'semester') or r.active_until > now());
 $$;
 
