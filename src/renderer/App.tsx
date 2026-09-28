@@ -42,6 +42,7 @@ const InfoPembaruan = lazyWithRetry(() => import('./pages/info/InfoPembaruan'))
 const Tentang = lazyWithRetry(() => import('./pages/info/Tentang'))
 const MulaiDiSini = lazyWithRetry(() => import('./pages/panduan/MulaiDiSini'))
 const AdminFilePakChoy = lazyWithRetry(() => import('./pages/admin/AdminFilePakChoy'))
+const AktivasiPro = lazyWithRetry(() => import('./pages/AktivasiPro'))
 const Login = lazyWithRetry(() => import('./pages/Login'))
 
 const page = (content: React.ReactNode) => <Suspense fallback={<p role="status" className="p-6 text-sm text-slate-500">Memuat halaman…</p>}>{content}</Suspense>
@@ -70,6 +71,7 @@ const router = createHashRouter(createRoutesFromElements(<>
           <Route path="/produk" element={page(<ProdukBGY />)} />
           <Route path="/pembaruan" element={page(<InfoPembaruan />)} />
           <Route path="/tentang" element={page(<Tentang />)} />
+          <Route path="/aktivasi" element={page(<AktivasiPro />)} />
           <Route path="/mulai" element={page(<MulaiDiSini />)} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

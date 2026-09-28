@@ -5,6 +5,7 @@ import { saveSchedule } from './schedule-storage'
 import { ensureGradePeriods, listPeriodColumns, subjectPeriod } from './grade-periods'
 import { db } from './db'
 import { createBackupText, restoreBackupText } from './backup'
+import { decryptBackup, encryptBackup, isEncryptedBackup } from './backup-crypto'
 import { BACKUP_HISTORY_KEY, backupFingerprint } from './backup-history'
 import { deleteAllActiveStudents } from './student-delete'
 import { deleteAllJournalsForClass } from './journal-storage'
@@ -356,9 +357,9 @@ const electronAPI: ElectronAPI = {
     },
   },
   backup: {
-    create: async () => {
+    create: async (password?: string) => {
       const text = await createBackupText(db)
-      const blob = new Blob([text], { type: 'application/json' })
+      const blob = new Blob([password ? await encryptBackup(text, password) : text], { type: 'application/json' })
       const url = URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -373,7 +374,7 @@ const electronAPI: ElectronAPI = {
       } catch { /* Download was initiated even if browser metadata is unavailable. */ }
       return { success: true, path: a.download }
     },
-    restore: async () => {
+    restore: async (askPassword?: () => Promise<string | null>) => {
       return new Promise<any>((resolve) => {
         const input = document.createElement('input')
         input.type = 'file'
@@ -383,7 +384,12 @@ const electronAPI: ElectronAPI = {
           const file = input.files?.[0]
           if (!file) { resolve({ success: false }); return }
           try {
-            const text = await file.text()
+            let text = await file.text()
+            if (isEncryptedBackup(text)) {
+              const password = askPassword ? await askPassword() : null
+              if (!password) { resolve({ success: false, error: 'File ini dilindungi kata sandi. Pemulihan dibatalkan; data tidak diubah.' }); return }
+              text = await decryptBackup(text, password)
+            }
             const restored = await restoreBackupText(db, text, (tables) => window.confirm(
               `Cadangan berisi ${tables.kelas.length} kelas, ${tables.siswa.length} siswa, ${tables.nilai.length} nilai, ${tables.presensi.length} catatan presensi, ${tables.jurnal_harian.length} jurnal, dan ${tables.dokumen_saya.length} dokumen.\n\nSeluruh kelas, identitas sekolah/guru, siswa, nilai semua semester, presensi, perilaku, mapel, jadwal, rencana, jurnal, tugas, dokumen, serta pengaturan pada browser ini akan DIGANTI, bukan digabung.\n\nUnduh cadangan data saat ini terlebih dahulu jika masih diperlukan. Lanjutkan pemulihan?`
             ))

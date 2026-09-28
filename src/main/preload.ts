@@ -91,8 +91,8 @@ export interface ElectronAPI {
     openFile: (filters?: any[]) => Promise<any>
   }
   backup: {
-    create: () => Promise<any>
-    restore: () => Promise<any>
+    create: (password?: string) => Promise<any>
+    restore: (askPassword?: () => Promise<string | null>) => Promise<any>
   }
   platform: string
 }

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { ClipboardCheck, ClipboardList, LayoutDashboard, Menu, X } from 'lucide-react'
 import Header from './Header'
 import Sidebar from './Sidebar'
@@ -7,6 +7,7 @@ import RunningPromo from './RunningPromo'
 import PwaInstallPrompt from './PwaInstallPrompt'
 import { useCloudAutoSync } from '../hooks/useCloudAutoSync'
 import { notifyDueTasks } from '../../lib/task-reminder'
+import { hasPendingActivation } from '../../lib/pro-license'
 
 const quickLinks = [
   {to:'/',label:'Beranda',icon:LayoutDashboard},
@@ -36,6 +37,9 @@ export default function Layout() {
     desktop.addEventListener('change',closeOnDesktop)
     return () => desktop.removeEventListener('change',closeOnDesktop)
   },[])
+  const navigate = useNavigate()
+  // Link aktivasi dari halaman pembelian dibuka sebelum login: lanjutkan setelah masuk.
+  useEffect(() => { if (location.pathname !== '/aktivasi' && hasPendingActivation()) navigate('/aktivasi', { replace: true }) }, [location.pathname, navigate])
   const sync = useCloudAutoSync()
   useEffect(() => {
     const run = () => { if (document.visibilityState === 'visible') void notifyDueTasks().catch(() => {}) }

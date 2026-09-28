@@ -1,5 +1,5 @@
 // Service worker BGY Wali Kelas. Data aplikasi tetap di IndexedDB perangkat.
-const CACHE = 'bgy-walikelas-v3'
+const CACHE = 'bgy-walikelas-v4'
 const NAV_TIMEOUT = 3000
 
 self.addEventListener('install', (event) => {
@@ -44,7 +44,9 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
   if (url.origin !== self.location.origin) return
   if (url.pathname.startsWith('/assets/')) event.respondWith(cacheFirst(request))
-  else if (request.mode === 'navigate') event.respondWith(networkFirst(request))
+  // Hanya halaman aplikasi yang disimpan sebagai '/'; halaman lain (mis. aktivasi) tidak.
+  else if (request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/index.html')) event.respondWith(networkFirst(request))
+  else if (request.mode === 'navigate') return
   else event.respondWith(staleWhileRevalidate(request))
 })
 

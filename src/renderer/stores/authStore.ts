@@ -10,6 +10,8 @@ interface AuthState {
   user: { nama: string; email: string; id?: string } | null
   isLicensed: boolean
   plan: AccountPlan
+  proUntil: string | null
+  setPlan: (plan: AccountPlan, proUntil: string | null) => void
   setLogin: (user: { nama: string; email: string; id?: string }) => void
   setDemo: () => void
   logout: () => void
@@ -22,8 +24,10 @@ export const useAuthStore = create<AuthState>((set) => ({
   user: isDemoMode() ? { nama: 'Data Contoh', email: 'demo@bgy.app' } : null,
   isLicensed: true,
   plan: 'free',
+  proUntil: null,
+  setPlan: (plan, proUntil) => set({ plan, proUntil }),
   setLogin: (user) => set({ mode: 'login', user, isLicensed: true, plan: planForEmail(user.email) }),
   setDemo: () => set({ mode: 'demo', user: { nama: 'Data Contoh', email: 'demo@bgy.app' }, isLicensed: true, plan: 'free' }),
-  logout: () => set({ mode: null, user: null, isLicensed: false, plan: 'free' }),
+  logout: () => set({ mode: null, user: null, isLicensed: false, plan: 'free', proUntil: null }),
   setLicensed: (v) => set({ isLicensed: v }),
 }))
