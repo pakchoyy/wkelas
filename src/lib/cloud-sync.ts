@@ -84,16 +84,32 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return decision
   try {
     const state = readSyncState(uid)
-    // Adopsi perangkat baru: sync belum pernah aktif + lokal masih kosong + cloud ada isi
-    // → ambil otomatis agar refresh/buka langsung sinkron tanpa tekan apa pun.
-    // Bila lokal sudah ada isi, jangan tebak: pilih manual lewat kartu (takut menimpa).
+    // Adopsi perangkat baru: sync belum pernah aktif + cloud ada isi.
+    // - Lokal masih kosong → ambil otomatis agar refresh/buka langsung sinkron.
+    // - Lokal sudah ada isi → jangan tebak (takut menimpa): bila sidik jari beda,
+    //   kembalikan 'remote-newer' agar banner meminta putusan manual.
     if (!state.enabled && !state.lastSyncAt) {
       if (decision !== 'disabled') return decision
-      const remoteAt = await remoteSnapshotAt(client, uid)
-      if (!remoteAt) return decision
-      if (await db.kelas.count() > 0) return decision
-      const ok = await pullSnapshot(client, uid, () => true)
-      return ok ? 'unchanged' : decision
+      let meta: { updated_at?: string; fingerprint?: string } | null = null
+      try {
+        const res = await client.from(TABLE).select('updated_at,fingerprint').eq('user_id', uid).maybeSingle()
+        if (res.error) throw res.error
+        meta = res.data as typeof meta
+      } catch {
+        return decision
+      }
+      if (!meta?.updated_at) return decision
+      if ((await db.kelas.count()) === 0) {
+        const ok = await pullSnapshot(client, uid, () => true)
+        return ok ? 'unchanged' : decision
+      }
+      try {
+        const fingerprint = await backupFingerprint(await createBackupText(db))
+        if (fingerprint && meta.fingerprint && fingerprint !== meta.fingerprint) return 'remote-newer'
+      } catch {
+        /* abaikan: tanpa pembanding, tetap diam */
+      }
+      return decision
     }
     if (decision !== 'remote-newer') return decision
     const fingerprint = await backupFingerprint(await createBackupText(db))
