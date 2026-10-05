@@ -2,10 +2,11 @@ import {useUnsavedChanges} from '../../hooks/useUnsavedChanges'
 import { compareJournalRows, journalReportBody, journalWordHtml } from '../../../shared/journal-report'
 import { saveJournalField } from '../../../lib/journal-storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CalendarDays, ClipboardList, FileOutput, FileSpreadsheet, FileText, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
+import { CalendarDays, ClipboardList, Copy, FileOutput, FileSpreadsheet, FileText, Pencil, Plus, Printer, Trash2 } from 'lucide-react'
 import { useAppStore } from '../../stores/appStore'
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
+import { newRoutineId, readRoutineAgenda, saveRoutineAgenda, WEEKDAY_NAMES, type RoutineItem, type RoutineMap } from '../../../lib/routine-agenda'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
 import { teachingSlots } from '../../../shared/teaching-flow'
@@ -49,9 +50,17 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
   const [showExport, setShowExport] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [confirmDeleteAll, setConfirmDeleteAll] = useState(false)
+  const [agenda, setAgenda] = useState<RoutineMap>({})
+  const [showAgendaForm, setShowAgendaForm] = useState(false)
+  const [editingAgenda, setEditingAgenda] = useState<RoutineItem | null>(null)
+  const [agendaDay, setAgendaDay] = useState(1)
+  const [agendaForm, setAgendaForm] = useState({ mata_pelajaran: '', materi: '', kegiatan: '' })
+  const [agendaFormError, setAgendaFormError] = useState('')
+  const [confirmAgendaDelete, setConfirmAgendaDelete] = useState<{ day: number; item: RoutineItem } | null>(null)
+  const [applyingAgenda, setApplyingAgenda] = useState(false)
   useUnsavedChanges(Object.keys(drafts).length > 0,pending > 0 || saving)
 
-  const load = async () => { await cleanWrongMaulid(db, kelasId).catch(() => []); const [journals,schedules,subjects,calendar,attendance,scheduleConfig]=await Promise.all([window.electronAPI.jurnal.list(kelasId),window.electronAPI.jadwal.list(kelasId),window.electronAPI.mapel.list(kelasId),window.electronAPI.kalender.list(kelasId),db.pengaturan.get(`presensi_${kelasId}`),db.pengaturan.get(`jadwal_${kelasId}`)]); setData(journals); setSchoolDays(attendance && JSON.parse(attendance.value).hariSekolah === 6 ? 6 : 5); setJadwal(teachingSlots(schedules, attendance ? JSON.parse(attendance.value).hariSekolah : 5, scheduleConfig ? JSON.parse(scheduleConfig.value) : {})); setMapel(subjects); setHolidays(calendar) }
+  const load = async () => { await cleanWrongMaulid(db, kelasId).catch(() => []); const [journals,schedules,subjects,calendar,attendance,scheduleConfig,agendaMap]=await Promise.all([window.electronAPI.jurnal.list(kelasId),window.electronAPI.jadwal.list(kelasId),window.electronAPI.mapel.list(kelasId),window.electronAPI.kalender.list(kelasId),db.pengaturan.get(`presensi_${kelasId}`),db.pengaturan.get(`jadwal_${kelasId}`),readRoutineAgenda(kelasId)]); setData(journals); setAgenda(agendaMap); setSchoolDays(attendance && JSON.parse(attendance.value).hariSekolah === 6 ? 6 : 5); setJadwal(teachingSlots(schedules, attendance ? JSON.parse(attendance.value).hariSekolah : 5, scheduleConfig ? JSON.parse(scheduleConfig.value) : {})); setMapel(subjects); setHolidays(calendar) }
   useEffect(() => {
     load().catch(() => setQuickError('Jurnal gagal dimuat. Muat ulang halaman.'))
     db.kelas.get(kelasId).then(async (kelas) => {
@@ -68,11 +77,60 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
   const isHoliday=(date:string)=>holidays.some((item)=>['libur_nasional','libur_sekolah'].includes(item.jenis)&&date>=item.tanggal_mulai&&date<=(item.tanggal_selesai||item.tanggal_mulai))
   const weeklyRows=jadwal.flatMap((slot)=>{ const tanggal=iso(shift(weekStart,slot.hari-1)); if(isHoliday(tanggal)) return []; const subject=slot.nama_mapel_custom||mapel.find((item)=>item.id===slot.mata_pelajaran_id)?.nama||'Pelajaran'; const journal=data.find((item)=>item.tanggal===tanggal&&String(item.jam_ke)===String(slot.jam_ke)); return [{slot,tanggal,subject,journal}] }).sort((a,b)=>a.tanggal.localeCompare(b.tanggal)||a.slot.jam_ke-b.slot.jam_ke)
   const selectedDate=iso(shift(weekStart,Math.min(selectedDay,schoolDays-1)))
+  const selectedWeekday=new Date(`${selectedDate}T12:00:00`).getDay() || 7
+  const dayAgenda=selectedWeekday>=1&&selectedWeekday<=6 ? agenda[String(selectedWeekday)] || [] : []
   const selectedStatus=schoolDayStatus(selectedDate,schoolDays,holidays)
   const selectedSpecial=selectedStatus.active?holidays.find((item)=>['kts','kpp','pengganti'].includes(item.jenis)&&selectedDate>=item.tanggal_mulai&&selectedDate<=(item.tanggal_selesai||item.tanggal_mulai)):null
   const dayRows=weeklyRows.filter(row=>row.tanggal===selectedDate)
   const openNew = () => { setFormError(''); setEditId(null); setForm({ ...blank(), tanggal: month === todayISO().slice(0, 7) ? todayISO() : `${month}-01` }); setShowForm(true) }
   const openEdit = (item: any) => { setFormError(''); setEditId(item.id); setForm({ tanggal: item.tanggal || todayISO(), jam_ke: item.jam_ke || '', mata_pelajaran: item.mata_pelajaran || '', materi: item.materi || '', kegiatan: item.kegiatan || '', kendala: item.kendala || '', refleksi: item.refleksi || '' }); setShowForm(true) }
+  const persistAgenda = async (next: RoutineMap) => { setAgenda(next); await saveRoutineAgenda(kelasId, next) }
+  const openAgendaNew = (day: number) => { setAgendaFormError(''); setEditingAgenda(null); setAgendaDay(Math.min(Math.max(day, 1), 6)); setAgendaForm({ mata_pelajaran: '', materi: '', kegiatan: '' }); setShowAgendaForm(true) }
+  const openAgendaEdit = (day: number, item: RoutineItem) => { setAgendaFormError(''); setEditingAgenda(item); setAgendaDay(day); setAgendaForm({ mata_pelajaran: item.mata_pelajaran, materi: item.materi, kegiatan: item.kegiatan }); setShowAgendaForm(true) }
+  const saveAgenda = async (event: React.FormEvent) => {
+    event.preventDefault()
+    const mapel = agendaForm.mata_pelajaran.trim()
+    if (!mapel) { setAgendaFormError('Isi mata pelajaran dulu.'); return }
+    const item: RoutineItem = { id: editingAgenda?.id || newRoutineId(), mata_pelajaran: mapel, materi: agendaForm.materi.trim(), kegiatan: agendaForm.kegiatan.trim() }
+    const next: RoutineMap = { ...agenda }
+    const list = [...(next[String(agendaDay)] || [])]
+    const at = editingAgenda ? list.findIndex((i) => i.id === editingAgenda.id) : -1
+    if (at >= 0) list[at] = item; else list.push(item)
+    next[String(agendaDay)] = list
+    try { await persistAgenda(next); setShowAgendaForm(false); setToast({ text: editingAgenda ? 'Agenda rutin diperbarui' : 'Agenda rutin ditambahkan' }) }
+    catch { setAgendaFormError('Agenda gagal disimpan. Coba lagi.') }
+  }
+  const duplicateAgenda = async (day: number, item: RoutineItem) => {
+    const next: RoutineMap = { ...agenda, [String(day)]: [...(agenda[String(day)] || [])] }
+    next[String(day)].splice(next[String(day)].findIndex((i) => i.id === item.id) + 1, 0, { ...item, id: newRoutineId() })
+    await persistAgenda(next).catch(() => setToast({ text: 'Duplikat agenda gagal. Coba lagi.', error: true }))
+  }
+  const removeAgenda = async () => {
+    if (!confirmAgendaDelete) return
+    const { day, item } = confirmAgendaDelete
+    const next: RoutineMap = { ...agenda, [String(day)]: (agenda[String(day)] || []).filter((i) => i.id !== item.id) }
+    if (!next[String(day)].length) delete next[String(day)]
+    setConfirmAgendaDelete(null)
+    try { await persistAgenda(next); setToast({ text: 'Agenda rutin dihapus' }) }
+    catch { setToast({ text: 'Agenda gagal dihapus. Coba lagi.', error: true }) }
+  }
+  const applyAgenda = async () => {
+    if (applyingAgenda || !dayAgenda.length) return
+    setApplyingAgenda(true)
+    try {
+      let added = 0
+      for (const item of dayAgenda) {
+        const exists = data.some((j) => j.tanggal === selectedDate && String(j.mata_pelajaran || '').trim().toLowerCase() === item.mata_pelajaran.trim().toLowerCase())
+        if (exists) continue
+        await window.electronAPI.jurnal.save({ kelas_id: kelasId, tanggal: selectedDate, jam_ke: '', mata_pelajaran: item.mata_pelajaran, materi: item.materi, kegiatan: item.kegiatan, kendala: '', refleksi: '' })
+        added++
+      }
+      await load()
+      setToast({ text: added ? `${added} agenda diterapkan ke ${WEEKDAY_NAMES[selectedWeekday - 1]}` : 'Semua agenda hari ini sudah ada di jurnal.' })
+    } catch {
+      setToast({ text: 'Terapkan agenda gagal. Coba lagi.', error: true })
+    } finally { setApplyingAgenda(false) }
+  }
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -154,10 +212,28 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
     {quickError && <div role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{quickError} Isian yang gagal tetap tersedia; fokuskan kembali kolom lalu keluar untuk mencoba lagi.<button onClick={() => setQuickError('')} className="ml-2 min-h-11 underline">Tutup pesan</button></div>}
 
     {toast && <div className={`fixed left-1/2 top-20 w-[calc(100%_-_2rem)] max-w-md z-[100] -translate-x-1/2 rounded-xl px-5 py-3 text-sm font-bold text-white shadow-xl ${toast.error ? 'bg-red-600' : 'bg-teal-700'}`}>{toast.text}</div>}
-    <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><ClipboardList size={21} className="text-emerald-600"/><div><h2 className="text-xl font-extrabold text-slate-900">Jurnal Harian Mengajar</h2><p className="mt-1 text-sm text-slate-500">Pilih hari, lalu isi jurnal sesuai pelajaran.</p></div></div><div className="flex flex-wrap gap-2">{data.length > 0 && <button onClick={() => setConfirmDeleteAll(true)} disabled={pending > 0 || Object.keys(drafts).length > 0} className="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 disabled:opacity-40"><Trash2 size={17}/>Hapus Semua</button>}<div className="relative"><button onClick={() => setShowExport((open) => !open)} disabled={!rows.length || pending > 0 || Object.keys(drafts).length > 0} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 disabled:opacity-40"><FileOutput size={17}/>Ekspor</button>{showExport && <div className="absolute left-0 sm:left-auto sm:right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl"><button onClick={() => { exportExcel(); setShowExport(false) }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-emerald-50"><FileSpreadsheet size={16} className="text-emerald-600"/>Excel (.xlsx)</button><button onClick={exportWord} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-blue-50"><FileText size={16} className="text-blue-600"/>Word (.doc)</button><button onClick={exportPdf} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-red-50"><Printer size={16} className="text-red-600"/>PDF (Cetak)</button></div>}</div><button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17}/>Tambah Jurnal</button></div></div>
+    <div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-2"><ClipboardList size={21} className="text-emerald-600"/><div><h2 className="text-xl font-extrabold text-slate-900">Jurnal Harian Mengajar</h2><p className="mt-1 text-sm text-slate-500">Pilih hari, lalu isi jurnal sesuai pelajaran.</p></div></div><div className="flex flex-wrap gap-2">{data.length > 0 && <button onClick={() => setConfirmDeleteAll(true)} disabled={pending > 0 || Object.keys(drafts).length > 0} className="flex items-center gap-2 rounded-xl border border-red-200 bg-white px-4 py-2.5 text-sm font-bold text-red-700 disabled:opacity-40"><Trash2 size={17}/>Hapus Semua</button>}<div className="relative"><button onClick={() => setShowExport((open) => !open)} disabled={!rows.length || pending > 0 || Object.keys(drafts).length > 0} className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-2.5 text-sm font-bold text-emerald-700 disabled:opacity-40"><FileOutput size={17}/>Ekspor</button>{showExport && <div className="absolute left-0 sm:left-auto sm:right-0 top-full z-30 mt-2 w-48 overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-xl"><button onClick={() => { exportExcel(); setShowExport(false) }} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-emerald-50"><FileSpreadsheet size={16} className="text-emerald-600"/>Excel (.xlsx)</button><button onClick={exportWord} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-blue-50"><FileText size={16} className="text-blue-600"/>Word (.doc)</button><button onClick={exportPdf} className="flex w-full items-center gap-2 rounded-lg px-3 py-2.5 text-left text-sm font-semibold hover:bg-red-50"><Printer size={16} className="text-red-600"/>PDF (Cetak)</button></div>}</div><button onClick={() => openAgendaNew(selectedWeekday)} className="flex items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 py-2.5 text-sm font-bold text-teal-700"><Plus size={17}/>Agenda Rutin</button><button onClick={openNew} className="flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2.5 text-sm font-bold text-white"><Plus size={17}/>Tambah Jurnal</button></div></div>
 
     <section className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><strong className="text-slate-800">{identity.sekolah}</strong><span className="text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun}</span><span className="lg:ml-auto text-slate-500">Wali Kelas: <strong className="text-slate-700">{identity.guru}</strong></span></section>
     <TeachingWeekNavigator value={weekAnchor} schoolDays={schoolDays} selectedDay={Math.min(selectedDay,schoolDays-1)} onChange={setWeekAnchor} onSelectDay={setSelectedDay} holidays={holidays}/>
+    {selectedWeekday >= 1 && selectedWeekday <= 6 && <section aria-label={`Agenda rutin ${WEEKDAY_NAMES[selectedWeekday - 1]}`} className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div><h3 className="text-sm font-extrabold text-slate-900">Agenda rutin · {WEEKDAY_NAMES[selectedWeekday - 1]}</h3>
+        <p className="mt-0.5 text-xs text-slate-500">{dayAgenda.length ? 'Template mingguan untuk hari ini.' : 'Belum ada template. Tambahkan agenda yang berulang tiap pekan.'}</p></div>
+        <div className="flex flex-wrap gap-2">
+          {dayAgenda.length > 0 && <button disabled={applyingAgenda} onClick={() => void applyAgenda()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50"><ClipboardList size={16}/>{applyingAgenda ? 'Menerapkan…' : 'Terapkan ke hari ini'}</button>}
+          <button onClick={() => openAgendaNew(selectedWeekday)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 text-sm font-bold text-teal-700 hover:bg-teal-50"><Plus size={16}/>Agenda</button>
+        </div>
+      </div>
+      {dayAgenda.length > 0 && <ul className="mt-3 space-y-2">{dayAgenda.map((item) => <li key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
+        <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-800">{item.mata_pelajaran}</p>{(item.materi || item.kegiatan) && <p className="mt-0.5 truncate text-xs text-slate-500">{[item.materi, item.kegiatan].filter(Boolean).join(' · ')}</p>}</div>
+        <div className="flex shrink-0 gap-1">
+          <button aria-label={`Edit ${item.mata_pelajaran}`} onClick={() => openAgendaEdit(selectedWeekday, item)} className="grid size-11 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-emerald-700"><Pencil size={16}/></button>
+          <button aria-label={`Duplikat ${item.mata_pelajaran}`} onClick={() => void duplicateAgenda(selectedWeekday, item)} className="grid size-11 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-teal-700"><Copy size={16}/></button>
+          <button aria-label={`Hapus ${item.mata_pelajaran}`} onClick={() => setConfirmAgendaDelete({ day: selectedWeekday, item })} className="grid size-11 place-items-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={16}/></button>
+        </div>
+      </li>)}</ul>}
+    </section>}
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="Isian jurnal harian">
       <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 ${selectedStatus.active ? 'border-slate-200 bg-slate-50' : 'border-rose-200 bg-rose-100 text-rose-900'}`}>
         <h3 className="text-sm font-bold">{dateLabel(selectedDate)}{selectedSpecial && <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{background:selectedSpecial.jenis==='kts'?'#16a34a':selectedSpecial.jenis==='kpp'?'#ca8a04':'#4f46e5'}}>{selectedSpecial.judul}</span>}</h3>
@@ -190,6 +266,8 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
 
     <ConfirmDialog open={confirmDelete} title="Hapus jurnal?" message="Jurnal terpilih akan dihapus permanen." onCancel={() => setConfirmDelete(false)} onConfirm={remove} />
     <ConfirmDialog open={confirmDeleteAll} title="Hapus semua jurnal?" message={`Hapus semua ${data.length} jurnal harian di kelas aktif? Tindakan ini permanen dan akan mengosongkan laporan jurnal.`} confirmText="Hapus Semua" onCancel={() => setConfirmDeleteAll(false)} onConfirm={removeAll} />
+    <ConfirmDialog open={!!confirmAgendaDelete} title="Hapus agenda rutin?" message={`Hapus "${confirmAgendaDelete?.item.mata_pelajaran}" dari agenda ${confirmAgendaDelete ? WEEKDAY_NAMES[confirmAgendaDelete.day - 1] : ''}? Jurnal yang sudah dibuat tidak ikut terhapus.`} onCancel={() => setConfirmAgendaDelete(null)} onConfirm={removeAgenda} />
+    {showAgendaForm && <Modal title={editingAgenda ? 'Edit Agenda Rutin' : 'Tambah Agenda Rutin'} onClose={() => setShowAgendaForm(false)} footer={<button type="submit" form="agenda-form" className="rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-bold text-white">{editingAgenda ? 'Simpan Perubahan' : 'Simpan Agenda'}</button>}><form id="agenda-form" onSubmit={saveAgenda}>{agendaFormError && <p role="alert" className="mb-3 text-sm text-red-700">{agendaFormError}</p>}<fieldset className="min-w-0 space-y-4"><label className="block text-xs font-bold text-slate-600">Hari berulang<select value={agendaDay} onChange={(e) => setAgendaDay(Number(e.target.value))} className="field mt-1.5">{WEEKDAY_NAMES.slice(0, schoolDays).map((name, i) => <option key={name} value={i + 1}>{name}</option>)}</select></label><label className="block text-xs font-bold text-slate-600">Mata pelajaran / kegiatan<input required value={agendaForm.mata_pelajaran} onChange={(e) => setAgendaForm({ ...agendaForm, mata_pelajaran: e.target.value })} placeholder="Contoh: LKPD Pancasila" className="field mt-1.5"/></label><label className="block text-xs font-bold text-slate-600">Materi<input value={agendaForm.materi} onChange={(e) => setAgendaForm({ ...agendaForm, materi: e.target.value })} className="field mt-1.5"/></label><label className="block text-xs font-bold text-slate-600">Kegiatan<textarea value={agendaForm.kegiatan} onChange={(e) => setAgendaForm({ ...agendaForm, kegiatan: e.target.value })} rows={3} className="field mt-1.5"/></label></fieldset></form></Modal>}
     {showForm && <Modal title={editId ? 'Edit Jurnal Harian' : 'Tambah Jurnal Harian'} onClose={() => { if (!saveLock.current) setShowForm(false) }} maxWidth="max-w-2xl" footer={<>{editId && <button type="button" disabled={saving} onClick={() => setConfirmDelete(true)} className="mr-auto flex items-center gap-2 rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600"><Trash2 size={16}/>Hapus</button>}<button type="submit" disabled={saving} form="journal-form" className="rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-bold text-white">{saving ? 'Menyimpan...' : 'Simpan Jurnal'}</button></>}><form id="journal-form" onSubmit={save}>{formError && <p role="alert" className="mb-3 text-sm text-red-700">{formError}</p>}<fieldset disabled={saving} className="min-w-0 space-y-4"><div className="grid grid-cols-1 gap-3 sm:grid-cols-3"><label className="text-xs font-bold text-slate-600">Tanggal<input required type="date" value={form.tanggal} onChange={(e) => setForm({ ...form, tanggal: e.target.value })} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-600">Jam ke<input value={form.jam_ke} onChange={(e) => setForm({ ...form, jam_ke: e.target.value })} placeholder="1–2" className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-600">Mata pelajaran<input required value={form.mata_pelajaran} onChange={(e) => setForm({ ...form, mata_pelajaran: e.target.value })} className="field mt-1.5"/></label></div><label className="block text-xs font-bold text-slate-600">Materi<input required value={form.materi} onChange={(e) => setForm({ ...form, materi: e.target.value })} className="field mt-1.5"/></label><label className="block text-xs font-bold text-slate-600">Kegiatan pembelajaran<textarea value={form.kegiatan} onChange={(e) => setForm({ ...form, kegiatan: e.target.value })} rows={3} className="field mt-1.5" placeholder="Pembukaan, inti, dan penutup"/></label><div className="grid grid-cols-1 gap-3 sm:grid-cols-2"><label className="text-xs font-bold text-slate-600">Kendala <span className="font-normal text-slate-400">(opsional)</span><textarea value={form.kendala} onChange={(e) => setForm({ ...form, kendala: e.target.value })} rows={2} className="field mt-1.5"/></label><label className="text-xs font-bold text-slate-600">Refleksi <span className="font-normal text-slate-400">(opsional)</span><textarea value={form.refleksi} onChange={(e) => setForm({ ...form, refleksi: e.target.value })} rows={2} className="field mt-1.5"/></label></div></fieldset></form></Modal>}
   </div>
 }

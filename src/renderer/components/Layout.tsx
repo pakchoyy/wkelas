@@ -1,20 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { ClipboardCheck, ClipboardList, LayoutDashboard, Menu, X } from 'lucide-react'
+import { LayoutDashboard, Menu, X } from 'lucide-react'
 import Header from './Header'
 import Sidebar from './Sidebar'
 import RunningPromo from './RunningPromo'
 import PwaInstallPrompt from './PwaInstallPrompt'
 import { useCloudAutoSync } from '../hooks/useCloudAutoSync'
 import { useUnreadAnnouncements } from '../hooks/useUnreadAnnouncements'
+import { resolveQuickNavOptions, type QuickNavOption } from './quick-nav-options'
+import { readQuickNav } from '../../lib/quick-nav'
 import { notifyDueTasks } from '../../lib/task-reminder'
 import { hasPendingActivation } from '../../lib/pro-license'
 
-const quickLinks = [
-  {to:'/',label:'Beranda',icon:LayoutDashboard},
-  {to:'/siswa/presensi',label:'Presensi',icon:ClipboardCheck},
-  {to:'/aktivitas/jurnal',label:'Jurnal',icon:ClipboardList},
-]
+const HOME_LINK = { to: '/', label: 'Beranda', icon: LayoutDashboard }
 
 export default function Layout() {
   const [menuOpen,setMenuOpen] = useState(false)
@@ -57,6 +55,16 @@ export default function Layout() {
     document.addEventListener('visibilitychange', run)
     return () => document.removeEventListener('visibilitychange', run)
   }, [])
+  // Beranda + Menu dikunci; 3 slot tengah bebas dipilih di Pengaturan > Personalisasi.
+  const [customNav, setCustomNav] = useState<QuickNavOption[]>(() => resolveQuickNavOptions(null))
+  useEffect(() => {
+    let cancelled = false
+    const load = () => { void readQuickNav().then((paths) => { if (!cancelled) setCustomNav(resolveQuickNavOptions(paths)) }).catch(() => {}) }
+    load()
+    window.addEventListener('bgy-quick-nav', load)
+    return () => { cancelled = true; window.removeEventListener('bgy-quick-nav', load) }
+  }, [])
+  const quickLinks = [HOME_LINK, ...customNav]
   const quickActive = quickLinks.some(link => link.to === location.pathname)
   return (
     <div className="app-layout flex h-dvh min-h-0 flex-col overflow-hidden">
@@ -71,7 +79,7 @@ export default function Layout() {
         </main>
       </div>
       <RunningPromo/>
-      <nav aria-label="Navigasi cepat" className="mobile-navigation grid shrink-0 grid-cols-4 border-t border-slate-200 bg-white lg:hidden" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
+      <nav aria-label="Navigasi cepat" className="mobile-navigation grid shrink-0 grid-cols-5 border-t border-slate-200 bg-white lg:hidden" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
         {quickLinks.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/'} className={({isActive}) => `flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Icon size={19}/>{label}</NavLink>)}
         <button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="mobile-menu" className={`flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${!quickActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Menu size={19}/>Menu</button>
       </nav>
