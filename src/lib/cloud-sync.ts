@@ -37,11 +37,23 @@ function tableError(error: unknown, fallback: string): Error {
   return new Error(fallback)
 }
 
-export async function remoteSnapshotAt(client: SupabaseClient, uid: string): Promise<string | null> {
-  const { data, error } = await client.from(TABLE).select('updated_at').eq('user_id', uid).maybeSingle()
+export interface CloudMeta { updated_at: string; fingerprint: string }
+
+export async function cloudMeta(client: SupabaseClient, uid: string): Promise<CloudMeta | null> {
+  const { data, error } = await client.from(TABLE).select('updated_at,fingerprint').eq('user_id', uid).maybeSingle()
   if (error) throw tableError(error, 'Status cloud belum bisa dibaca. Periksa koneksi atau status Pro.')
-  const at = (data as { updated_at?: string } | null)?.updated_at
-  return at ? String(at) : null
+  const row = data as { updated_at?: string; fingerprint?: string } | null
+  if (!row?.updated_at) return null
+  return { updated_at: String(row.updated_at), fingerprint: String(row.fingerprint || '') }
+}
+
+export async function remoteSnapshotAt(client: SupabaseClient, uid: string): Promise<string | null> {
+  const meta = await cloudMeta(client, uid)
+  return meta ? meta.updated_at : null
+}
+
+export async function localFingerprint(): Promise<string> {
+  return backupFingerprint(await createBackupText(db))
 }
 
 export async function pushSnapshot(client: SupabaseClient, uid: string): Promise<SyncState> {

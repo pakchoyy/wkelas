@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { CloudDownload, CloudUpload, Cloud, Lock } from 'lucide-react'
 import { documentClient } from '../../lib/document-client'
-import { disableSync, pullSnapshot, pushSnapshot, readSyncState, remoteSnapshotAt, type SyncState } from '../../lib/cloud-sync'
+import { cloudMeta, disableSync, localFingerprint, pullSnapshot, pushSnapshot, readSyncState, type SyncState } from '../../lib/cloud-sync'
 import { useAuthStore } from '../stores/authStore'
 
 const when = (value: string) => value ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'belum pernah'
@@ -20,10 +20,24 @@ function ProSync({ client, uid }: { client: NonNullable<ReturnType<typeof docume
   const [state, setState] = useState<SyncState>(() => readSyncState(uid))
   const [remoteAt, setRemoteAt] = useState<string | null | undefined>(undefined)
   const [remoteError, setRemoteError] = useState('')
+  const [sameAsCloud, setSameAsCloud] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const lock = useRef(false)
-  const refresh = () => { setState(readSyncState(uid)); setRemoteError(''); remoteSnapshotAt(client, uid).then(setRemoteAt, (e) => { setRemoteAt(null); setRemoteError(e instanceof Error ? e.message : 'Gagal memeriksa cloud.') }) }
+  const refresh = () => {
+    setState(readSyncState(uid)); setRemoteError(''); setSameAsCloud(null)
+    void (async () => {
+      try {
+        const meta = await cloudMeta(client, uid)
+        setRemoteAt(meta ? meta.updated_at : null)
+        if (!meta) return
+        try {
+          const local = await localFingerprint()
+          setSameAsCloud(!!local && !!meta.fingerprint && local === meta.fingerprint)
+        } catch { /* fingerprint lokal gagal: status samar, bukan error */ }
+      } catch (e) { setRemoteAt(null); setRemoteError(e instanceof Error ? e.message : 'Gagal memeriksa cloud.') }
+    })()
+  }
   useEffect(() => {
     refresh()
     window.addEventListener('bgy-sync-state', refresh)
@@ -54,6 +68,8 @@ function ProSync({ client, uid }: { client: NonNullable<ReturnType<typeof docume
     <div className="flex items-start gap-3"><Cloud size={20} className="mt-0.5 shrink-0 text-teal-700"/><div className="min-w-0"><h4 className="font-bold text-slate-900">Sinkron Cloud <span className="ml-1 rounded-full bg-teal-700 px-2 py-0.5 text-[11px] font-bold text-white">PRO</span></h4>
       <p className="mt-1 text-sm text-slate-600">{state.enabled ? 'Aktif di perangkat ini. Perubahan dikirim otomatis; data baru dari perangkat lain diambil otomatis saat aplikasi dibuka bila tidak ada editan tertunda.' : remoteAt ? 'Cloud sudah berisi data. Ambil dulu di perangkat ini agar sinkron aktif tanpa menimpa data.' : 'Kirim data perangkat ini ke cloud untuk mengaktifkan sinkron.'}</p>
       <p className="mt-1 text-xs text-slate-500">Terakhir sinkron: {when(state.lastSyncAt)} · Data cloud: {remoteAt === undefined ? 'memeriksa…' : when(remoteAt || '')}</p>
+      {remoteAt && sameAsCloud === true && <p role="status" className="mt-1 text-xs font-semibold text-emerald-700">Data perangkat ini sama dengan cloud.</p>}
+      {remoteAt && sameAsCloud === false && <p role="status" className="mt-1 text-xs font-semibold text-amber-700">Data cloud BERBEDA dengan perangkat ini — kirim atau ambil untuk menyamakan.</p>}
       {remoteError && !busy && <p role="alert" className="mt-1 text-xs font-semibold text-red-700">{remoteError}</p>}</div></div>
     {remoteNewer && <p role="status" className="rounded-lg border border-sky-200 bg-sky-50 p-2.5 text-sm text-sky-900">Ada data lebih baru dari perangkat lain. Pilih <strong>Ambil dari cloud</strong> untuk memakainya, atau <strong>Kirim ke cloud</strong> untuk menimpanya dengan data perangkat ini.</p>}
     <div className="grid gap-2 sm:grid-cols-2">
