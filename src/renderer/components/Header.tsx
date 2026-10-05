@@ -1,4 +1,4 @@
-import { Bell, Moon, Sun, User } from 'lucide-react'
+import { Bell, Cloud, CloudOff, Moon, Sun, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { liveQuery } from 'dexie'
@@ -6,10 +6,26 @@ import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
 import { useAuthStore } from '../stores/authStore'
 import { readTheme, setTheme as saveThemePref } from '../theme'
+import { readSyncState, type AutoDecision, type SyncState } from '../../lib/cloud-sync'
 import ClassSwitcher from './ClassSwitcher'
 
-export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean; announcementCount: number}) {
-  const { announcementCount } = _props
+function useSyncSummary(decision: AutoDecision | null) {
+  const { mode, plan, user } = useAuthStore()
+  const uid = mode === 'login' ? user?.id || null : null
+  const [state, setState] = useState<SyncState | null>(() => (uid ? readSyncState(uid) : null))
+  useEffect(() => {
+    setState(uid ? readSyncState(uid) : null)
+    const refresh = () => setState(uid ? readSyncState(uid) : null)
+    window.addEventListener('bgy-sync-state', refresh)
+    return () => window.removeEventListener('bgy-sync-state', refresh)
+  }, [uid])
+  if (!uid || plan !== 'pro') return null
+  return { state, decision }
+}
+
+export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean; announcementCount: number; syncDecision: AutoDecision | null}) {
+  const { announcementCount, syncDecision } = _props
+  const sync = useSyncSummary(syncDecision)
   const { mode } = useAuthStore()
   const isDemo = mode === 'demo'
   const kelasId = useAppStore(s => s.kelasAktifId) || 1
@@ -55,6 +71,12 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
 
         <div className="flex shrink-0 items-center gap-1">
         <ClassSwitcher/>
+        {sync && (() => {
+          const last = (() => { try { return sync.state?.lastSyncAt ? new Date(sync.state.lastSyncAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'belum pernah' } catch { return 'belum pernah' } })()
+          if (sync.decision === 'remote-newer') return <Link to="/pengaturan" state={{ tab: 'backup' }} aria-label="Ada data lebih baru di cloud, tinjau sinkron" title="Ada data lebih baru di cloud — ketuk untuk meninjau" className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Cloud size={18}/><span aria-hidden="true" className="absolute right-2 top-2 size-2.5 rounded-full bg-amber-300 ring-2 ring-teal-800"/></Link>
+          if (sync.state?.enabled) return <Link to="/pengaturan" state={{ tab: 'backup' }} aria-label={`Sinkron aktif, terakhir ${last}`} title={`Sinkron cloud aktif · terakhir: ${last}`} className="grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Cloud size={18}/></Link>
+          return <Link to="/pengaturan" state={{ tab: 'backup' }} aria-label="Sinkron cloud belum aktif" title="Sinkron cloud belum aktif — ketuk untuk mengaktifkan" className="grid size-11 shrink-0 place-items-center rounded-xl text-white/70 hover:bg-white/15"><CloudOff size={18}/></Link>
+        })()}
         <button onClick={() => { const next = !dark; saveThemePref(next ? 'dark' : 'light'); setDark(next) }} aria-label={dark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'} aria-pressed={dark} title={dark ? 'Mode terang' : 'Mode gelap'} className="grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15">{dark ? <Sun size={18}/> : <Moon size={18}/>}</button>
         <Link to="/pembaruan" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute -right-0.5 top-1 grid min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 py-0.5 text-[10px] font-black leading-none text-teal-950 ring-2 ring-teal-800">{announcementCount>9?'9+':announcementCount}</span>}</Link>
         <Link to="/pengaturan" aria-label={`Buka profil ${nama}`} title={nama} className="flex min-h-11 max-w-[42vw] shrink-0 items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">

@@ -61,7 +61,7 @@ export default function Layout() {
   return (
     <div className="app-layout flex h-dvh min-h-0 flex-col overflow-hidden">
       <a href="#main-content" className="skip-link" onClick={event => { event.preventDefault(); main.current?.focus(); main.current?.scrollTo({top:0}); }}>Lewati ke konten utama</a>
-      <Header onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} announcementCount={unread ?? 0}/>
+      <Header onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} announcementCount={unread ?? 0} syncDecision={sync}/>
       {unread !== null && unread > 0 && !installGrace ? null : <PwaInstallPrompt/>}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden w-64 shrink-0 lg:flex"><Sidebar/></div>
