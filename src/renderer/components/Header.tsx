@@ -1,4 +1,4 @@
-import { Bell, Menu, User } from 'lucide-react'
+import { Bell, Moon, Sun, User } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { liveQuery } from 'dexie'
@@ -6,6 +6,7 @@ import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
 import { useAuthStore } from '../stores/authStore'
 import { documentClient } from '../../lib/document-client'
+import { readTheme, setTheme as saveThemePref } from '../theme'
 import ClassSwitcher from './ClassSwitcher'
 
 const ANNOUNCEMENT_READ_KEY = 'bgy-announcements-read'
@@ -20,12 +21,22 @@ function readAnnouncementIds() {
   }
 }
 
-export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; menuOpen:boolean}) {
+export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean}) {
   const { mode } = useAuthStore()
   const isDemo = mode === 'demo'
   const kelasId = useAppStore(s => s.kelasAktifId) || 1
   const [nama, setNama] = useState('Profil')
   const [announcementCount, setAnnouncementCount] = useState(0)
+  const isDark = () => {
+    const pref = readTheme()
+    return pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  }
+  const [dark, setDark] = useState(isDark)
+  useEffect(() => {
+    const onStorage = () => setDark(isDark())
+    window.addEventListener('storage', onStorage)
+    return () => window.removeEventListener('storage', onStorage)
+  }, [])
   useEffect(() => {
     const subscription = liveQuery(async () => {
       const kelas = await db.kelas.get(kelasId)
@@ -66,7 +77,6 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
         }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <button onClick={onOpenMenu} aria-label="Buka menu" aria-expanded={menuOpen} aria-controls="mobile-menu" className="grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15 lg:hidden"><Menu size={22}/></button>
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white shadow-sm"><img src="/icons/logo-bgy.webp" alt="" className="size-7 rounded-full object-contain" /></span>
           <span className="truncate text-white font-extrabold" style={{ fontSize: '0.95rem' }}>
             BGY Wali Kelas
@@ -75,6 +85,7 @@ export default function Header({onOpenMenu, menuOpen}: {onOpenMenu: () => void; 
 
         <div className="flex shrink-0 items-center gap-1">
         <ClassSwitcher/>
+        <button onClick={() => { const next = !dark; saveThemePref(next ? 'dark' : 'light'); setDark(next) }} aria-label={dark ? 'Ganti ke mode terang' : 'Ganti ke mode gelap'} aria-pressed={dark} title={dark ? 'Mode terang' : 'Mode gelap'} className="grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15">{dark ? <Sun size={18}/> : <Moon size={18}/>}</button>
         <Link to="/pembaruan" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute -right-0.5 top-1 grid min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 py-0.5 text-[10px] font-black leading-none text-teal-950 ring-2 ring-teal-800">{announcementCount>9?'9+':announcementCount}</span>}</Link>
         <Link to="/pengaturan" aria-label={`Buka profil ${nama}`} title={nama} className="flex min-h-11 max-w-[42vw] shrink-0 items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">
           <span className="hidden truncate text-sm font-semibold sm:block">{nama}</span>
