@@ -75,6 +75,24 @@ export function disableSync(uid: string) {
   writeSyncState(uid, { ...readSyncState(uid), enabled: false })
 }
 
+// Sinkron saat aplikasi dibuka/diforeground: dorong dulu seperti biasa;
+// bila cloud lebih baru DAN tidak ada editan lokal tertunda, tarik diam-diam
+// (tanpa reload — daftar liveQuery ikut terbarui sendiri).
+// Bila ada editan lokal, jangan timpa: kembalikan 'remote-newer' agar banner bicara.
+export async function bootSync(client: SupabaseClient, uid: string): Promise<AutoDecision> {
+  const decision = await autoSync(client, uid)
+  if (decision !== 'remote-newer') return decision
+  try {
+    const state = readSyncState(uid)
+    const fingerprint = await backupFingerprint(await createBackupText(db))
+    if (fingerprint !== state.lastFingerprint) return decision
+    const ok = await pullSnapshot(client, uid, () => true)
+    return ok ? 'unchanged' : decision
+  } catch {
+    return decision
+  }
+}
+
 // Tidak ada perubahan lokal = tidak ada query cloud, kecuali sudah lama tidak cek
 // (agar banner "data lebih baru" tetap muncul maksimal 15 menit kemudian).
 const IDLE_CHECK_INTERVAL = 15 * 60 * 1000
