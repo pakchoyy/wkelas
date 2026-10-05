@@ -15,6 +15,7 @@ export function useCloudAutoSync(): AutoDecision | null {
     let lastRun = 0
     const run = async (force = false) => {
       if (running || (!force && Date.now() - lastRun < MIN_INTERVAL)) return
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) return
       running = true
       try { setLast(await autoSync(client, uid)) } catch { /* coba lagi pada kesempatan berikutnya */ }
       finally { running = false; lastRun = Date.now() }

@@ -70,6 +70,8 @@ export function disableSync(uid: string) {
 }
 
 export async function autoSync(client: SupabaseClient, uid: string): Promise<AutoDecision> {
+  // Hemat kuota: offline = tidak ada query sama sekali, bahkan tidak merakit backup lokal.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'disabled'
   const state = readSyncState(uid)
   if (!state.enabled) return 'disabled'
   const text = await createBackupText(db)
