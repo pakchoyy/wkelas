@@ -6,9 +6,14 @@ let deferred: InstallPromptEvent | null = null
 const listeners = new Set<() => void>()
 const notify = () => listeners.forEach(fn => fn())
 
+export function clearInstalledFlag(): void {
+  try { localStorage.removeItem(INSTALLED_FLAG) } catch {}
+}
 export function initInstallCapture() {
-  window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); deferred = event as InstallPromptEvent; notify() })
-  window.addEventListener('appinstalled', () => { deferred = null; try { localStorage.setItem('bgy-pwa-installed-v2', '1') } catch {} notify() })
+  // Sinyal ini hanya dikirim browser bila aplikasi BELUM terpasang,
+  // jadi sekalian hapus penanda basi (mis. pengguna sudah uninstall tapi data situs masih ada).
+  window.addEventListener('beforeinstallprompt', (event) => { event.preventDefault(); deferred = event as InstallPromptEvent; clearInstalledFlag(); notify() })
+  window.addEventListener('appinstalled', () => { deferred = null; try { localStorage.setItem(INSTALLED_FLAG, '1') } catch {} notify() })
 }
 export const installPrompt = () => deferred
 export function clearInstallPrompt() { deferred = null; notify() }
@@ -20,6 +25,8 @@ export function installPlatform(): 'android' | 'ios' | 'desktop' {
   return /Android/i.test(ua) ? 'android' : 'desktop'
 }
 
+// Penanda "sudah install" hanya untuk meredam popup otomatis, BUKAN bukti terpasang
+// (uninstall tidak menghapus data situs). Bukti terpasang = mode standalone.
 // Versi 2: penanda lama ikut terpasang saat guru hanya membuat shortcut, jadi diabaikan.
 export const INSTALLED_FLAG = 'bgy-pwa-installed-v2'
 export function isStandalone(): boolean {
