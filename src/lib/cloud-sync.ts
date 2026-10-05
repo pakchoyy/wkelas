@@ -3,8 +3,9 @@ import { db } from './db'
 import { createBackupText, restoreBackupText, type BackupTables } from './backup'
 import { backupFingerprint } from './backup-history'
 
-export const SYNC_BUCKET = 'user-sync'
-const FILE = 'latest.json.gz'
+// Satu baris per user di public.user_data (migrasi 202609290001).
+// Payload = JSON yang sama dengan file cadangan, jadi restore/pulihkan dipakai ulang.
+const TABLE = 'user_data'
 
 export type SyncState = { enabled: boolean; lastFingerprint: string; lastSyncAt: string; remoteAt: string }
 export type AutoDecision = 'disabled' | 'remote-newer' | 'unchanged' | 'push'
@@ -28,25 +29,22 @@ export function decideAutoSync(state: SyncState, localFingerprint: string, remot
   return 'push'
 }
 
-async function gzip(text: string): Promise<Blob> {
-  const stream = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'))
-  return new Response(stream, { headers: { 'content-type': 'application/gzip' } }).blob()
-}
-async function gunzip(blob: Blob): Promise<string> {
-  return new Response(blob.stream().pipeThrough(new DecompressionStream('gzip'))).text()
-}
-
 export async function remoteSnapshotAt(client: SupabaseClient, uid: string): Promise<string | null> {
-  const { data, error } = await client.storage.from(SYNC_BUCKET).list(uid, { limit: 10 })
+  const { data, error } = await client.from(TABLE).select('updated_at').eq('user_id', uid).maybeSingle()
   if (error) throw new Error('Status cloud belum bisa dibaca. Periksa koneksi atau status Pro.')
-  const file = (data || []).find(item => item.name === FILE)
-  return file ? String(file.updated_at || file.created_at || '') || null : null
+  const at = (data as { updated_at?: string } | null)?.updated_at
+  return at ? String(at) : null
 }
 
 export async function pushSnapshot(client: SupabaseClient, uid: string): Promise<SyncState> {
   const text = await createBackupText(db)
   const fingerprint = await backupFingerprint(text)
-  const { error } = await client.storage.from(SYNC_BUCKET).upload(`${uid}/${FILE}`, await gzip(text), { upsert: true, contentType: 'application/gzip', cacheControl: '0' })
+  let payload: unknown
+  try { payload = JSON.parse(text) } catch { throw new Error('Data lokal rusak sehingga tidak bisa dikirim. Buat cadangan file dulu.') }
+  const { error } = await client.from(TABLE).upsert(
+    { user_id: uid, data: payload, fingerprint, updated_at: new Date().toISOString() },
+    { onConflict: 'user_id' },
+  )
   if (error) throw new Error('Data belum terkirim ke cloud. Periksa koneksi lalu coba lagi.')
   const state = { enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt: await remoteSnapshotAt(client, uid) || '' }
   writeSyncState(uid, state)
@@ -56,9 +54,9 @@ export async function pushSnapshot(client: SupabaseClient, uid: string): Promise
 export async function pullSnapshot(client: SupabaseClient, uid: string, confirm: (tables: BackupTables) => boolean | Promise<boolean>): Promise<boolean> {
   const remoteAt = await remoteSnapshotAt(client, uid)
   if (!remoteAt) throw new Error('Belum ada data di cloud untuk akun ini.')
-  const { data, error } = await client.storage.from(SYNC_BUCKET).download(`${uid}/${FILE}`)
-  if (error || !data) throw new Error('Data cloud gagal diunduh. Periksa koneksi lalu coba lagi.')
-  const text = await gunzip(data)
+  const { data, error } = await client.from(TABLE).select('data').eq('user_id', uid).maybeSingle()
+  if (error || !(data as { data?: unknown } | null)?.data) throw new Error('Data cloud gagal diunduh. Periksa koneksi lalu coba lagi.')
+  const text = JSON.stringify((data as { data: unknown }).data)
   const restored = await restoreBackupText(db, text, confirm)
   if (!restored) return false
   writeSyncState(uid, { enabled: true, lastFingerprint: await backupFingerprint(text), lastSyncAt: new Date().toISOString(), remoteAt })
