@@ -19,3 +19,22 @@ export function installPlatform(): 'android' | 'ios' | 'desktop' {
   if (/iPhone|iPad|iPod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)) return 'ios'
   return /Android/i.test(ua) ? 'android' : 'desktop'
 }
+
+// Versi 2: penanda lama ikut terpasang saat guru hanya membuat shortcut, jadi diabaikan.
+export const INSTALLED_FLAG = 'bgy-pwa-installed-v2'
+export function isStandalone(): boolean {
+  return window.matchMedia('(display-mode: standalone)').matches
+    || (window.navigator as Navigator & { standalone?: boolean }).standalone === true
+}
+export function isInstalledFlag(): boolean {
+  try { return localStorage.getItem(INSTALLED_FLAG) === '1' } catch { return false }
+}
+export function markInstalledFlag(): void {
+  try { localStorage.setItem(INSTALLED_FLAG, '1') } catch {}
+}
+
+export function manualInstructions(platform: ReturnType<typeof installPlatform>): string {
+  if (platform === 'android') return 'Ketuk menu ⋮ di Chrome, lalu pilih "Instal aplikasi". Jangan pilih "Tambahkan ke layar utama" karena itu hanya membuat shortcut.'
+  if (platform === 'ios') return 'Di Safari, ketuk tombol Bagikan lalu pilih "Tambahkan ke Layar Utama".'
+  return 'Klik ikon instal di ujung kanan kolom alamat Chrome/Edge, lalu pilih Instal.'
+}

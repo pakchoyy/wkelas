@@ -6,6 +6,7 @@ import Sidebar from './Sidebar'
 import RunningPromo from './RunningPromo'
 import PwaInstallPrompt from './PwaInstallPrompt'
 import { useCloudAutoSync } from '../hooks/useCloudAutoSync'
+import { useUnreadAnnouncements } from '../hooks/useUnreadAnnouncements'
 import { notifyDueTasks } from '../../lib/task-reminder'
 import { hasPendingActivation } from '../../lib/pro-license'
 
@@ -41,6 +42,8 @@ export default function Layout() {
   // Link aktivasi dari halaman pembelian dibuka sebelum login: lanjutkan setelah masuk.
   useEffect(() => { if (location.pathname !== '/aktivasi' && hasPendingActivation()) navigate('/aktivasi', { replace: true }) }, [location.pathname, navigate])
   const sync = useCloudAutoSync()
+  // Pengumuman dulu, alert install belakangan: prompt ditahan selama masih ada yang belum dibaca.
+  const unread = useUnreadAnnouncements()
   useEffect(() => {
     const run = () => { if (document.visibilityState === 'visible') void notifyDueTasks().catch(() => {}) }
     run()
@@ -51,8 +54,8 @@ export default function Layout() {
   return (
     <div className="app-layout flex h-dvh min-h-0 flex-col overflow-hidden">
       <a href="#main-content" className="skip-link" onClick={event => { event.preventDefault(); main.current?.focus(); main.current?.scrollTo({top:0}); }}>Lewati ke konten utama</a>
-      <Header onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen}/>
-      <PwaInstallPrompt/>
+      <Header onOpenMenu={() => setMenuOpen(true)} menuOpen={menuOpen} announcementCount={unread ?? 0}/>
+      {unread !== null && unread > 0 ? null : <PwaInstallPrompt/>}
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden w-64 shrink-0 lg:flex"><Sidebar/></div>
         <main ref={main} id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-y-auto p-3 sm:p-4 lg:p-6">

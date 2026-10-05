@@ -5,28 +5,15 @@ import { liveQuery } from 'dexie'
 import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
 import { useAuthStore } from '../stores/authStore'
-import { documentClient } from '../../lib/document-client'
 import { readTheme, setTheme as saveThemePref } from '../theme'
 import ClassSwitcher from './ClassSwitcher'
 
-const ANNOUNCEMENT_READ_KEY = 'bgy-announcements-read'
-
-function readAnnouncementIds() {
-  try {
-    const value = localStorage.getItem(ANNOUNCEMENT_READ_KEY)
-    const ids = value ? JSON.parse(value) : []
-    return new Set(Array.isArray(ids) ? ids : [])
-  } catch {
-    return new Set()
-  }
-}
-
-export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean}) {
+export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean; announcementCount: number}) {
+  const { announcementCount } = _props
   const { mode } = useAuthStore()
   const isDemo = mode === 'demo'
   const kelasId = useAppStore(s => s.kelasAktifId) || 1
   const [nama, setNama] = useState('Profil')
-  const [announcementCount, setAnnouncementCount] = useState(0)
   const isDark = () => {
     const pref = readTheme()
     return pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -45,23 +32,6 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
     }).subscribe({ next: setNama, error: () => setNama('Profil') })
     return () => subscription.unsubscribe()
   }, [kelasId, mode])
-  useEffect(() => {
-    const client = documentClient()
-    if (!client) { setAnnouncementCount(0); return }
-    let cancelled = false
-    const refresh = () => {
-      void client.from('announcements').select('id').then(({data,error}) => {
-        if (cancelled || error) return
-        const readIds = readAnnouncementIds()
-        setAnnouncementCount((data || []).filter(item => !readIds.has(item.id)).length)
-      }, () => {})
-    }
-    refresh()
-    window.addEventListener('storage', refresh)
-    window.addEventListener('bgy-announcements-read', refresh)
-    return () => { cancelled = true; window.removeEventListener('storage', refresh); window.removeEventListener('bgy-announcements-read', refresh) }
-  }, [mode])
-
   return (
     <>
       {isDemo && (
