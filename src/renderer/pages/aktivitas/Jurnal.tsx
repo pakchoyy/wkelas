@@ -114,19 +114,19 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
     try { await persistAgenda(next); setToast({ text: 'Agenda rutin dihapus' }) }
     catch { setToast({ text: 'Agenda gagal dihapus. Coba lagi.', error: true }) }
   }
-  const applyAgenda = async () => {
-    if (applyingAgenda || !dayAgenda.length) return
+  const applyItems = async (items: RoutineItem[]) => {
+    if (applyingAgenda || !items.length) return
     setApplyingAgenda(true)
     try {
       let added = 0
-      for (const item of dayAgenda) {
+      for (const item of items) {
         const exists = data.some((j) => j.tanggal === selectedDate && String(j.mata_pelajaran || '').trim().toLowerCase() === item.mata_pelajaran.trim().toLowerCase())
         if (exists) continue
         await window.electronAPI.jurnal.save({ kelas_id: kelasId, tanggal: selectedDate, jam_ke: '', mata_pelajaran: item.mata_pelajaran, materi: item.materi, kegiatan: item.kegiatan, kendala: '', refleksi: '' })
         added++
       }
       await load()
-      setToast({ text: added ? `${added} agenda diterapkan ke ${WEEKDAY_NAMES[selectedWeekday - 1]}` : 'Semua agenda hari ini sudah ada di jurnal.' })
+      setToast({ text: added ? `${added} agenda diterapkan ke ${WEEKDAY_NAMES[selectedWeekday - 1]}` : 'Agenda ini sudah ada di jurnal hari ini.' })
     } catch {
       setToast({ text: 'Terapkan agenda gagal. Coba lagi.', error: true })
     } finally { setApplyingAgenda(false) }
@@ -216,24 +216,18 @@ function JurnalKelas({kelasId}: {kelasId:number}) {
 
     <section className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm"><strong className="text-slate-800">{identity.sekolah}</strong><span className="text-slate-500">{identity.kelas} · Semester {identity.semester} · {identity.tahun}</span><span className="lg:ml-auto text-slate-500">Wali Kelas: <strong className="text-slate-700">{identity.guru}</strong></span></section>
     <TeachingWeekNavigator value={weekAnchor} schoolDays={schoolDays} selectedDay={Math.min(selectedDay,schoolDays-1)} onChange={setWeekAnchor} onSelectDay={setSelectedDay} holidays={holidays}/>
-    {selectedWeekday >= 1 && selectedWeekday <= 6 && <section aria-label={`Agenda rutin ${WEEKDAY_NAMES[selectedWeekday - 1]}`} className="rounded-2xl border border-teal-200 bg-teal-50/50 p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div><h3 className="text-sm font-extrabold text-slate-900">Agenda rutin · {WEEKDAY_NAMES[selectedWeekday - 1]}</h3>
-        <p className="mt-0.5 text-xs text-slate-500">{dayAgenda.length ? 'Template mingguan untuk hari ini.' : 'Belum ada template. Tambahkan agenda yang berulang tiap pekan.'}</p></div>
-        <div className="flex flex-wrap gap-2">
-          {dayAgenda.length > 0 && <button disabled={applyingAgenda} onClick={() => void applyAgenda()} className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50"><ClipboardList size={16}/>{applyingAgenda ? 'Menerapkan…' : 'Terapkan ke hari ini'}</button>}
-          <button onClick={() => openAgendaNew(selectedWeekday)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-teal-200 bg-white px-4 text-sm font-bold text-teal-700 hover:bg-teal-50"><Plus size={16}/>Agenda</button>
+    {selectedWeekday >= 1 && selectedWeekday <= 6 && dayAgenda.length > 0 && <ul aria-label={`Agenda rutin ${WEEKDAY_NAMES[selectedWeekday - 1]}`} className="space-y-1.5">{dayAgenda.map((item, index) => {
+      const tone = ['border-emerald-200 bg-emerald-50', 'border-amber-200 bg-amber-50', 'border-sky-200 bg-sky-50', 'border-violet-200 bg-violet-50', 'border-rose-200 bg-rose-50', 'border-teal-200 bg-teal-50'][index % 6]
+      return <li key={item.id} className={`flex items-center gap-1.5 rounded-xl border px-2 py-1 ${tone}`}>
+        <button aria-label={`Terapkan ${item.mata_pelajaran} ke hari ini`} title="Terapkan ke hari ini" disabled={applyingAgenda} onClick={() => void applyItems([item])} className="grid size-8 shrink-0 place-items-center rounded-lg bg-white/70 text-teal-700 hover:bg-white disabled:opacity-50"><Plus size={14}/></button>
+        <div className="min-w-0 flex-1 leading-tight"><p className="truncate text-xs font-bold text-slate-800">{item.mata_pelajaran}</p>{(item.materi || item.kegiatan) && <p className="truncate text-[11px] text-slate-500">{[item.materi, item.kegiatan].filter(Boolean).join(' · ')}</p>}</div>
+        <div className="flex shrink-0">
+          <button aria-label={`Edit ${item.mata_pelajaran}`} onClick={() => openAgendaEdit(selectedWeekday, item)} className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-white/70 hover:text-emerald-700"><Pencil size={13}/></button>
+          <button aria-label={`Duplikat ${item.mata_pelajaran}`} onClick={() => void duplicateAgenda(selectedWeekday, item)} className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-white/70 hover:text-teal-700"><Copy size={13}/></button>
+          <button aria-label={`Hapus ${item.mata_pelajaran}`} onClick={() => setConfirmAgendaDelete({ day: selectedWeekday, item })} className="grid size-8 place-items-center rounded-lg text-slate-500 hover:bg-white/70 hover:text-red-600"><Trash2 size={13}/></button>
         </div>
-      </div>
-      {dayAgenda.length > 0 && <ul className="mt-3 space-y-2">{dayAgenda.map((item) => <li key={item.id} className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white p-3">
-        <div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-slate-800">{item.mata_pelajaran}</p>{(item.materi || item.kegiatan) && <p className="mt-0.5 truncate text-xs text-slate-500">{[item.materi, item.kegiatan].filter(Boolean).join(' · ')}</p>}</div>
-        <div className="flex shrink-0 gap-1">
-          <button aria-label={`Edit ${item.mata_pelajaran}`} onClick={() => openAgendaEdit(selectedWeekday, item)} className="grid size-11 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-emerald-700"><Pencil size={16}/></button>
-          <button aria-label={`Duplikat ${item.mata_pelajaran}`} onClick={() => void duplicateAgenda(selectedWeekday, item)} className="grid size-11 place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-teal-700"><Copy size={16}/></button>
-          <button aria-label={`Hapus ${item.mata_pelajaran}`} onClick={() => setConfirmAgendaDelete({ day: selectedWeekday, item })} className="grid size-11 place-items-center rounded-lg text-slate-400 hover:bg-red-50 hover:text-red-600"><Trash2 size={16}/></button>
-        </div>
-      </li>)}</ul>}
-    </section>}
+      </li>
+    })}</ul>}
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white" aria-label="Isian jurnal harian">
       <div className={`flex flex-wrap items-center justify-between gap-2 border-b px-4 py-3 ${selectedStatus.active ? 'border-slate-200 bg-slate-50' : 'border-rose-200 bg-rose-100 text-rose-900'}`}>
         <h3 className="text-sm font-bold">{dateLabel(selectedDate)}{selectedSpecial && <span className="ml-2 rounded-full px-2 py-0.5 text-[11px] font-bold text-white" style={{background:selectedSpecial.jenis==='kts'?'#16a34a':selectedSpecial.jenis==='kpp'?'#ca8a04':'#4f46e5'}}>{selectedSpecial.judul}</span>}</h3>
