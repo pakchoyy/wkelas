@@ -29,9 +29,17 @@ export function decideAutoSync(state: SyncState, localFingerprint: string, remot
   return 'push'
 }
 
+function tableError(error: unknown, fallback: string): Error {
+  const msg = `${(error as { code?: string } | null)?.code || ''} ${(error as { message?: string } | null)?.message || ''}`
+  if (/user_data/i.test(msg) && (/42P01|does not exist|not exist|not find/i.test(msg))) {
+    return new Error('Tabel user_data belum ada di project. Jalankan migrasi 202609290001_user_data.sql di Supabase SQL Editor.')
+  }
+  return new Error(fallback)
+}
+
 export async function remoteSnapshotAt(client: SupabaseClient, uid: string): Promise<string | null> {
   const { data, error } = await client.from(TABLE).select('updated_at').eq('user_id', uid).maybeSingle()
-  if (error) throw new Error('Status cloud belum bisa dibaca. Periksa koneksi atau status Pro.')
+  if (error) throw tableError(error, 'Status cloud belum bisa dibaca. Periksa koneksi atau status Pro.')
   const at = (data as { updated_at?: string } | null)?.updated_at
   return at ? String(at) : null
 }
@@ -45,7 +53,7 @@ export async function pushSnapshot(client: SupabaseClient, uid: string): Promise
     { user_id: uid, data: payload, fingerprint, updated_at: new Date().toISOString() },
     { onConflict: 'user_id' },
   )
-  if (error) throw new Error('Data belum terkirim ke cloud. Periksa koneksi lalu coba lagi.')
+  if (error) throw tableError(error, 'Data belum terkirim ke cloud. Periksa koneksi lalu coba lagi.')
   const state = { enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt: await remoteSnapshotAt(client, uid) || '' }
   writeSyncState(uid, state)
   return state

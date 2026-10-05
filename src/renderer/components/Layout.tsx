@@ -55,7 +55,7 @@ export default function Layout() {
       <PwaInstallPrompt/>
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden w-64 shrink-0 lg:flex"><Sidebar/></div>
-        <main ref={main} id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain p-3 sm:p-4 lg:p-6">
+        <main ref={main} id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-y-auto p-3 sm:p-4 lg:p-6">
           {sync === 'remote-newer' && location.pathname !== '/pengaturan' && <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900"><span>Ada data lebih baru di cloud dari perangkat lain. Sinkron otomatis ditahan agar tidak saling menimpa.</span><Link to="/pengaturan" state={{tab:'backup'}} className="inline-flex min-h-10 items-center rounded-lg bg-sky-700 px-3 font-bold text-white hover:bg-sky-800">Tinjau</Link></div>}
           <div className="min-w-0 animate-slide-up"><Outlet/></div>
         </main>
