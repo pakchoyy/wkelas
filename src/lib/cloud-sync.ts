@@ -75,13 +75,21 @@ export function disableSync(uid: string) {
   writeSyncState(uid, { ...readSyncState(uid), enabled: false })
 }
 
+// Tidak ada perubahan lokal = tidak ada query cloud, kecuali sudah lama tidak cek
+// (agar banner "data lebih baru" tetap muncul maksimal 15 menit kemudian).
+const IDLE_CHECK_INTERVAL = 15 * 60 * 1000
+let lastIdleCheck = 0
+
 export async function autoSync(client: SupabaseClient, uid: string): Promise<AutoDecision> {
   // Hemat kuota: offline = tidak ada query sama sekali, bahkan tidak merakit backup lokal.
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'disabled'
   const state = readSyncState(uid)
   if (!state.enabled) return 'disabled'
   const text = await createBackupText(db)
-  const decision = decideAutoSync(state, await backupFingerprint(text), await remoteSnapshotAt(client, uid))
+  const fingerprint = await backupFingerprint(text)
+  if (fingerprint === state.lastFingerprint && Date.now() - lastIdleCheck < IDLE_CHECK_INTERVAL) return 'unchanged'
+  lastIdleCheck = Date.now()
+  const decision = decideAutoSync(state, fingerprint, await remoteSnapshotAt(client, uid))
   if (decision === 'push') await pushSnapshot(client, uid)
   return decision
 }
