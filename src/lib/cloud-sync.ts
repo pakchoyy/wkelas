@@ -81,9 +81,21 @@ export function disableSync(uid: string) {
 // Bila ada editan lokal, jangan timpa: kembalikan 'remote-newer' agar banner bicara.
 export async function bootSync(client: SupabaseClient, uid: string): Promise<AutoDecision> {
   const decision = await autoSync(client, uid)
-  if (decision !== 'remote-newer') return decision
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) return decision
   try {
     const state = readSyncState(uid)
+    // Adopsi perangkat baru: sync belum pernah aktif + lokal masih kosong + cloud ada isi
+    // → ambil otomatis agar refresh/buka langsung sinkron tanpa tekan apa pun.
+    // Bila lokal sudah ada isi, jangan tebak: pilih manual lewat kartu (takut menimpa).
+    if (!state.enabled && !state.lastSyncAt) {
+      if (decision !== 'disabled') return decision
+      const remoteAt = await remoteSnapshotAt(client, uid)
+      if (!remoteAt) return decision
+      if (await db.kelas.count() > 0) return decision
+      const ok = await pullSnapshot(client, uid, () => true)
+      return ok ? 'unchanged' : decision
+    }
+    if (decision !== 'remote-newer') return decision
     const fingerprint = await backupFingerprint(await createBackupText(db))
     if (fingerprint !== state.lastFingerprint) return decision
     const ok = await pullSnapshot(client, uid, () => true)
