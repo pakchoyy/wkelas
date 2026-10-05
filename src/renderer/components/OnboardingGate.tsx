@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import { getPhaseForGrade } from '../../shared/mapelRecommendations'
 import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboarding'
+import { bootSync } from '../../lib/cloud-sync'
 import { userClient, useUserSession } from '../../lib/user-auth'
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
@@ -24,6 +25,11 @@ export default function OnboardingGate({ children }: { children: React.ReactNode
     let cancelled = false
     setChecking(true)
     ;(async () => {
+      // Perangkat baru: adopsi data cloud dulu (bila Pro) SEBELUM memutuskan tampil setup,
+      // karena mesin sync di Layout belum terpasang pada tahap ini. Gagal = offline/bukan Pro:
+      // lanjutkan dengan data lokal seperti biasa.
+      if (user && cloud && !demo) { try { await bootSync(cloud, user.id) } catch {} }
+      if (cancelled) return
       const kelas = await db.kelas.where('is_aktif').equals(1).first() || await db.kelas.orderBy('id').first()
       if (cancelled) return
       useAppStore.setState({ kelasAktifId: kelas?.id ?? null })
