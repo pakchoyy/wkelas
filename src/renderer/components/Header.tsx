@@ -36,7 +36,7 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
   useEffect(() => onInstallChange(() => setInstallReady(installPrompt())), [])
   const installApp = async () => {
     const deferred = installPrompt()
-    if (!deferred) { setInstallHint(h => !h); return }
+    if (installed || !deferred) { setInstallHint(h => !h); return }
     try {
       await deferred.prompt()
       const choice = await deferred.userChoice
@@ -125,10 +125,10 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
                   <span className="flex items-center gap-2 text-sm font-bold text-slate-800">{dark ? <Moon size={16}/> : <Sun size={16}/>} Mode gelap</span>
                   <button role="switch" aria-checked={dark} aria-label="Mode gelap" onClick={toggleDark} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${dark ? 'bg-teal-600' : 'bg-slate-300'}`}><span aria-hidden="true" className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${dark ? 'left-[22px]' : 'left-0.5'}`}/></button>
                 </div>
-                {!installed && <div className="border-t border-slate-100">
-                  <button type="button" role="menuitem" onClick={() => void installApp()} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><Download size={18} className="shrink-0 text-teal-700"/><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">Install aplikasi</span><span className="block truncate text-xs text-slate-500">{installReady ? 'Pasang di HP ini' : 'Ketuk untuk caranya'}</span></span></button>
-                  {installHint && !installReady && <p className="px-4 pb-3 text-xs leading-5 text-slate-600">{manualInstructions(installPlatform())}</p>}
-                </div>}
+                <div className="border-t border-slate-100">
+                  <button type="button" role="menuitem" onClick={() => void installApp()} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><Download size={18} className="shrink-0 text-teal-700"/><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">Install aplikasi</span>{!installed && <span className="block truncate text-xs text-slate-500">{installReady ? 'Pasang di HP ini' : 'Ketuk untuk caranya'}</span>}</span></button>
+                  {installHint && (installed || !installReady) && <p role="status" className="px-4 pb-3 text-xs leading-5 text-slate-600">{installed ? 'Aplikasi sudah terpasang di perangkat ini ✓' : manualInstructions(installPlatform())}</p>}
+                </div>
                 <Link to="/pengaturan" role="menuitem" className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50"><Settings size={18} className="shrink-0 text-slate-500"/>Pengaturan</Link>
               </div>
             </>
