@@ -1,4 +1,4 @@
-import { Bell, Cloud, CloudOff, Lock, Moon, Settings, Sun, User } from 'lucide-react'
+import { Bell, Cloud, CloudOff, Download, Lock, Moon, Settings, Sun, User } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { liveQuery } from 'dexie'
@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/authStore'
 import { readTheme, setTheme as saveThemePref } from '../theme'
 import { readSyncState, type AutoDecision, type SyncState } from '../../lib/cloud-sync'
 import ClassSwitcher from './ClassSwitcher'
+import { clearInstallPrompt, installPlatform, installPrompt, isStandalone, manualInstructions, markInstalledFlag, onInstallChange } from '../pwa-install'
 
 function useSyncSummary(decision: AutoDecision | null) {
   const { mode, plan, user } = useAuthStore()
@@ -29,6 +30,20 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
   const { mode, plan, user: authUser } = useAuthStore()
   const location = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
+  const [installReady, setInstallReady] = useState(installPrompt)
+  const [installHint, setInstallHint] = useState(false)
+  const [installed] = useState(isStandalone)
+  useEffect(() => onInstallChange(() => setInstallReady(installPrompt())), [])
+  const installApp = async () => {
+    const deferred = installPrompt()
+    if (!deferred) { setInstallHint(h => !h); return }
+    try {
+      await deferred.prompt()
+      const choice = await deferred.userChoice
+      clearInstallPrompt()
+      if (choice.outcome === 'accepted') markInstalledFlag()
+    } catch { setInstallHint(true) }
+  }
   useEffect(() => setProfileOpen(false), [location.pathname])
   useEffect(() => {
     if (!profileOpen) return
@@ -110,6 +125,10 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
                   <span className="flex items-center gap-2 text-sm font-bold text-slate-800">{dark ? <Moon size={16}/> : <Sun size={16}/>} Mode gelap</span>
                   <button role="switch" aria-checked={dark} aria-label="Mode gelap" onClick={toggleDark} className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${dark ? 'bg-teal-600' : 'bg-slate-300'}`}><span aria-hidden="true" className={`absolute top-0.5 size-5 rounded-full bg-white shadow transition-all ${dark ? 'left-[22px]' : 'left-0.5'}`}/></button>
                 </div>
+                {!installed && <div className="border-t border-slate-100">
+                  <button type="button" role="menuitem" onClick={() => void installApp()} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><Download size={18} className="shrink-0 text-teal-700"/><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">Install aplikasi</span><span className="block truncate text-xs text-slate-500">{installReady ? 'Pasang di HP ini' : 'Ketuk untuk caranya'}</span></span></button>
+                  {installHint && !installReady && <p className="px-4 pb-3 text-xs leading-5 text-slate-600">{manualInstructions(installPlatform())}</p>}
+                </div>}
                 <Link to="/pengaturan" role="menuitem" className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50"><Settings size={18} className="shrink-0 text-slate-500"/>Pengaturan</Link>
               </div>
             </>
