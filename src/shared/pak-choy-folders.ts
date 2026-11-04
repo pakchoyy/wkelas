@@ -69,3 +69,15 @@ export function visibleFolderIds(folders: ChoyFolder[], items: { folder_id: stri
 export function isFolderEmpty(folders: ChoyFolder[], items: { folder_id: string | null }[], id: string): boolean {
   return !folders.some(folder => folder.parent_id === id) && !items.some(item => item.folder_id === id)
 }
+
+// Keterangan jenis link yang ramah dibaca guru (pengganti tulisan "Link").
+export function linkKind(url: string | null | undefined): string {
+  if (!url) return 'Link'
+  let host = ''
+  try { host = new URL(url).hostname.replace(/^www\./, '') } catch { return 'Link' }
+  if (host === 'drive.google.com') return /\/folders\//.test(url) ? 'Folder Google Drive' : 'File Google Drive'
+  if (host === 'docs.google.com') return 'Dokumen Google'
+  if (host === 'youtube.com' || host === 'youtu.be' || host === 'm.youtube.com') return 'Video YouTube'
+  if (host === 's.id' || host === 'bit.ly') return 'Tautan unduhan'
+  return host
+}

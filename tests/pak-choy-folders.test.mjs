@@ -48,3 +48,13 @@ test('only empty folders can be deleted', () => {
   assert.equal(isFolderEmpty(folders, items, 'lkpd'), true)
   assert.equal(isFolderEmpty(folders, items, 'k2'), true)
 })
+
+test('link labels describe the destination', async () => {
+  const { linkKind } = await import('../src/shared/pak-choy-folders.ts')
+  assert.equal(linkKind('https://drive.google.com/drive/folders/abc?usp=drive_link'), 'Folder Google Drive')
+  assert.equal(linkKind('https://drive.google.com/file/d/abc/view'), 'File Google Drive')
+  assert.equal(linkKind('https://youtu.be/x'), 'Video YouTube')
+  assert.equal(linkKind('https://s.id/Buku-SD-Kelas-1'), 'Tautan unduhan')
+  assert.equal(linkKind('https://www.contoh.sch.id/a'), 'contoh.sch.id')
+  assert.equal(linkKind(null), 'Link')
+})
