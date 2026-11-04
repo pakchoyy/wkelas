@@ -3,7 +3,8 @@ export const DOCUMENT_MAX_BYTES = 20 * 1024 * 1024
 export const DOCUMENT_EXTENSIONS = ['pdf','doc','docx','xls','xlsx','ppt','pptx','zip','png','jpg','jpeg','webp']
 export type ChoyDocument = {
   id:string; title:string; category:string; description:string; target_grades:number[];
-  file_path:string; file_name:string; file_size:number; published:boolean; created_at:string; updated_at:string
+  file_path:string|null; file_name:string|null; file_size:number|null; published:boolean; created_at:string; updated_at:string
+  folder_id:string|null; link_url:string|null
 }
 export type DocumentDetails = Pick<ChoyDocument,'title'|'category'|'description'|'target_grades'>
 export function validateDocumentDetails(details:DocumentDetails):DocumentDetails {
@@ -23,4 +24,5 @@ export function documentForGrade(doc:Pick<ChoyDocument,'published'|'target_grade
   return doc.published && Number.isInteger(grade) && grade>=1 && grade<=6 && (!doc.target_grades.length || doc.target_grades.includes(grade))
 }
 export const documentAudience = (grades:number[])=>grades.length ? `Kelas ${grades.join(', ')}` : 'Semua kelas SD'
-export const documentSize = (bytes:number)=>bytes<1024*1024 ? `${Math.max(1,Math.ceil(bytes/1024))} KB` : `${(bytes/(1024*1024)).toFixed(1)} MB`
+export const isLinkItem = (doc:Pick<ChoyDocument,'link_url'>)=>!!doc.link_url
+export const documentSize = (bytes:number|null)=>!bytes ? '' : bytes<1024*1024 ? `${Math.max(1,Math.ceil(bytes/1024))} KB` : `${(bytes/(1024*1024)).toFixed(1)} MB`
