@@ -43,6 +43,7 @@ const Tentang = lazyWithRetry(() => import('./pages/info/Tentang'))
 const MulaiDiSini = lazyWithRetry(() => import('./pages/panduan/MulaiDiSini'))
 const AdminFilePakChoy = lazyWithRetry(() => import('./pages/admin/AdminFilePakChoy'))
 const AktivasiPro = lazyWithRetry(() => import('./pages/AktivasiPro'))
+const RefPublik = lazyWithRetry(() => import('./pages/ref/RefPublik'))
 const Login = lazyWithRetry(() => import('./pages/Login'))
 
 const page = (content: React.ReactNode) => <Suspense fallback={<p role="status" className="p-6 text-sm text-slate-500">Memuat halaman…</p>}>{content}</Suspense>
@@ -50,6 +51,8 @@ const page = (content: React.ReactNode) => <Suspense fallback={<p role="status" 
 const router = createHashRouter(createRoutesFromElements(<>
         <Route path="/login" element={page(<Login />)} errorElement={<RouteError/>} />
         {/* Panel Pak Choy memakai Supabase Auth sendiri, tanpa membutuhkan kelas lokal guru. */}
+        <Route path="/ref" element={page(<RefPublik />)} errorElement={<RouteError/>} />
+        <Route path="/ref/:folderId" element={page(<RefPublik />)} errorElement={<RouteError/>} />
         <Route path="/admin" element={page(<AdminFilePakChoy />)} errorElement={<RouteError/>} />
         <Route element={<><NavigationGuard/><OnboardingGate><Layout /></OnboardingGate></>} errorElement={<RouteError/>}>
           <Route path="/" element={page(<Dashboard />)} />

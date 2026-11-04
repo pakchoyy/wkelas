@@ -6,6 +6,7 @@ import { db, type PerangkatAjarCache } from '../../../lib/db'
 import { backendClients } from '../../../lib/choy-auth'
 import { downloadChoyDocument, listChoyDocuments, listChoyFolders, openChoyLink } from '../../../lib/document-service'
 import { documentAudience, documentSize, isLinkItem, type ChoyDocument } from '../../../shared/pak-choy-documents'
+import ShareFolderButton from '../../components/ShareFolderButton'
 import { childFolders, folderPath, linkKind, visibleFolderIds, type ChoyFolder } from '../../../shared/pak-choy-folders'
 
 const JENIS = ['CP','ATP','Prota','Promes','RPM','Modul Ajar','LKPD']
@@ -84,7 +85,7 @@ export default function PerangkatAjar() {
     <div className="flex gap-2">{[['saya','Dokumen Saya'],['resmi','Ref Dokumen']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>setTab(id)} className={`min-h-11 flex-1 rounded-xl border px-2 py-2 text-xs sm:text-sm font-semibold ${tab===id?'border-teal-700 bg-teal-700 text-white':'border-slate-200 bg-white text-slate-600'}`}>{label}</button>)}</div>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {tab==='resmi' ? <>
-      <p className="text-sm text-slate-500">Referensi perangkat ajar, buku, dan administrasi guru. Pilih folder, lalu buka atau unduh.</p>
+      <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-slate-500">Referensi perangkat ajar, buku, dan administrasi guru. Pilih folder, lalu buka atau unduh.</p><ShareFolderButton folderId={folderId} name={crumbs[crumbs.length-1]?.name||'Ref Dokumen'}/></div>
       {(folders.length>0||crumbs.length>0)&&<nav aria-label="Lokasi folder" className="flex flex-wrap items-center gap-1 text-sm"><button type="button" onClick={()=>setFolderId(null)} className={`min-h-11 rounded-lg px-2 font-bold ${atRoot?'text-slate-900':'text-teal-700 hover:bg-teal-50'}`}>Semua</button>{crumbs.map((folder,index)=><span key={folder.id} className="flex items-center gap-1"><ChevronRight size={15} className="text-slate-400"/><button type="button" onClick={()=>setFolderId(folder.id)} className={`min-h-11 rounded-lg px-2 font-bold ${index===crumbs.length-1?'text-slate-900':'text-teal-700 hover:bg-teal-50'}`}>{folder.name}</button></span>)}</nav>}
       {subfolders.length>0&&<div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{subfolders.map(folder=><button key={folder.id} type="button" onClick={()=>setFolderId(folder.id)} className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:bg-slate-50"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder size={20}/></span><span className="min-w-0 flex-1 break-words font-bold text-slate-800">{folder.name}</span><ChevronRight size={17} className="shrink-0 text-slate-400"/></button>)}</div>}
       {atRoot&&officialDocs.length>0&&<div className="flex flex-wrap gap-2" aria-label="Kategori dokumen Pak Choy">{['Semua',...JENIS].map(item=><button key={item} aria-pressed={category===item} onClick={()=>setCategory(item)} className={`min-h-11 rounded-lg border px-3 text-xs font-semibold ${category===item?'border-teal-700 bg-teal-700 text-white':'border-slate-200 bg-white text-slate-600'}`}>{item}</button>)}</div>}

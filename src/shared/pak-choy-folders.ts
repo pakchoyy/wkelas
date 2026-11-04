@@ -81,3 +81,8 @@ export function linkKind(url: string | null | undefined): string {
   if (host === 's.id' || host === 'bit.ly') return 'Tautan unduhan'
   return host
 }
+
+// Link publik folder Ref Dokumen (tanpa login).
+export function publicFolderUrl(origin: string, folderId: string | null): string {
+  return `${origin.replace(/\/+$/, '')}/#/ref${folderId ? `/${folderId}` : ''}`
+}
