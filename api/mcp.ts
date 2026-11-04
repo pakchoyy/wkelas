@@ -321,7 +321,10 @@ export function supabaseStore(url: string, serviceKey: string): Store {
     if (/23503|foreign key/i.test(msg)) return new UserError('Folder masih berisi file, link, atau subfolder. Kosongkan dulu.')
     if (/terlalu dalam|dirinya sendiri|subfolder/i.test(msg)) return new UserError(error?.message || fallback)
     if (/relation .* does not exist|folder_id|link_url|pak_choy_folders/i.test(msg)) return new UserError('Tabel folder belum ada di Supabase. Jalankan SQL folder dulu.')
-    return new UserError(fallback)
+    // Pemegang token adalah admin: tampilkan kode/pesan asli supaya penyebab mudah dicari.
+    const detail = [error?.code, error?.message].filter(Boolean).join(' ').slice(0, 200)
+    console.error('supabase error:', detail)
+    return new UserError(detail ? `${fallback} (${detail})` : fallback)
   }
   return {
     async folders() {
