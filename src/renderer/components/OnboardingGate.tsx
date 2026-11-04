@@ -7,7 +7,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import { getPhaseForGrade } from '../../shared/mapelRecommendations'
 import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboarding'
-import { bootSync } from '../../lib/cloud-sync'
+import { bootSync, pullSnapshot } from '../../lib/cloud-sync'
 import { userClient, useUserSession } from '../../lib/user-auth'
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
@@ -57,6 +57,22 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
   const update = (key: keyof SetupData, value: string | number) => setData((v) => ({ ...v, [key]: value }))
   const valid = step === 1 ? data.namaKelas && data.tingkat : step === 2 ? data.namaSekolah && data.namaWali : true
 
+  // Akun yang login tidak memakai data contoh (agar tidak tercampur dengan data akun).
+  const cloudUser = !!userId && !!userClient()
+  const pullCloud = async () => {
+    const client = userClient()
+    if (!client || !userId || saveLock.current) return
+    saveLock.current = true; setSaving(true); setError('')
+    try {
+      activateMainDb()
+      const ok = await pullSnapshot(client, userId, () => true)
+      const kelas = ok ? await db.kelas.orderBy('id').first() : undefined
+      if (!kelas?.id) throw new Error('Belum ada data kelas di cloud untuk akun ini. Isi kelas pertama di bawah.')
+      setKelasAktif(kelas.id); onComplete()
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Data cloud belum bisa diambil. Periksa koneksi lalu coba lagi.')
+    } finally { saveLock.current = false; setSaving(false) }
+  }
   const finish = async (skip = false) => {
     if (saveLock.current) return
     saveLock.current = true
@@ -93,9 +109,10 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
       <div className="compact my-auto w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-xl">
         <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-wrap items-start justify-between gap-3">
           <div><h1 className="font-bold text-lg">Siapkan Kelas Pertama</h1><p className="text-sm text-slate-500">Langkah {step} dari 3 · data tersimpan hanya di perangkat ini</p></div>
-          <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-sm font-bold text-amber-950 transition-[background-color,transform] duration-150 hover:bg-amber-200 active:scale-96 disabled:opacity-50">{saving ? 'Menyiapkan…' : 'Coba data contoh'}</button>
+          {cloudUser ? <button type="button" disabled={saving} onClick={() => void pullCloud()} className="min-h-11 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-900 hover:bg-teal-100 disabled:opacity-50">{saving ? 'Mengambil…' : 'Ambil data dari cloud'}</button>
+          : <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-sm font-bold text-amber-950 transition-[background-color,transform] duration-150 hover:bg-amber-200 active:scale-96 disabled:opacity-50">{saving ? 'Menyiapkan…' : 'Coba data contoh'}</button>}
         </div>
-        <p className="mx-4 mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:mx-6">Belum siap mengisi? Gunakan data contoh. Bisa dihapus nanti.</p>
+        {cloudUser ? <p className="mx-4 mt-3 rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900 sm:mx-6">Sudah pernah memakai Wali Kelas di perangkat lain? Ambil datamu dari cloud.</p> : <p className="mx-4 mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:mx-6">Belum siap mengisi? Gunakan data contoh. Bisa dihapus nanti.</p>}
         {error && <p role="alert" className="px-4 sm:px-6 pt-3 text-sm text-red-700">{error}</p>}
         <div className="px-4 sm:px-6 py-3 border-b border-slate-100 flex items-center gap-3">
           {steps.map((item, i) => <div key={item.n} className="contents">

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Session, SupabaseClient } from '@supabase/supabase-js'
 import { documentClient } from './document-client'
-import { isDemoMode, setAccount } from './db'
+import { activateMainDb, isDemoMode, setAccount } from './db'
 import { createInitialAuthGate, googleOAuthOptions } from './oauth-login'
 import { useAuthStore } from '../renderer/stores/authStore'
 import { refreshPlan } from './pro-license'
@@ -16,6 +16,7 @@ export function useUserSession(client: SupabaseClient | null) {
     const apply=(next:Session|null) => {
       if(cancelled)return
       setAccount(next?.user?.id || null)
+      if(next?.user && isDemoMode()) activateMainDb()
       setSession(next)
       if(next?.user) {
         useAuthStore.getState().setLogin({nama:String(next.user.user_metadata?.full_name || next.user.user_metadata?.name || next.user.email?.split('@')[0] || 'Guru'),email:next.user.email || '',id:next.user.id})

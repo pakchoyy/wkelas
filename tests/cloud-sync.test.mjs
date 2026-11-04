@@ -94,3 +94,23 @@ test('a stale device cannot overwrite newer cloud data unless forced', async () 
   await db.delete()
   setAccount(null)
 })
+
+test('a wiped device pulls cloud data instead of overwriting it with nothing', async () => {
+  fakeBrowser()
+  const client = fakeCloud()
+  const { db, setAccount } = await import('../src/lib/db.ts')
+  const { pushSnapshot, bootSync, autoSync } = await import('../src/lib/cloud-sync.ts')
+  setAccount('guru-d')
+  if (!db.isOpen()) await db.open()
+  await db.kelas.add({ nama_kelas: '5A', tingkat: '5', tahun_ajaran: '2026/2027', semester: 1, is_aktif: 1, guru_id: 1, created_at: 'x', updated_at: 'x' })
+  await pushSnapshot(client, 'uid-3')
+  const cloudBefore = client.row.updated_at
+  // Browser data cleared, sync state left behind.
+  await db.kelas.clear()
+  assert.equal(await autoSync(client, 'uid-3', true), 'remote-newer', 'empty device must not push')
+  assert.equal(client.row.updated_at, cloudBefore, 'cloud untouched')
+  assert.equal(await bootSync(client, 'uid-3'), 'unchanged')
+  assert.equal((await db.kelas.toArray())[0].nama_kelas, '5A', 'class restored from cloud')
+  await db.delete()
+  setAccount(null)
+})

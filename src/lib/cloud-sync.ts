@@ -135,6 +135,12 @@ function clearSyncError(uid: string) {
 // (tanpa reload — daftar liveQuery ikut terbarui sendiri).
 // Bila ada editan lokal, jangan timpa: kembalikan 'remote-newer' agar banner bicara.
 export async function bootSync(client: SupabaseClient, uid: string): Promise<AutoDecision> {
+  // Perangkat kosong (baru, atau data browser terhapus) + cloud berisi: ambil dulu.
+  // Tidak ada yang hilang karena di perangkat memang belum ada kelas.
+  if (!(typeof navigator !== 'undefined' && navigator.onLine === false) && (await db.kelas.count()) === 0) {
+    const meta = await cloudMeta(client, uid).catch(() => null)
+    if (meta) return (await pullSnapshot(client, uid, () => true)) ? 'unchanged' : 'disabled'
+  }
   const decision = await autoSync(client, uid, true)
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return decision
   try {
@@ -189,6 +195,8 @@ export async function autoSync(client: SupabaseClient, uid: string, force = fals
   lastIdleCheck = Date.now()
   const decision = decideAutoSync(state, fingerprint, await remoteSnapshotAt(client, uid))
   if (decision === 'push') {
+    // Jangan pernah menimpa cloud dengan perangkat yang kosong.
+    if ((await db.kelas.count()) === 0) return 'remote-newer'
     try { await pushSnapshot(client, uid) } catch (error) {
       if (error instanceof SyncConflictError) return 'remote-newer'
       throw error
