@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { BadgeCheck, Check, ExternalLink, Gift, KeyRound, MessageCircle, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
 import { documentClient } from '../../lib/document-client'
-import { ADMIN_WA, PRO_BUY_URL, PRO_PRICE, activatePro, claimPro, clearPendingActivation, refreshPlan, subscriptionStatus, takePendingActivation } from '../../lib/pro-license'
-import { proDaysLeft } from '../../shared/subscription'
+import { ADMIN_WA, PRO_BUY_URL, activatePro, claimPro, clearPendingActivation, refreshPlan, subscriptionStatus, takePendingActivation } from '../../lib/pro-license'
+import { PRO_PRICE_RUPIAH, priceBreakdown, proDaysLeft, rupiah } from '../../shared/subscription'
 import { useAuthStore } from '../stores/authStore'
 
 // [fitur, gratis, pro]: true = ✓, false = –, teks = nilai
@@ -38,6 +38,8 @@ export default function AktivasiPro() {
   const [claimed, setClaimed] = useState(false)
   const loggedIn = mode === 'login' && !!user?.id
   const daysLeft = proDaysLeft(proUntil)
+  const price = priceBreakdown()
+  const promoUntil = price.promo ? fmt(price.promo.proUntil) : ''
 
   useEffect(() => { clearPendingActivation() }, [])
   useEffect(() => { if (user?.email && !email) setEmail(user.email) }, [user?.email])
@@ -77,7 +79,7 @@ export default function AktivasiPro() {
   const result = msg && <p role={msg.ok ? 'status' : 'alert'} className={`rounded-xl p-3 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>{msg.text}</p>
 
   return <div className="mx-auto max-w-2xl space-y-5">
-    <div><h1 className="text-2xl font-black text-slate-900">Paket Pro</h1><p className="mt-1 text-sm text-slate-500">{PRO_PRICE} · berlaku 6 bulan sejak aktif.</p></div>
+    <div><h1 className="text-2xl font-black text-slate-900">Paket Pro</h1><p className="mt-1 text-sm text-slate-500">{rupiah(PRO_PRICE_RUPIAH)} · {price.promo ? `beli bulan ini, aktif sampai ${promoUntil}.` : 'berlaku 6 bulan sejak aktif.'}</p></div>
 
     {klaim && !claimed && <section className="rounded-2xl border-2 border-teal-600 bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-700 text-white"><Gift size={20}/></span><div className="min-w-0">
@@ -93,18 +95,25 @@ export default function AktivasiPro() {
           <p className="mt-1 text-sm text-teal-900">{proUntil ? `Aktif sampai ${fmt(proUntil)}${daysLeft !== null && daysLeft <= 14 ? ` (${Math.max(daysLeft, 0)} hari lagi)` : ''}.` : 'Aktif.'}</p>
           {daysLeft !== null && daysLeft <= 14 && <p className="mt-2 text-sm text-teal-900">Untuk memperpanjang, beli lagi lalu buka link klaim yang baru. Sisa masa aktifmu tetap ditambahkan.</p>}</div></section>
       : <section className="rounded-2xl border border-teal-200 bg-teal-50 p-5 sm:p-6">
-          <div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-700 text-white"><Sparkles size={20}/></span><div><h2 className="text-lg font-extrabold text-teal-950">Pro · {PRO_PRICE}</h2>
-            <p className="mt-1 text-sm text-teal-900">Data kelas sama di HP & laptop, cadangan cloud, dan banyak kelas.</p></div></div>
-          {PRO_BUY_URL ? <a href={PRO_BUY_URL} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-base font-bold text-white hover:bg-teal-800 sm:w-auto">Beli Pro <ExternalLink size={16}/></a>
+          <div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-700 text-white"><Sparkles size={20}/></span><div className="min-w-0">
+            <h2 className="text-lg font-extrabold text-teal-950">Pro {rupiah(PRO_PRICE_RUPIAH)}</h2>
+            <p className="mt-1 text-sm text-teal-900">{price.promo ? `Aktif sampai ${promoUntil}.` : 'Aktif 6 bulan sejak diklaim.'} Itu sekitar <strong>{rupiah(price.perDay)} sehari</strong> atau {rupiah(price.perMonth)} sebulan.</p>
+            <p className="mt-2 text-sm text-teal-900">Data kelas sama di HP dan laptop, ada cadangan cloud, dan bisa kelola banyak kelas.</p></div></div>
+          {price.promo && <div className="mt-4 rounded-xl border-2 border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+            <p className="font-extrabold">{price.promo.name}</p>
+            <p className="mt-1">Beli sebelum 1 Desember 2026, Pro langsung aktif sampai <strong>{promoUntil}</strong>. Harga tetap {rupiah(PRO_PRICE_RUPIAH)}, jadi kamu dapat {price.months} bulan lebih, bukan 6 bulan.</p>
+          </div>}
+          {PRO_BUY_URL ? <a href={PRO_BUY_URL} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-base font-bold text-white hover:bg-teal-800 sm:w-auto">Beli Pro {rupiah(PRO_PRICE_RUPIAH)} <ExternalLink size={16}/></a>
             : <a href={ADMIN_WA} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-base font-bold text-white hover:bg-teal-800 sm:w-auto"><MessageCircle size={16}/>Beli lewat WhatsApp admin</a>}
         </section>}
 
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
       <h2 className="px-5 pt-5 font-extrabold text-slate-900">Perbandingan Gratis vs Pro</h2>
+      {plan === 'pro' && <p className="px-5 pt-1 text-sm text-teal-800">Akunmu sudah Pro{proUntil ? ` sampai ${fmt(proUntil)}` : ''}.</p>}
       <table className="mt-3 w-full text-sm">
         <thead><tr className="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><th scope="col" className="px-4 py-3 text-left">Fitur</th><th scope="col" className="w-20 px-2 py-3 text-center">Gratis</th><th scope="col" className="w-20 bg-teal-50 px-2 py-3 text-center text-teal-800">Pro</th></tr></thead>
         <tbody className="divide-y divide-slate-100">{COMPARE.map(([label, free, pro]) => <tr key={label}><th scope="row" className="px-4 py-3 text-left font-semibold text-slate-700">{label}</th><td className="px-2 py-3 text-center"><Mark value={free}/></td><td className="bg-teal-50/60 px-2 py-3 text-center"><Mark value={pro}/></td></tr>)}</tbody>
-        <tfoot><tr className="border-t border-slate-200"><th scope="row" className="px-4 py-3 text-left font-semibold text-slate-700">Harga</th><td className="px-2 py-3 text-center font-bold text-slate-800">Rp0</td><td className="bg-teal-50 px-2 py-3 text-center text-xs font-black text-teal-800">Rp23.000<br/>/semester</td></tr></tfoot>
+        <tfoot><tr className="border-t border-slate-200"><th scope="row" className="px-4 py-3 text-left font-semibold text-slate-700">Harga</th><td className="px-2 py-3 text-center font-bold text-slate-800">Rp0</td><td className="bg-teal-50 px-2 py-3 text-center text-xs font-black text-teal-800">Rp23.000<br/><span className="font-semibold">±{rupiah(price.perDay)}/hari</span></td></tr></tfoot>
       </table>
       <div className="m-4 flex items-start gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-teal-700"/><p><strong>Saat masa Pro habis:</strong> data di perangkat tidak hilang dan data cloud tetap bisa diambil. Yang berhenti hanya sinkron otomatis dan penambahan kelas baru.</p></div>
     </section>

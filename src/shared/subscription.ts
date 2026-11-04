@@ -28,3 +28,35 @@ export function renewalReminder(daysLeft: number | null): 'h14' | 'h3' | null {
   if (daysLeft <= 14) return 'h14'
   return null
 }
+
+// ---------- Harga & promo ----------
+export const PRO_PRICE_RUPIAH = 23000
+const NORMAL_DAYS = 182 // 6 bulan
+// Promo November 2026: beli sebelum 1 Desember, Pro aktif sampai akhir Juni 2027 (WIB).
+export const PROMO = {
+  name: 'Promo November',
+  startsAt: '2026-11-01T00:00:00+07:00',
+  endsAt: '2026-12-01T00:00:00+07:00',
+  proUntil: '2027-06-30T23:59:59+07:00',
+} as const
+
+export function activePromo(now = Date.now()) {
+  return now >= Date.parse(PROMO.startsAt) && now < Date.parse(PROMO.endsAt) ? PROMO : null
+}
+
+export const rupiah = (value: number) => `Rp${value.toLocaleString('id-ID')}`
+const ceilTo = (value: number, step: number) => Math.ceil(value / step) * step
+
+// Harga dihitung per hari dan per bulan dari masa aktif yang benar-benar didapat.
+export function priceBreakdown(now = Date.now()) {
+  const promo = activePromo(now)
+  const days = promo ? Math.max(1, Math.ceil((Date.parse(promo.proUntil) - now) / 86400000)) : NORMAL_DAYS
+  const months = days / 30.44
+  return {
+    promo,
+    days,
+    months: Math.floor(months),
+    perDay: ceilTo(PRO_PRICE_RUPIAH / days, 10),
+    perMonth: ceilTo(PRO_PRICE_RUPIAH / months, 100),
+  }
+}
