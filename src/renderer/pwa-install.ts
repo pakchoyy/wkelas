@@ -41,7 +41,7 @@ export function markInstalledFlag(): void {
 }
 
 export function manualInstructions(platform: ReturnType<typeof installPlatform>): string {
-  if (platform === 'android') return 'Ketuk menu ⋮ di Chrome, lalu pilih "Instal aplikasi". Jangan pilih "Tambahkan ke layar utama" karena itu hanya membuat shortcut.'
-  if (platform === 'ios') return 'Di Safari, ketuk tombol Bagikan lalu pilih "Tambahkan ke Layar Utama".'
+  if (platform === 'android') return 'Di Chrome: pastikan "Situs desktop" TIDAK dicentang di menu ⋮, muat ulang halaman, lalu buka menu ⋮ dan pilih "Instal aplikasi" (atau "Tambahkan ke layar utama" → Instal). Belum muncul? Perbarui Chrome di Play Store.'
+  if (platform === 'ios') return 'iPhone/iPad: buka wkelas.web.id di Safari, ketuk tombol Bagikan (kotak dengan panah ke atas), lalu pilih "Tambahkan ke Layar Utama".'
   return 'Klik ikon instal di ujung kanan kolom alamat Chrome/Edge, lalu pilih Instal.'
 }
