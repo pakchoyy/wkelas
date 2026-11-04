@@ -1,7 +1,7 @@
 import TeachingWeekNavigator from '../../components/TeachingWeekNavigator'
 import { createJournalDraft } from '../../../lib/journal-storage'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BookOpen, CalendarDays, ClipboardCheck, NotebookPen, Plus, Trash2 } from 'lucide-react'
+import { BookOpen, CalendarDays, ClipboardCheck, NotebookPen, Trash2 } from 'lucide-react'
 import type { Jadwal, MataPelajaran, RencanaMengajar } from '../../../shared/types'
 import { todayISO } from '../../../shared/utils'
 import { db } from '../../../lib/db'
@@ -194,10 +194,10 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
               <header className={`border-b px-4 py-3 ${holiday ? 'bg-rose-100 text-rose-900' : isToday ? 'bg-teal-700 text-white' : ['bg-blue-100/70 text-blue-900','bg-emerald-100/70 text-emerald-900','bg-violet-100/70 text-violet-900','bg-amber-100/70 text-amber-900','bg-cyan-100/70 text-cyan-900','bg-rose-100/70 text-rose-900'][dayIndex]}`}>
                 <div className="flex items-center justify-between">
                   <span className="font-bold">{HARI[dayIndex]}</span>
-                  {isToday && <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold">HARI INI</span>}
+                  {isToday && <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-bold">HARI INI</span>}
                 </div>
                 <span className={`text-xs ${isToday && !holiday ? 'text-emerald-50' : 'text-slate-500'}`}>{date.getDate()} {BULAN[date.getMonth()]} {date.getFullYear()}</span>
-                {special && <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold text-white" style={{background:special.jenis==='kts'?'#16a34a':special.jenis==='kpp'?'#ca8a04':'#4f46e5'}}>{special.judul}</span>}
+                {special && <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-bold text-white" style={{background:special.jenis==='kts'?'#16a34a':special.jenis==='kpp'?'#ca8a04':'#4f46e5'}}>{special.judul}</span>}
               </header>
               <div className="space-y-2 p-3">
                 {holiday ? <div className="flex min-h-[160px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-rose-200 bg-rose-50 px-3 text-center"><CalendarDays size={26} className="mb-2 text-rose-600"/><p className="text-sm font-bold text-rose-800">{holiday.judul}</p><p className="mt-1 text-xs text-rose-700">Tidak ada rencana mengajar pada hari libur.</p></div> : slots.map((slot) => {
@@ -207,18 +207,17 @@ function RencanaKelas({kelasId}:{kelasId:number}) {
                       <button onClick={() => openPlan(dateISO, slot, plan)} className="w-full text-left">
                         <div className="mb-2 flex items-start justify-between gap-2">
                           <div>
-                            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Jam {slot.jam_ke} · {slot.jam_mulai}–{slot.jam_selesai}</div>
+                            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Jam {slot.jam_ke} · {slot.jam_mulai}–{slot.jam_selesai}</div>
                             <div className="mt-1 text-sm font-bold text-slate-800">{mapelName(slot)}</div>
                           </div>
-                          {!plan && <Plus size={16} className="text-emerald-600" />}
                         </div>
                         {plan ? <><div className="text-sm font-semibold text-slate-700">{plan.topik}</div>{plan.kegiatan && <div className="mt-2 rounded-lg bg-slate-50 px-2.5 py-2 text-xs text-slate-600"><span className="font-bold text-slate-700">Kegiatan: </span>{plan.kegiatan}</div>}</> : <div className="rounded-lg border border-dashed border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-bold text-emerald-700">+ Isi rencana</div>}
                       </button>
-                      {plan?.id && <button type="button" onClick={() => { setEditing(plan); setConfirmDeleteId(plan.id) }} className="mt-2 inline-flex min-h-9 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 size={14}/>Hapus</button>}
+                      {plan?.id && <button type="button" onClick={() => { setEditing(plan); setConfirmDeleteId(plan.id) }} className="mt-2 inline-flex min-h-11 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold text-red-600 hover:bg-red-50"><Trash2 size={14}/>Hapus</button>}
                     </div>
                   )
                 })}
-                {!holiday && slots.length === 0 && <div className="flex min-h-[72px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-center"><BookOpen size={26} className="mb-2 text-slate-300" /><p className="text-xs font-semibold text-slate-400">Belum ada jadwal pelajaran</p><p className="mt-1 text-[11px] text-slate-400">Isi terlebih dahulu di menu Jadwal.</p></div>}
+                {!holiday && slots.length === 0 && <div className="flex min-h-[72px] md:min-h-[190px] flex-col items-center justify-center rounded-xl border border-dashed border-slate-200 bg-white px-3 text-center"><BookOpen size={26} className="mb-2 text-slate-300" /><p className="text-xs font-semibold text-slate-400">Belum ada jadwal pelajaran</p><p className="mt-1 text-xs text-slate-400">Isi terlebih dahulu di menu Jadwal.</p></div>}
               </div>
             </section>
           )

@@ -26,8 +26,11 @@ export async function encryptBackup(plain: string, password: string): Promise<st
 export async function decryptBackup(text: string, password: string): Promise<string> {
   const box = JSON.parse(text)
   if (box?.format !== FORMAT || box.version !== 1) throw new Error('Format cadangan terlindungi tidak dikenal.')
+  // Jumlah iterasi berasal dari file: dibatasi agar file rusak/jahat tidak membuat browser macet.
+  const iterations = Number(box.kdf?.iterations) || ITERATIONS
+  if (!Number.isInteger(iterations) || iterations < 100000 || iterations > 2000000) throw new Error('File cadangan rusak atau tidak dikenal. Data saat ini tidak diubah.')
   try {
-    const key = await deriveKey(password, fromB64(box.salt), Number(box.kdf?.iterations) || ITERATIONS)
+    const key = await deriveKey(password, fromB64(box.salt), iterations)
     const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: fromB64(box.iv) }, key, fromB64(box.data))
     return new TextDecoder().decode(plain)
   } catch {

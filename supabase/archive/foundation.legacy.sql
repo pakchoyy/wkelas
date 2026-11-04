@@ -1,3 +1,6 @@
+-- ARSIP. JANGAN DIJALANKAN. Skema awal ini sudah digantikan oleh supabase/migrations/*
+-- (definisi subscriptions/feedback di sini berbeda dan gagal bila dijalankan ulang).
+
 -- Fondasi akun dan monetisasi BGY Wali Kelas.
 -- Belum mengaktifkan paywall; aplikasi tetap gratis selama mode pengembangan.
 

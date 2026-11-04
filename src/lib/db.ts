@@ -129,6 +129,18 @@ function getDemoDb(): BgyDatabase {
   return activeDb
 }
 
+// Hapus seluruh data akun ini dari perangkat (dipakai saat keluar di perangkat bersama).
+export async function deleteAccountData(uid: string): Promise<void> {
+  const name = accountDbName(uid)
+  if (activeDb?.name === name) { activeDb.close(); activeDb = null }
+  await Dexie.delete(name)
+  try {
+    if (name === MAIN_DB_NAME) localStorage.removeItem(LEGACY_OWNER_KEY)
+    localStorage.removeItem(`bgy-cloud-sync-${uid}`)
+    localStorage.removeItem('bgy_pro_wk')
+  } catch {}
+}
+
 export function activateMainDb(): BgyDatabase {
   try { localStorage.removeItem(DEMO_MODE_KEY) } catch {}
   demoSelected = false

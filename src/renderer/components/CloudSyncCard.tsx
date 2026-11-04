@@ -6,6 +6,7 @@ import { cloudMeta, disableSync, localFingerprint, pullSnapshot, pushSnapshot, r
 import type { BackupTables } from '../../lib/backup'
 import { useAuthStore } from '../stores/authStore'
 import ConfirmDialog from './ConfirmDialog'
+import { canUse } from '../../shared/subscription'
 
 const when = (value: string) => value ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) : 'belum pernah'
 
@@ -14,7 +15,7 @@ export default function CloudSyncCard() {
   const client = documentClient()
   const uid = mode === 'login' ? user?.id || null : null
   if (!client || !uid) return null
-  if (plan !== 'pro') return <FreeSync client={client} uid={uid}/>
+  if (!canUse('sinkron_cloud', plan, mode)) return <FreeSync client={client} uid={uid}/>
   return <ProSync client={client} uid={uid}/>
 }
 

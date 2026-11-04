@@ -55,7 +55,7 @@ export default function PwaInstallPrompt() {
       <div className="space-y-2 p-5">
         {deferred && <button disabled={busy} onClick={() => void install()} className="min-h-11 w-full rounded-xl bg-teal-700 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50">{busy ? 'Menyiapkan…' : 'Install sekarang'}</button>}
         <button onClick={() => { markInstalled(); setClosed(true) }} className="min-h-11 w-full rounded-xl border border-slate-200 text-sm font-bold text-slate-700 hover:bg-slate-50">Saya sudah install</button>
-        <button onClick={() => { dismiss(); setClosed(true) }} className="min-h-9 w-full rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-600">Nanti saja</button>
+        <button onClick={() => { dismiss(); setClosed(true) }} className="min-h-11 w-full rounded-xl text-sm font-semibold text-slate-400 hover:text-slate-600">Nanti saja</button>
       </div>
     </section>
   </div>

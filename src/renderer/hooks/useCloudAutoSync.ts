@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { documentClient } from '../../lib/document-client'
 import { autoSync, bootSync, markSyncError, type AutoDecision } from '../../lib/cloud-sync'
 import { useAuthStore } from '../stores/authStore'
+import { canUse } from '../../shared/subscription'
 
 const MIN_INTERVAL = 2 * 60 * 1000
 
 export function useCloudAutoSync(): AutoDecision | null {
-  const uid = useAuthStore(s => s.mode === 'login' && s.plan === 'pro' ? s.user?.id || null : null)
+  const uid = useAuthStore(s => canUse('sinkron_cloud', s.plan, s.mode) ? s.user?.id || null : null)
   const [last, setLast] = useState<AutoDecision | null>(null)
   useEffect(() => {
     const client = documentClient()

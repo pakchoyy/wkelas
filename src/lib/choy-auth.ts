@@ -11,6 +11,8 @@ export interface ChoyAdminUser {
   provider: string
   created_at: string
   last_sign_in_at: string | null
+  plan?: 'free' | 'pro'
+  pro_until?: string | null
 }
 
 // Backend utama = index 0. Kalau 1 GB backend utama habis, tambah
