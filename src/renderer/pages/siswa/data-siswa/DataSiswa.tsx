@@ -121,20 +121,20 @@ export default function DataSiswa() {
           >
             <Upload size={16} /><span className="lg:hidden">Impor</span><span className="hidden lg:inline">Import Data</span>
           </button>
-          {siswa.length > 0 && (
-            <button
-              onClick={() => setHapusSemuaOpen(true)}
-              className="min-h-11 flex items-center justify-center gap-1.5 rounded-xl border border-red-200 bg-white px-3 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-50 lg:px-4"
-            >
-              <Trash2 size={16} /><span className="lg:hidden">Hapus semua</span><span className="hidden lg:inline">Hapus Semua</span>
-            </button>
-          )}
           <button
             onClick={() => { setEditSiswa(null); setFormOpen(true) }}
             className="action-primary min-h-11 flex items-center justify-center gap-1.5 rounded-xl px-3 lg:px-4 py-2.5 text-sm font-bold text-white bg-teal-700 hover:bg-teal-800 transition active:scale-[0.98]"
           >
             <Plus size={16} /><span className="sm:hidden">Tambah</span><span className="hidden sm:inline">Tambah Siswa</span>
           </button>
+          {siswa.length > 0 && (
+            <button
+              onClick={() => setHapusSemuaOpen(true)}
+              className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40"
+            >
+              <Trash2 size={16} /><span className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40">Hapus semua</span><span className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40">Hapus Semua</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -168,7 +168,7 @@ export default function DataSiswa() {
           <details className="min-w-0 flex-1 group">
             <summary className="flex min-h-12 cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden">
               <span className="w-5 shrink-0 text-xs text-slate-500">{student.no_absen || index + 1}</span>
-              <span className="min-w-0 flex-1"><Link to={`/siswa/profil/${student.id}`} className="block break-words text-sm font-semibold text-teal-800 underline-offset-2 hover:underline">{student.nama}</Link><span className="block text-xs text-slate-500">NIS {student.nis || '—'} · {student.jenis_kelamin || 'JK —'}</span></span>
+              <span className="min-w-0 flex-1"><Link to={`/siswa/profil/${student.id}`} className="flex min-h-11 items-center break-words text-sm font-semibold text-teal-800 underline-offset-2 hover:underline">{student.nama}</Link><span className="block text-xs text-slate-500">NIS {student.nis || '—'} · {student.jenis_kelamin || 'JK —'}</span></span>
               <ChevronDown size={15} className="shrink-0 text-slate-500 group-open:rotate-180"/>
             </summary>
             <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-2 border-t border-slate-100 py-3 text-xs">

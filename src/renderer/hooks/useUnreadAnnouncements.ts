@@ -22,7 +22,7 @@ export function useUnreadAnnouncements(): number | null {
     if (!client) { setCount(0); return }
     let cancelled = false
     const refresh = () => {
-      void client.from('announcements').select('id').then(({ data, error }) => {
+      void Promise.resolve(client.from('announcements').select('id')).then(({ data, error }) => {
         if (cancelled) return
         if (error) { setCount(0); return }
         const read = readIds()

@@ -188,6 +188,7 @@ export default function Jadwal() {
     if (!file || importLock.current) return
     importLock.current = true; setImporting(true); setImportResult(null)
     try {
+      if (file.size > 2 * 1024 * 1024) throw new Error('File terlalu besar. Maksimal 2 MB untuk impor.')
       const XLSX = await import('xlsx')
       const workbook = XLSX.read(await file.arrayBuffer(), {type:'array'})
       const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[workbook.SheetNames[0]], {defval:''})

@@ -1,4 +1,4 @@
-import { Bell, Cloud, CloudOff, Download, Lock, Moon, Settings, Sun, User } from 'lucide-react'
+import { Bell, Cloud, CloudOff, Download, Lock, Moon, Settings, ShieldCheck, Sun, User } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import { liveQuery } from 'dexie'
@@ -8,6 +8,7 @@ import { useAuthStore } from '../stores/authStore'
 import { readTheme, setTheme as saveThemePref } from '../theme'
 import { readSyncState, type AutoDecision, type SyncState } from '../../lib/cloud-sync'
 import ClassSwitcher from './ClassSwitcher'
+import { isOwnerEmail } from '../../shared/cloud-access'
 import { clearInstallPrompt, installPlatform, installPrompt, isStandalone, manualInstructions, markInstalledFlag, onInstallChange } from '../pwa-install'
 
 function useSyncSummary(decision: AutoDecision | null) {
@@ -27,7 +28,7 @@ function useSyncSummary(decision: AutoDecision | null) {
 export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean; announcementCount: number; syncDecision: AutoDecision | null}) {
   const { announcementCount, syncDecision } = _props
   const sync = useSyncSummary(syncDecision)
-  const { mode, plan, user: authUser } = useAuthStore()
+  const { mode, plan, proUntil, user: authUser } = useAuthStore()
   const location = useLocation()
   const [profileOpen, setProfileOpen] = useState(false)
   const [installReady, setInstallReady] = useState(installPrompt)
@@ -77,7 +78,7 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
     <>
       {isDemo && (
         <div className="demo-bar min-h-7 shrink-0 bg-amber-100 px-3 py-1 flex flex-wrap items-center justify-center gap-x-3 text-xs font-semibold text-amber-900">
-          <span>Data contoh aktif</span><Link to="/" className="inline-flex min-h-8 items-center underline underline-offset-2">Kelola data contoh</Link>
+          <span>Data contoh aktif</span><Link to="/" className="inline-flex min-h-11 items-center underline underline-offset-2">Kelola data contoh</Link>
         </div>
       )}
       <header
@@ -88,7 +89,7 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
         }}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white shadow-sm"><img src="/icons/logo-bgy.webp" alt="" className="size-7 rounded-full object-contain" /></span>
+          <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white shadow-sm"><img src="/icons/logo-bgy-64.png" alt="" className="size-7 rounded-full object-contain" /></span>
           <span className="truncate text-white font-extrabold" style={{ fontSize: '0.95rem' }}>
             BGY Wali Kelas
           </span>
@@ -96,7 +97,7 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
 
         <div className="flex shrink-0 items-center gap-1">
         <ClassSwitcher/>
-        <Link to="/pembaruan" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute -right-0.5 top-1 grid min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 py-0.5 text-[10px] font-black leading-none text-teal-950 ring-2 ring-teal-800">{announcementCount>9?'9+':announcementCount}</span>}</Link>
+        <Link to="/pembaruan" aria-label={announcementCount ? `${announcementCount} pengumuman baru` : 'Pengumuman'} className="relative grid size-11 shrink-0 place-items-center rounded-xl text-white hover:bg-white/15"><Bell size={18}/>{announcementCount>0&&<span aria-hidden="true" className="absolute -right-0.5 top-1 grid min-w-5 place-items-center rounded-full bg-amber-300 px-1.5 py-0.5 text-xs font-black leading-none text-teal-950 ring-2 ring-teal-800">{announcementCount>9?'9+':announcementCount}</span>}</Link>
         <div className="relative shrink-0">
           <button onClick={() => setProfileOpen(o => !o)} aria-label="Menu profil" aria-expanded={profileOpen} aria-haspopup="menu" title={nama} className="flex min-h-11 max-w-[42vw] items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">
             <span className="hidden truncate text-sm font-semibold sm:block">{nama}</span>
@@ -109,15 +110,18 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
                 <div className="border-b border-slate-100 px-4 py-3">
                   <p className="truncate text-sm font-extrabold text-slate-900">{authUser?.nama || nama}</p>
                   <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-500"><span className="min-w-0 truncate">{authUser?.email || (mode === 'demo' ? 'Data contoh' : '')}</span>{plan === 'pro'
-                    ? <span className="shrink-0 rounded-full bg-teal-700 px-2 py-0.5 text-[10px] font-bold text-white">PRO</span>
-                    : <Link to="/aktivasi" role="menuitem" className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-[10px] font-bold text-slate-600 hover:bg-slate-300">GRATIS</Link>}</p>
+                    ? <span className="shrink-0 rounded-full bg-teal-700 px-2 py-0.5 text-xs font-bold text-white">PRO</span>
+                    : <Link to="/aktivasi" role="menuitem" className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600 hover:bg-slate-300">GRATIS</Link>}</p>
+                  {plan === 'pro' && proUntil && <p className="mt-1 text-xs font-semibold text-teal-700">Pro sampai {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(proUntil))}</p>}
                 </div>
                 {sync ? (() => {
                   const last = (() => { try { return sync.state?.lastSyncAt ? new Date(sync.state.lastSyncAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'belum pernah' } catch { return 'belum pernah' } })()
                   const body = sync.decision === 'remote-newer'
                     ? { icon: <Cloud size={18} className="text-amber-600" />, title: 'Ada data baru di cloud', sub: 'Ketuk untuk meninjau' }
+                    : sync.state?.enabled && sync.state.lastError
+                      ? { icon: <CloudOff size={18} className="text-red-600" />, title: 'Sinkron gagal', sub: 'Ketuk untuk melihat & coba lagi' }
                     : sync.state?.enabled
-                      ? { icon: <Cloud size={18} className="text-teal-700" />, title: 'Sinkron aktif', sub: `Terakhir: ${last}` }
+                      ? { icon: <Cloud size={18} className="text-teal-700" />, title: 'Sinkron aktif', sub: `Terakhir terkirim: ${last}` }
                       : { icon: <CloudOff size={18} className="text-slate-400" />, title: 'Sinkron belum aktif', sub: 'Ketuk untuk mengaktifkan' }
                   return <Link to="/pengaturan" state={{ tab: 'backup' }} role="menuitem" className="flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><span className="shrink-0">{body.icon}</span><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">{body.title}</span><span className="block truncate text-xs text-slate-500">{body.sub}</span></span></Link>
                 })() : (mode === 'login' && plan !== 'pro' ? <Link to="/aktivasi" role="menuitem" className="flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><Lock size={18} className="shrink-0 text-slate-400"/><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">Sinkron Cloud · Khusus Pro</span><span className="block truncate text-xs text-slate-500">Ketuk untuk aktivasi</span></span></Link> : null)}
@@ -129,6 +133,7 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
                   <button type="button" role="menuitem" onClick={() => void installApp()} className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><Download size={18} className="shrink-0 text-teal-700"/><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">Install aplikasi</span>{!installed && <span className="block truncate text-xs text-slate-500">{installReady ? 'Pasang di HP ini' : 'Ketuk untuk caranya'}</span>}</span></button>
                   {installHint && (installed || !installReady) && <p role="status" className="px-4 pb-3 text-xs leading-5 text-slate-600">{installed ? 'Aplikasi sudah terpasang di perangkat ini ✓' : manualInstructions(installPlatform())}</p>}
                 </div>
+                {mode === 'login' && isOwnerEmail(authUser?.email) && <Link to="/admin" role="menuitem" className="flex min-h-11 items-center gap-3 border-t border-slate-100 px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50"><ShieldCheck size={18} className="shrink-0 text-teal-700"/>Panel Admin</Link>}
                 <Link to="/pengaturan" role="menuitem" className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50"><Settings size={18} className="shrink-0 text-slate-500"/>Pengaturan</Link>
               </div>
             </>

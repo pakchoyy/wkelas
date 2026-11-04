@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { documentClient } from '../../lib/document-client'
-import { autoSync, bootSync, type AutoDecision } from '../../lib/cloud-sync'
+import { autoSync, bootSync, markSyncError, type AutoDecision } from '../../lib/cloud-sync'
 import { useAuthStore } from '../stores/authStore'
+import { canUse } from '../../shared/subscription'
 
 const MIN_INTERVAL = 2 * 60 * 1000
 
 export function useCloudAutoSync(): AutoDecision | null {
-  const uid = useAuthStore(s => s.mode === 'login' && s.plan === 'pro' ? s.user?.id || null : null)
+  const uid = useAuthStore(s => canUse('sinkron_cloud', s.plan, s.mode) ? s.user?.id || null : null)
   const [last, setLast] = useState<AutoDecision | null>(null)
   useEffect(() => {
     const client = documentClient()
@@ -18,13 +19,13 @@ export function useCloudAutoSync(): AutoDecision | null {
       if (running || (!force && Date.now() - lastRun < MIN_INTERVAL)) return
       if (offline()) return
       running = true
-      try { setLast(await autoSync(client, uid)) } catch { /* coba lagi pada kesempatan berikutnya */ }
+      try { setLast(await autoSync(client, uid)) } catch (error) { markSyncError(uid, error) }
       finally { running = false; lastRun = Date.now() }
     }
     const boot = async () => {
       if (running || offline()) return
       running = true
-      try { setLast(await bootSync(client, uid)) } catch { /* coba lagi pada kesempatan berikutnya */ }
+      try { setLast(await bootSync(client, uid)) } catch (error) { markSyncError(uid, error) }
       finally { running = false; lastRun = Date.now() }
     }
     const onVis = () => {

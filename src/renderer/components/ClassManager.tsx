@@ -7,12 +7,13 @@ import { createClass, nextAcademicYear, promoteClass, type NewClass } from '../.
 import { useAppStore } from '../stores/appStore'
 import { useAuthStore } from '../stores/authStore'
 import { switchClass, useClasses } from '../hooks/useClasses'
+import { canUse } from '../../shared/subscription'
 
 type Mode = 'tambah' | 'naik' | null
 
 export default function ClassManager() {
   const classes = useClasses()
-  const pro = useAuthStore(s => s.plan === 'pro' && s.mode === 'login')
+  const pro = useAuthStore(s => canUse('multi_kelas', s.plan, s.mode))
   const kelasId = useAppStore(s => s.kelasAktifId)
   const active = classes.find(k => k.id === kelasId)
   const [mode, setMode] = useState<Mode>(null)
@@ -50,13 +51,13 @@ export default function ClassManager() {
   }
 
   return <section className="mt-6 space-y-3 border-t border-slate-100 pt-5">
-    <div><h3 className="font-extrabold">Kelola Kelas {!pro && <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-[11px] font-bold text-slate-600">PRO</span>}</h3>
+    <div><h3 className="font-extrabold">Kelola Kelas {!pro && <span className="ml-1 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600">PRO</span>}</h3>
       <p className="mt-1 text-xs text-slate-500">Setiap kelas punya siswa, jadwal, presensi, dan nilai sendiri. Naik kelas menyalin siswa ke kelas baru; kelas lama tetap bisa dibuka sebagai arsip.</p></div>
     <ul className="divide-y divide-slate-100 rounded-xl border border-slate-200">
       {classes.map(k => <li key={k.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2.5 text-sm">
         <span className="min-w-0"><span className="font-bold text-slate-800">{k.nama_kelas}</span> <span className="text-slate-500">· {k.tahun_ajaran} · Semester {k.semester}</span></span>
         {k.id === kelasId ? <span className="inline-flex items-center gap-1 rounded-full bg-teal-50 px-2.5 py-1 text-xs font-bold text-teal-800"><Check size={14}/>Aktif</span>
-          : <button type="button" onClick={() => void switchClass(k.id!)} className="min-h-10 rounded-lg px-3 text-sm font-bold text-teal-700 hover:bg-teal-50">Buka kelas</button>}
+          : <button type="button" onClick={() => void switchClass(k.id!)} className="min-h-11 rounded-lg px-3 text-sm font-bold text-teal-700 hover:bg-teal-50">Buka kelas</button>}
       </li>)}
     </ul>
     {pro ? <div className="flex flex-wrap gap-2">

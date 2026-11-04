@@ -162,11 +162,14 @@ button:has(> svg.lucide-x) {
   min-width: 2.75rem;
   flex-shrink: 0;
   border-radius: 999px;
-  background: #ffe4e6;
-  color: #be123c;
+  background: #f1f5f9;
+  color: #475569;
   opacity: 1;
 }
-button:has(> svg.lucide-x):hover { background: #fecdd3; color: #9f1239; }
+/* Netral, bukan merah: tombol tutup tidak boleh terlihat seperti tombol hapus. */
+button:has(> svg.lucide-x):hover { background: #e2e8f0; color: #0f172a; }
+[data-theme="dark"] button:has(> svg.lucide-x) { background: #1e293b; color: #cbd5e1; }
+[data-theme="dark"] button:has(> svg.lucide-x):hover { background: #334155; color: #f8fafc; }
 .date-picker-input {
   position: absolute;
   inset: 0;

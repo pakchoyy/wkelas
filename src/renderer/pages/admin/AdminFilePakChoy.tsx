@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bell, FileText, LayoutDashboard, LogOut, Megaphone, Pencil, Plus, RefreshCw, ShieldAlert, Trash2, Upload, Users } from 'lucide-react'
+import { ArrowLeft, Bell, FileText, KeyRound, LayoutDashboard, LogOut, Megaphone, Pencil, Plus, RefreshCw, Search, ShieldAlert, Trash2, Upload, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -9,6 +9,7 @@ import { deleteChoyDocument, downloadChoyDocument, listChoyDocuments, publishCho
 import { DOCUMENT_CATEGORIES, documentAudience, documentSize, type ChoyDocument } from '../../../shared/pak-choy-documents'
 import AdminContentPanel from './AdminContentPanel'
 import AdminFeedbackPanel from './AdminFeedbackPanel'
+import AdminLicensePanel from './AdminLicensePanel'
 
 const CATEGORIES = ['CP','ATP','Prota','Promes','RPM','Modul Ajar','LKPD','Lainnya']
 const emptyForm = { judul:'', jenis:'Modul Ajar', deskripsi:'', mata_pelajaran:'', jenjang:'', kelas:'', versi:'1.0', status:'terbit' as 'draft'|'terbit' }
@@ -24,12 +25,13 @@ const cloudEmpty = { judul:'', kategori:'Modul Ajar', deskripsi:'', grades:[] as
 const adminDate = (value:string|null) => value ? new Intl.DateTimeFormat('id-ID',{dateStyle:'medium',timeStyle:'short'}).format(new Date(value)) : 'Belum pernah'
 function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient>>}) {
   const { user, admin, checking } = useChoySession(client)
-  const [section,setSection] = useState<'ringkasan'|'pengguna'|'masukan'|'pengumuman'|'versi'|'file'>('ringkasan')
+  const [section,setSection] = useState<'ringkasan'|'pengguna'|'lisensi'|'masukan'|'pengumuman'|'versi'|'file'>('ringkasan')
   const [items,setItems] = useState<ChoyDocument[]>([])
   const [loading,setLoading] = useState(true)
   const [users,setUsers] = useState<ChoyAdminUser[]>([])
   const [usersLoading,setUsersLoading] = useState(true)
   const [usersError,setUsersError] = useState('')
+  const [userQuery,setUserQuery] = useState('')
   const [feedbackCount,setFeedbackCount] = useState<number|null>(null)
   const [show,setShow] = useState(false)
   const [editing,setEditing] = useState<ChoyDocument|null>(null)
@@ -61,7 +63,7 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
   }
   const flip = async (item:ChoyDocument) => { setMessage(''); try { await publishChoyDocument(client,item,!item.published); await load() } catch(err) { setMessage(err instanceof Error?err.message:'Status gagal diubah.') } }
   const remove = async () => { if(lock.current||!confirmDelete)return; const item=confirmDelete; setConfirmDelete(null); lock.current=true;setBusy(true); try { await deleteChoyDocument(client,item); await load() } catch(err) { setMessage(err instanceof Error?err.message:'Hapus gagal.') } finally { lock.current=false;setBusy(false) } }
-  return <div className="mx-auto max-w-6xl space-y-5 pb-12">
+  return <div className="mx-auto max-w-6xl space-y-5 px-4 pb-12 pt-4 sm:px-6">
     <header className="flex flex-wrap items-start justify-between gap-3"><div><Link to="/" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-teal-700"><ArrowLeft size={17}/>Kembali ke aplikasi</Link><h1 className="text-2xl font-black text-slate-900">Admin Utama</h1><p className="mt-1 text-sm text-slate-500">Kelola pengguna dan File Pak Choy dari satu tempat.</p></div>{user&&<button onClick={()=>void choySignOut(client)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600"><LogOut size={16}/>Keluar ({user.email})</button>}</header>
     {message&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{message}</p>}
     {checking||loading ? <p role="status" className="text-sm text-slate-500">Memuat…</p> : !user ? <form onSubmit={doLogin} className="mx-auto max-w-sm space-y-3 rounded-2xl border border-slate-200 bg-white p-6"><h2 className="font-extrabold text-slate-800">Login admin</h2><label className="block text-sm font-bold">Email<input required type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} className="field mt-1.5"/></label><label className="block text-sm font-bold">Kata sandi<input required type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} className="field mt-1.5"/></label><button disabled={busy} className="action-primary min-h-11 w-full rounded-xl px-4 font-bold disabled:opacity-40">{busy?'Memeriksa…':'Masuk'}</button></form>
@@ -73,6 +75,7 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
         {([
           ['ringkasan','Ringkasan',LayoutDashboard],
           ['pengguna','Pengguna',Users],
+          ['lisensi','Lisensi',KeyRound],
           ['masukan','Masukan',Bell],
           ['pengumuman','Pengumuman',Megaphone],
           ['versi','Versi',RefreshCw],
@@ -81,16 +84,17 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
       </nav>
       </aside>
       <div className="min-w-0 space-y-4 bg-white p-4 lg:p-6">
-      {section==='ringkasan'&&<section className="grid gap-3 sm:grid-cols-4">
+      {section==='ringkasan'&&<section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <article className="rounded-2xl border border-teal-100 bg-teal-50 p-5"><p className="text-sm font-bold text-teal-800">Pengguna terdaftar</p><p className="mt-2 text-3xl font-black text-teal-950">{usersLoading?'—':users.length}</p></article>
         <article className="rounded-2xl border border-sky-100 bg-sky-50 p-5"><p className="text-sm font-bold text-sky-800">File tersimpan</p><p className="mt-2 text-3xl font-black text-sky-950">{loading?'—':items.length}</p></article>
         <article className="rounded-2xl border border-emerald-100 bg-emerald-50 p-5"><p className="text-sm font-bold text-emerald-800">File diterbitkan</p><p className="mt-2 text-3xl font-black text-emerald-950">{loading?'—':items.filter(item=>item.published).length}</p></article>
         <article className="rounded-2xl border border-amber-100 bg-amber-50 p-5"><p className="text-sm font-bold text-amber-800">Masukan baru</p><p className="mt-2 text-3xl font-black text-amber-950">{feedbackCount===null?'—':feedbackCount}</p></article>
-        {usersError&&<p role="alert" className="sm:col-span-3 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{usersError}</p>}
+        {usersError&&<p role="alert" className="col-span-2 lg:col-span-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{usersError}</p>}
       </section>}
-      {section==='pengguna'&&<section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-extrabold text-slate-800">Pengguna terdaftar</h2><p className="mt-1 text-sm text-slate-500">Akun yang masuk melalui Google atau email.</p></div>
-        {usersError?<div className="p-5"><p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{usersError}</p></div>:usersLoading?<p role="status" className="p-5 text-sm text-slate-500">Memuat pengguna…</p>:<div className="divide-y divide-slate-100">{users.map(account=><article key={account.user_id} className="flex items-center gap-3 p-4 sm:p-5">{account.avatar_url?<img src={account.avatar_url} alt="" className="size-11 shrink-0 rounded-full object-cover" referrerPolicy="no-referrer"/>:<span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal-100 font-black text-teal-800">{(account.full_name||account.email).charAt(0).toUpperCase()}</span>}<div className="min-w-0 flex-1"><h3 className="truncate font-bold text-slate-800">{account.full_name||'Tanpa nama'}</h3><p className="truncate text-sm text-slate-500">{account.email}</p><p className="mt-1 text-xs text-slate-400">Daftar {adminDate(account.created_at)} · Terakhir masuk {adminDate(account.last_sign_in_at)}</p></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold uppercase text-slate-600">{account.provider}</span></article>)}{!users.length&&<p className="p-8 text-center text-sm text-slate-500">Belum ada pengguna terdaftar.</p>}</div>}
+      {section==='pengguna'&&<section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-extrabold text-slate-800">Pengguna terdaftar</h2><p className="mt-1 text-sm text-slate-500">Akun yang masuk melalui Google atau email. {users.filter(u=>u.plan==='pro').length} Pro.</p><label className="relative mt-3 block"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/><input value={userQuery} onChange={e=>setUserQuery(e.target.value)} placeholder="Cari nama atau email" aria-label="Cari pengguna" className="field pl-9"/></label></div>
+        {usersError?<div className="p-5"><p role="alert" className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">{usersError}</p></div>:usersLoading?<p role="status" className="p-5 text-sm text-slate-500">Memuat pengguna…</p>:<div className="divide-y divide-slate-100">{users.filter(account=>{const q=userQuery.trim().toLowerCase();return !q||account.email.toLowerCase().includes(q)||(account.full_name||'').toLowerCase().includes(q)}).map(account=><article key={account.user_id} className="flex items-center gap-3 p-4 sm:p-5">{account.avatar_url?<img src={account.avatar_url} alt="" className="size-11 shrink-0 rounded-full object-cover" referrerPolicy="no-referrer"/>:<span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal-100 font-black text-teal-800">{(account.full_name||account.email).charAt(0).toUpperCase()}</span>}<div className="min-w-0 flex-1"><h3 className="truncate font-bold text-slate-800">{account.full_name||'Tanpa nama'}</h3><p className="truncate text-sm text-slate-500">{account.email}</p><p className="mt-1 text-xs text-slate-400">Daftar {adminDate(account.created_at)} · Terakhir masuk {adminDate(account.last_sign_in_at)}</p></div><div className="shrink-0 text-right">{account.plan==='pro'?<span className="rounded-full bg-teal-100 px-2.5 py-1 text-xs font-bold text-teal-800">PRO</span>:<span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Gratis</span>}{account.plan==='pro'&&account.pro_until&&<p className="mt-1 text-xs text-slate-500">s.d. {adminDate(account.pro_until).split(',')[0]}</p>}</div></article>)}{!users.length&&<p className="p-8 text-center text-sm text-slate-500">Belum ada pengguna terdaftar.</p>}</div>}
       </section>}
+      {section==='lisensi'&&<AdminLicensePanel client={client}/>}
       {section==='masukan'&&<AdminFeedbackPanel client={client}/>}
       {section==='pengumuman'&&<AdminContentPanel client={client} kind="pengumuman"/>}
       {section==='versi'&&<AdminContentPanel client={client} kind="versi"/>}
@@ -142,7 +146,7 @@ function AdminLokal() {
     finally{lock.current=false;setBusy(false)}
   }
   const remove=async()=>{if(lock.current||!confirmDelete) return; const item = confirmDelete; setConfirmDelete(null); lock.current=true;setBusy(true);try{await db.perangkat_ajar_cache.delete(item.id);await load()}finally{lock.current=false;setBusy(false)}}
-  return <div className="mx-auto max-w-6xl space-y-5 pb-12">
+  return <div className="mx-auto max-w-6xl space-y-5 px-4 pb-12 pt-4 sm:px-6">
     <header className="flex flex-wrap items-start justify-between gap-3"><div><Link to="/" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-teal-700"><ArrowLeft size={17}/>Kembali ke aplikasi</Link><h1 className="text-2xl font-black text-slate-900">Admin File Pak Choy</h1><p className="mt-1 text-sm text-slate-500">Kelola file yang tampil pada menu Perangkat Ajar.</p></div><button onClick={openNew} className="action-primary inline-flex min-h-11 items-center gap-2 rounded-xl px-4 text-sm font-bold"><Plus size={17}/>Tambah file</button></header>
     <aside className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><ShieldAlert className="shrink-0" size={20}/><p><strong>Mode admin lokal.</strong> File hanya tersedia pada browser ini. Isi VITE_SUPABASE_URL dan kunci publik di hosting agar tersambung ke cloud dan ada login admin.</p></aside>
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white"><div className="border-b border-slate-100 px-5 py-4"><h2 className="font-extrabold text-slate-800">{items.length} file tersimpan</h2></div>

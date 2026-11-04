@@ -34,7 +34,7 @@ export default function AnnouncementAlert() {
     const client = documentClient()
     if (!client) { setItems([]); return }
     let cancelled = false
-    void client.from('announcements').select('id,judul,isi,jenis,created_at').order('created_at', { ascending: false }).limit(5)
+    void Promise.resolve(client.from('announcements').select('id,judul,isi,jenis,created_at').order('created_at', { ascending: false }).limit(5))
       .then(({ data, error }) => {
         if (cancelled) return
         if (error) { setItems([]); return }

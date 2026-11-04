@@ -45,7 +45,7 @@ export default function PerangkatAjar() {
   }
   const download = (doc:any) => {
     try {
-      if (!doc.file_data) throw new Error('Berkas tidak tersedia dalam dokumen ini.')
+      if (!doc.file_data) throw new Error('Isi berkas ada di perangkat tempat dokumen ini diunggah. Sinkron cloud hanya membawa judulnya; pindahkan berkas lewat file cadangan.')
       const url=URL.createObjectURL(new Blob([new Uint8Array(doc.file_data)],{type:'application/octet-stream'}))
       const anchor=document.createElement('a');anchor.href=url
       anchor.download=`${String(doc.judul || 'dokumen').replace(/[<>:"/\\|?*]/g,'_')}${doc.format_file ? '.'+doc.format_file : ''}`

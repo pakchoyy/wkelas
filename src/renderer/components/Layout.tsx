@@ -12,6 +12,7 @@ import { resolveQuickNavOptions, type QuickNavOption } from './quick-nav-options
 import { readQuickNav } from '../../lib/quick-nav'
 import { notifyDueTasks } from '../../lib/task-reminder'
 import { hasPendingActivation } from '../../lib/pro-license'
+import RenewalReminder from './RenewalReminder'
 
 const HOME_LINK = { to: '/', label: 'Beranda', icon: LayoutDashboard }
 
@@ -76,11 +77,13 @@ export default function Layout() {
       <div className="flex min-h-0 flex-1 overflow-hidden">
         <div className="hidden w-64 shrink-0 lg:flex"><Sidebar/></div>
         <main ref={main} id="main-content" tabIndex={-1} className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-y-auto p-3 sm:p-4 lg:p-6">
-          {sync === 'remote-newer' && location.pathname !== '/pengaturan' && <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900"><span>Ada data lebih baru di cloud dari perangkat lain. Sinkron otomatis ditahan agar tidak saling menimpa.</span><Link to="/pengaturan" state={{tab:'backup'}} className="inline-flex min-h-10 items-center rounded-lg bg-sky-700 px-3 font-bold text-white hover:bg-sky-800">Tinjau</Link></div>}
+          {sync === 'remote-newer' && location.pathname !== '/pengaturan' && <div role="status" className="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 p-3 text-sm text-sky-900"><span>Ada data lebih baru di cloud dari perangkat lain. Sinkron otomatis ditahan agar tidak saling menimpa.</span><Link to="/pengaturan" state={{tab:'backup'}} className="inline-flex min-h-11 items-center rounded-lg bg-sky-700 px-3 font-bold text-white hover:bg-sky-800">Tinjau</Link></div>}
+          <RenewalReminder/>
           <div className="min-w-0 animate-slide-up"><Outlet/></div>
         </main>
       </div>
-      <RunningPromo/>
+      {/* Strip promo hanya di Beranda agar halaman kerja tidak sesak di HP. */}
+      {location.pathname === '/' && <RunningPromo/>}
       <nav aria-label="Navigasi cepat" className="mobile-navigation grid shrink-0 grid-cols-5 border-t border-slate-200 bg-white lg:hidden" style={{paddingBottom:'env(safe-area-inset-bottom)'}}>
         {quickLinks.map(({to,label,icon:Icon}) => <NavLink key={to} to={to} end={to === '/'} className={({isActive}) => `flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${isActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Icon size={19}/>{label}</NavLink>)}
         <button onClick={() => setMenuOpen(true)} aria-expanded={menuOpen} aria-controls="mobile-menu" className={`flex min-h-12 flex-col items-center justify-center gap-1 text-xs font-semibold ${!quickActive ? 'bg-teal-50 text-teal-700' : 'text-slate-500'}`}><Menu size={19}/>Menu</button>

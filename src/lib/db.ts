@@ -68,8 +68,18 @@ export class BgyDatabase extends Dexie {
     this.version(2).stores({
       siswa_field_definitions: '++id, kelas_id, slug, &[kelas_id+slug]',
     })
+    for (const table of this.tables) {
+      table.hook('creating', markLocalChange)
+      table.hook('updating', markLocalChange)
+      table.hook('deleting', markLocalChange)
+    }
   }
 }
+
+// Naik setiap ada tulis lokal; sinkron memakai ini agar tidak merakit ulang data bila tak ada perubahan.
+let localChanges = 0
+function markLocalChange() { localChanges++ }
+export function localChangeCount(): number { return localChanges }
 
 const MAIN_DB_NAME = 'bgy-wali-kelas'
 export const DEMO_DB_NAME = 'bgy-wali-kelas-demo'
@@ -117,6 +127,18 @@ function getDemoDb(): BgyDatabase {
     activeDb = new BgyDatabase(DEMO_DB_NAME)
   }
   return activeDb
+}
+
+// Hapus seluruh data akun ini dari perangkat (dipakai saat keluar di perangkat bersama).
+export async function deleteAccountData(uid: string): Promise<void> {
+  const name = accountDbName(uid)
+  if (activeDb?.name === name) { activeDb.close(); activeDb = null }
+  await Dexie.delete(name)
+  try {
+    if (name === MAIN_DB_NAME) localStorage.removeItem(LEGACY_OWNER_KEY)
+    localStorage.removeItem(`bgy-cloud-sync-${uid}`)
+    localStorage.removeItem('bgy_pro_wk')
+  } catch {}
 }
 
 export function activateMainDb(): BgyDatabase {
