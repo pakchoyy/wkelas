@@ -6,7 +6,7 @@ export const PRO_ACCESS = 'wali_kelas'
 const CACHE_KEY = 'bgy_pro_wk'
 // Link produk Pro di toko Kreacy. Diisi lewat env hosting (VITE_PRO_BUY_URL).
 const envBuy = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_PRO_BUY_URL
-export const PRO_BUY_URL = envBuy && /^https:\/\//.test(envBuy) ? envBuy : ''
+export const PRO_BUY_URL = envBuy && /^https:\/\//.test(envBuy) ? envBuy : 'https://kreacy.my.id/produk/1bumlai7'
 export const PRO_PRICE = 'Rp23.000 / semester'
 // Salinan status Pro hanya dipercaya maksimal 7 hari saat offline.
 const CACHE_MAX_AGE = 7 * 86400000
