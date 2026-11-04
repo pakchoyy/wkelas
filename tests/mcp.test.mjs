@@ -190,3 +190,21 @@ test('every tool has a name, description and object schema', () => {
     assert.ok(!names.has(tool.name), `nama ganda ${tool.name}`); names.add(tool.name)
   }
 })
+
+test('set_folder_order controls folder order (SD, SMP, SMA)', async () => {
+  const s = memoryStore()
+  for (const p of ['Perangkat/SD', 'Perangkat/SMA', 'Perangkat/SMP']) await call(s, 'create_folder', { path: p })
+  await call(s, 'set_folder_order', { path: 'Perangkat/SD', order: 1 })
+  await call(s, 'set_folder_order', { path: 'Perangkat/SMP', order: 2 })
+  await call(s, 'set_folder_order', { path: 'Perangkat/SMA', order: 3 })
+  const list = (await call(s, 'list_folder', { folder_path: 'Perangkat' })).text
+  assert.ok(list.indexOf('SD') < list.indexOf('SMP') && list.indexOf('SMP') < list.indexOf('SMA'), list)
+  assert.match((await call(s, 'set_folder_order', { path: 'Perangkat/SD', order: -1 })).text, /0 sampai 9999/)
+})
+
+test('list_folder sorts items naturally (Kelas 2 before Kelas 10)', async () => {
+  const s = memoryStore()
+  for (const t of ['Kelas 10', 'Kelas 2', 'Kelas 1']) await call(s, 'add_link', { folder_path: 'X', title: t, url: 'https://a.b' })
+  const list = (await call(s, 'list_folder', { folder_path: 'X' })).text
+  assert.ok(list.indexOf('Kelas 1 ') < list.indexOf('Kelas 2') && list.indexOf('Kelas 2') < list.indexOf('Kelas 10'), list)
+})

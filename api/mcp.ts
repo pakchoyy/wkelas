@@ -15,7 +15,7 @@ export interface Store {
   folders(): Promise<Folder[]>
   items(): Promise<Item[]>
   createFolder(parentId: string | null, name: string): Promise<Folder>
-  updateFolder(id: string, patch: { name?: string; parent_id?: string | null }): Promise<void>
+  updateFolder(id: string, patch: { name?: string; parent_id?: string | null; sort_order?: number }): Promise<void>
   deleteFolder(id: string): Promise<void>
   addLink(input: { title: string; description: string; url: string; folderId: string | null; published: boolean }): Promise<Item>
   addFile(input: { title: string; description: string; category: string; grades: number[]; folderId: string | null; fileName: string; bytes: Uint8Array; contentType: string; published: boolean }): Promise<Item>
@@ -186,8 +186,8 @@ export const TOOLS: Tool[] = [
     inputSchema: { type: 'object', properties: { ...folderPathProp } },
     run: async (store, args) => {
       const { folder, folders } = await resolveFolder(store, args.folder_path)
-      const items = (await store.items()).filter(i => (i.folder_id ?? null) === (folder?.id ?? null))
-      const subs = folders.filter(f => f.parent_id === (folder?.id ?? null))
+      const items = (await store.items()).filter(i => (i.folder_id ?? null) === (folder?.id ?? null)).sort((a, b) => a.title.localeCompare(b.title, 'id', { numeric: true }))
+      const subs = folders.filter(f => f.parent_id === (folder?.id ?? null)).sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name, 'id', { numeric: true }))
       const head = `Folder: ${folder ? pathOf(folders, folder.id) : 'paling atas'}`
       return [head, subs.length ? 'Subfolder:\n' + subs.map(s => `- 📁 ${s.name}`).join('\n') : 'Subfolder: (kosong)', items.length ? 'Isi:\n' + items.map(i => line(i, folders)).join('\n') : 'Isi: (kosong)'].join('\n')
     },
@@ -224,6 +224,19 @@ export const TOOLS: Tool[] = [
       const { folder: target, folders } = await resolveFolder(store, args.to_path)
       await store.updateFolder(folder!.id, { parent_id: target?.id ?? null })
       return `Folder dipindah ke: ${target ? pathOf(folders, target.id) : 'paling atas'}`
+    },
+  },
+  {
+    name: 'set_folder_order',
+    description: 'Atur urutan folder di dalam folder induknya. Angka kecil tampil lebih dulu (mis. SD=1, SMP=2, SMA=3). Folder dengan angka sama diurutkan menurut nama.',
+    inputSchema: { type: 'object', required: ['path', 'order'], properties: { path: str(), order: { type: 'integer', minimum: 0, maximum: 9999 } } },
+    run: async (store, args) => {
+      const { folder } = await resolveFolder(store, args.path)
+      if (!folder) fail('Isi path folder yang mau diatur urutannya.')
+      const order = Number(args.order)
+      if (!Number.isInteger(order) || order < 0 || order > 9999) fail('Urutan harus angka 0 sampai 9999.')
+      await store.updateFolder(folder!.id, { sort_order: order })
+      return `Urutan “${folder!.name}” diatur ke ${order}.`
     },
   },
   {

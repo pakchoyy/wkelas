@@ -46,7 +46,7 @@ export default function AdminDocuments({ client, items, onChanged }: { client: S
 
   const path = folderPath(folders, current)
   const subfolders = childFolders(folders, current)
-  const here = items.filter(item => (item.folder_id ?? null) === current)
+  const here = items.filter(item => (item.folder_id ?? null) === current).sort((a, b) => a.title.localeCompare(b.title, 'id', { numeric: true }))
   const options = folderOptions(folders)
 
   const openFolderModal = (rename?: ChoyFolder) => { setFolderName(rename?.name || ''); setMessage(''); setFolderModal({ rename }) }

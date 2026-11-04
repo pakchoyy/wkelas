@@ -77,7 +77,7 @@ export default function PerangkatAjar() {
   const shownOfficial=atRoot?officialDocs.filter(doc=>category==='Semua'||doc.jenis===category):[]
   const visible=visibleFolderIds(folders,cloudDocs.map(({doc})=>({folder_id:doc.folder_id,published:doc.published})))
   const subfolders=childFolders(folders,folderId).filter(folder=>visible.has(folder.id))
-  const shownCloud=cloudDocs.filter(({doc})=>(doc.folder_id??null)===folderId)
+  const shownCloud=cloudDocs.filter(({doc})=>(doc.folder_id??null)===folderId).sort((a,b)=>a.doc.title.localeCompare(b.doc.title,'id',{numeric:true}))
   const crumbs=folderPath(folders,folderId)
   return <div className="space-y-3">
     <div className="flex items-center gap-2"><Files size={21} className="text-emerald-600"/><h1 className="text-xl font-bold">Perangkat Ajar</h1></div>
