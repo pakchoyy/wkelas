@@ -1,6 +1,6 @@
 import { Bell, Cloud, CloudOff, Download, Lock, Moon, Settings, ShieldCheck, Sun, User } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { useEffect, useRef, useState } from 'react'
 import { liveQuery } from 'dexie'
 import { db } from '../../lib/db'
 import { useAppStore } from '../stores/appStore'
@@ -30,6 +30,14 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
   const sync = useSyncSummary(syncDecision)
   const { mode, plan, proUntil, user: authUser } = useAuthStore()
   const location = useLocation()
+  const navigate = useNavigate()
+  // Pintasan admin: ketuk logo/judul 5x dalam 3 detik. Halaman admin tetap butuh login admin.
+  const taps = useRef<number[]>([])
+  const tapBrand = () => {
+    const now = Date.now()
+    taps.current = [...taps.current.filter(t => now - t < 3000), now]
+    if (taps.current.length >= 5) { taps.current = []; navigate('/admin') }
+  }
   const [profileOpen, setProfileOpen] = useState(false)
   const [installReady, setInstallReady] = useState(installPrompt)
   const [installHint, setInstallHint] = useState(false)
@@ -88,7 +96,7 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
           boxShadow: '0 2px 10px rgba(0,0,0,.18)',
         }}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div className="flex min-w-0 flex-1 select-none items-center gap-2" onClick={tapBrand}>
           <span className="grid size-9 shrink-0 place-items-center rounded-full bg-white shadow-sm"><img src="/icons/logo-bgy-64.png" alt="" className="size-7 rounded-full object-contain" /></span>
           <span className="truncate text-white font-extrabold" style={{ fontSize: '0.95rem' }}>
             BGY Wali Kelas
