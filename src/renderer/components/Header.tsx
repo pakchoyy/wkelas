@@ -116,8 +116,10 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
                   const last = (() => { try { return sync.state?.lastSyncAt ? new Date(sync.state.lastSyncAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'belum pernah' } catch { return 'belum pernah' } })()
                   const body = sync.decision === 'remote-newer'
                     ? { icon: <Cloud size={18} className="text-amber-600" />, title: 'Ada data baru di cloud', sub: 'Ketuk untuk meninjau' }
+                    : sync.state?.enabled && sync.state.lastError
+                      ? { icon: <CloudOff size={18} className="text-red-600" />, title: 'Sinkron gagal', sub: 'Ketuk untuk melihat & coba lagi' }
                     : sync.state?.enabled
-                      ? { icon: <Cloud size={18} className="text-teal-700" />, title: 'Sinkron aktif', sub: `Terakhir: ${last}` }
+                      ? { icon: <Cloud size={18} className="text-teal-700" />, title: 'Sinkron aktif', sub: `Terakhir terkirim: ${last}` }
                       : { icon: <CloudOff size={18} className="text-slate-400" />, title: 'Sinkron belum aktif', sub: 'Ketuk untuk mengaktifkan' }
                   return <Link to="/pengaturan" state={{ tab: 'backup' }} role="menuitem" className="flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><span className="shrink-0">{body.icon}</span><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">{body.title}</span><span className="block truncate text-xs text-slate-500">{body.sub}</span></span></Link>
                 })() : (mode === 'login' && plan !== 'pro' ? <Link to="/aktivasi" role="menuitem" className="flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-50"><Lock size={18} className="shrink-0 text-slate-400"/><span className="min-w-0"><span className="block truncate text-sm font-bold text-slate-800">Sinkron Cloud · Khusus Pro</span><span className="block truncate text-xs text-slate-500">Ketuk untuk aktivasi</span></span></Link> : null)}

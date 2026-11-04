@@ -69,20 +69,34 @@ export function parseBackup(text: string): BackupTables {
   return tables
 }
 
-export async function createBackupText(database: BgyDatabase): Promise<string> {
+// Tables whose rows may carry file bytes. Cloud sync sends only their metadata.
+const FILE_TABLES = ['dokumen_saya', 'perangkat_ajar_cache'] as const
+
+// withFiles=false: file bytes stay on this device (cloud sync never uploads personal documents).
+export async function createBackupText(database: BgyDatabase, options: { withFiles?: boolean } = {}): Promise<string> {
+  const withFiles = options.withFiles ?? true
   const tables = {} as BackupTables
   await database.transaction('r', database.tables, async () => {
     for (const name of BACKUP_TABLES) tables[name] = await database.table(name).toArray()
   })
+  if (!withFiles) for (const name of FILE_TABLES) tables[name] = tables[name].map(({ file_data: _drop, ...rest }) => rest)
   const text = JSON.stringify({ format: FORMAT, version: 1, createdAt: new Date().toISOString(), tables }, (_key, value) => value instanceof Uint8Array ? Array.from(value) : value)
-  parseBackup(text)
+  if (withFiles) parseBackup(text)
   return text
 }
 
-export async function restoreBackupText(database: BgyDatabase, text: string, confirm: (tables: BackupTables) => boolean | Promise<boolean>): Promise<boolean> {
+// keepLocalFiles: rows restored without file bytes keep the bytes already on this device.
+export async function restoreBackupText(database: BgyDatabase, text: string, confirm: (tables: BackupTables) => boolean | Promise<boolean>, options: { keepLocalFiles?: boolean } = {}): Promise<boolean> {
   const tables = parseBackup(text)
   if (!await confirm(tables)) return false
   await database.transaction('rw', database.tables, async () => {
+    if (options.keepLocalFiles) {
+      for (const name of FILE_TABLES) {
+        const local = new Map<unknown, Uint8Array>()
+        for (const row of await database.table(name).toArray()) if (row.file_data) local.set(row.id, row.file_data)
+        tables[name] = tables[name].map(row => row.file_data == null && local.has(row.id) ? { ...row, file_data: local.get(row.id) } : row)
+      }
+    }
     for (const name of BACKUP_TABLES) await database.table(name).clear()
     for (const name of BACKUP_TABLES) await database.table(name).bulkAdd(tables[name])
   })
