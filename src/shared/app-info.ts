@@ -9,5 +9,5 @@ export const APP_UPDATES = [
   'Catatan perilaku bisa diedit dari Riwayat & Rekap.',
   'Halaman Tentang, instal aplikasi (PWA), dan grup diskusi WhatsApp.',
   'Admin file cloud dengan login + Dokumen Pak Choy.',
-  'Pengingat backup data setiap 30 hari.',
+  'Pengingat backup data setiap minggu.',
 ]

@@ -66,7 +66,7 @@ export default function BantuanKomunitas() {
       <div className="mt-3 divide-y divide-slate-100">
         <Faq question="Data saya disimpan di mana?">Data tersimpan di browser pada perangkat ini dan belum otomatis tersinkron ke perangkat lain.</Faq>
         <Faq question="Bagaimana jika pindah laptop?">Buka Pengaturan → Data & Cadangan, buat file .bgy, lalu pulihkan file tersebut di laptop tujuan.</Faq>
-        <Faq question="Kapan sebaiknya membuat cadangan?">Aplikasi mengingatkan setiap 30 hari. Buat juga cadangan sebelum menghapus data browser atau pindah perangkat.</Faq>
+        <Faq question="Kapan sebaiknya membuat cadangan?">Aplikasi mengingatkan setiap minggu. Buat juga cadangan sebelum menghapus data browser atau pindah perangkat.</Faq>
         <Faq question="Mengapa WhatsApp tidak langsung mengirim?">Demi keamanan, aplikasi hanya menyiapkan pesan. Kamu tetap menekan tombol Kirim di WhatsApp.</Faq>
       </div>
     </section>
