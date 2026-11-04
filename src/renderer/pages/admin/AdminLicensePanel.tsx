@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Copy, KeyRound, Link2, RefreshCw, Search } from 'lucide-react'
+import { Copy, KeyRound, Link2, Search } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import ConfirmDialog from '../../components/ConfirmDialog'
 
@@ -18,7 +18,6 @@ export default function AdminLicensePanel({ client }: { client: SupabaseClient }
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<{ ok: boolean; text: string; copy?: string } | null>(null)
   const [revoke, setRevoke] = useState<License | null>(null)
-  const [rotateAsk, setRotateAsk] = useState(false)
 
   const load = async () => {
     setLoading(true); setError('')
@@ -56,15 +55,6 @@ export default function AdminLicensePanel({ client }: { client: SupabaseClient }
       return { text: `Pro ${item.email} dicabut. Data pengguna tidak dihapus.` }
     })
   }
-  const rotate = () => {
-    setRotateAsk(false)
-    void act(async () => {
-      const { data, error: rpcError } = await client.rpc('admin_rotate_claim_secret')
-      if (rpcError) throw new Error(clean(rpcError.message))
-      const link = `${window.location.origin}/aktvs-wk.html#t=${String(data)}`
-      return { text: 'Link klaim baru dibuat. Tempel ke kolom link file produk Pro di Kreacy sekarang; link lama langsung tidak berlaku.', copy: link }
-    })
-  }
   const copy = async (text: string) => { try { await navigator.clipboard.writeText(text); setNotice(n => n && { ...n, text: `${n.text} (tersalin)` }) } catch {} }
 
   const q = query.trim().toLowerCase()
@@ -82,9 +72,8 @@ export default function AdminLicensePanel({ client }: { client: SupabaseClient }
     </section>
 
     <section className="rounded-2xl border border-slate-200 bg-white p-4 sm:p-5">
-      <h2 className="flex items-center gap-2 font-extrabold text-slate-800"><Link2 size={18}/>Link klaim Kreacy</h2>
-      <p className="mt-1 text-sm text-slate-500">Pembeli membuka link ini dari halaman pesanan untuk klaim Pro sendiri. Ganti tiap semester atau bila link tersebar.</p>
-      <button disabled={busy} onClick={() => setRotateAsk(true)} className="mt-3 inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><RefreshCw size={16}/>Buat link klaim baru</button>
+      <h2 className="flex items-center gap-2 font-extrabold text-slate-800"><Link2 size={18}/>Klaim dari Kreacy</h2>
+      <p className="mt-1 text-sm text-slate-500">Link di halaman pesanan unik per pesanan dan hanya bisa diklaim sekali. Tidak perlu diganti. Bila pembeli gagal klaim, terbitkan manual di atas dengan email akun Wkelas mereka.</p>
     </section>
 
     {notice && <div role={notice.ok ? 'status' : 'alert'} className={`rounded-xl p-3 text-sm font-semibold ${notice.ok ? 'bg-emerald-50 text-emerald-900' : 'bg-red-50 text-red-700'}`}>
@@ -107,6 +96,5 @@ export default function AdminLicensePanel({ client }: { client: SupabaseClient }
     </section>
 
     <ConfirmDialog open={!!revoke} title="Cabut Pro?" confirmText="Cabut" message={revoke ? `Pro untuk ${revoke.email} berhenti sekarang (misalnya setelah refund). Data pengguna tidak dihapus.` : ''} onCancel={() => setRevoke(null)} onConfirm={doRevoke}/>
-    <ConfirmDialog open={rotateAsk} title="Ganti link klaim?" confirmText="Buat link baru" message="Link klaim lama langsung tidak berlaku. Segera tempel link baru ke produk Pro di Kreacy agar pembeli berikutnya bisa klaim." onCancel={() => setRotateAsk(false)} onConfirm={rotate}/>
   </div>
 }

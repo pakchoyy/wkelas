@@ -55,8 +55,8 @@ export async function activatePro(client: SupabaseClient, email: string, code: s
 }
 
 // Link klaim dari halaman pesanan Kreacy: Pro langsung menempel ke akun yang sedang masuk.
-export async function claimPro(client: SupabaseClient, token: string): Promise<ProStatus> {
-  const { data, error } = await client.rpc('bgy_claim_pro', { p_token: token.trim() })
+export async function claimPro(client: SupabaseClient, order: string, sig: string): Promise<ProStatus> {
+  const { data, error } = await client.rpc('bgy_claim_pro', { p_order: order.trim(), p_sig: sig.trim() })
   if (error) throw new Error(friendly(error.message))
   const row = (Array.isArray(data) ? data[0] : data) as ProStatus
   if (!row?.is_pro) throw new Error('Klaim diterima, tetapi masa Pro tidak aktif. Hubungi admin.')
@@ -76,12 +76,12 @@ export function capturePendingActivation() {
   if (!hash.startsWith('#/aktivasi?')) return
   try { sessionStorage.setItem(PENDING_KEY, hash.slice('#/aktivasi?'.length)) } catch {}
 }
-export function takePendingActivation(): { email: string; kode: string; klaim: string } | null {
+export function takePendingActivation(): { email: string; kode: string; order: string; sig: string } | null {
   try {
     const raw = sessionStorage.getItem(PENDING_KEY)
     if (!raw) return null
     const params = new URLSearchParams(raw)
-    return { email: params.get('email') || '', kode: params.get('kode') || '', klaim: params.get('klaim') || '' }
+    return { email: params.get('email') || '', kode: params.get('kode') || '', order: params.get('order') || '', sig: params.get('sig') || '' }
   } catch { return null }
 }
 export function hasPendingActivation() {

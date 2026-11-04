@@ -28,7 +28,9 @@ export default function AktivasiPro() {
   const { plan, proUntil, user, mode } = useAuthStore()
   const [params] = useSearchParams()
   const pending = useRef(takePendingActivation()).current
-  const [klaim] = useState(params.get('klaim') || pending?.klaim || '')
+  const [order] = useState(params.get('order') || pending?.order || '')
+  const [sig] = useState(params.get('sig') || pending?.sig || '')
+  const klaim = !!order && !!sig
   const [email, setEmail] = useState(params.get('email') || pending?.email || user?.email || '')
   const [kode, setKode] = useState(params.get('kode') || pending?.kode || '')
   const [busy, setBusy] = useState(false)
@@ -49,7 +51,7 @@ export default function AktivasiPro() {
   }
   const claim = () => void run(async () => {
     if (!loggedIn) throw new Error('Masuk ke akun terlebih dahulu agar Pro tersimpan di akunmu.')
-    const result = await claimPro(client!, klaim)
+    const result = await claimPro(client!, order, sig)
     await refreshPlan(client!, user!.id!)
     setClaimed(true)
     return `Pro aktif sampai ${fmt(result.active_until)}. Terima kasih!`
