@@ -3,10 +3,24 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { BadgeCheck, Check, ExternalLink, Gift, KeyRound, MessageCircle, RefreshCw, ShieldCheck, Sparkles } from 'lucide-react'
 import { documentClient } from '../../lib/document-client'
 import { ADMIN_WA, PRO_BUY_URL, PRO_PRICE, activatePro, claimPro, clearPendingActivation, refreshPlan, subscriptionStatus, takePendingActivation } from '../../lib/pro-license'
-import { PRO_FEATURES, proDaysLeft } from '../../shared/subscription'
+import { proDaysLeft } from '../../shared/subscription'
 import { useAuthStore } from '../stores/authStore'
 
-const FREE = ['Data siswa, presensi, penilaian, catatan perilaku', 'Jurnal, rencana mengajar, jadwal, kalender, tugas', 'Laporan dan ekspor Excel', 'Cadangan file manual (bisa dikunci kata sandi)', 'Pakai offline sebagai aplikasi', 'Satu kelas aktif']
+// [fitur, gratis, pro]: true = ✓, false = –, teks = nilai
+const COMPARE: [string, boolean | string, boolean | string][] = [
+  ['Data siswa, presensi, nilai, perilaku', true, true],
+  ['Jurnal, rencana, jadwal, kalender, tugas', true, true],
+  ['Laporan & ekspor Excel', true, true],
+  ['Cadangan file manual', true, true],
+  ['Pakai offline sebagai aplikasi', true, true],
+  ['Jumlah kelas', '1 kelas', 'Banyak'],
+  ['Naik kelas ke tahun ajaran baru', false, true],
+  ['Sinkron otomatis HP & laptop', false, true],
+  ['Cadangan cloud (aman saat ganti HP)', false, true],
+]
+const Mark = ({ value }: { value: boolean | string }) => typeof value === 'string'
+  ? <span className="text-sm font-bold text-slate-800">{value}</span>
+  : value ? <Check size={20} strokeWidth={3} className="mx-auto text-emerald-600" aria-label="Ya"/> : <span className="text-slate-400" aria-label="Tidak">–</span>
 const fmt = (value: string | null) => value ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'long' }).format(new Date(value)) : ''
 
 export default function AktivasiPro() {
@@ -78,15 +92,19 @@ export default function AktivasiPro() {
           {daysLeft !== null && daysLeft <= 14 && <p className="mt-2 text-sm text-teal-900">Untuk memperpanjang, beli lagi lalu buka link klaim yang baru. Sisa masa aktifmu tetap ditambahkan.</p>}</div></section>
       : <section className="rounded-2xl border border-teal-200 bg-teal-50 p-5 sm:p-6">
           <div className="flex items-start gap-3"><span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal-700 text-white"><Sparkles size={20}/></span><div><h2 className="text-lg font-extrabold text-teal-950">Pro · {PRO_PRICE}</h2>
-            <ul className="mt-3 space-y-2 text-sm text-teal-900">{Object.values(PRO_FEATURES).map(item => <li key={item} className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0"/>{item}</li>)}</ul></div></div>
+            <p className="mt-1 text-sm text-teal-900">Data kelas sama di HP & laptop, cadangan cloud, dan banyak kelas.</p></div></div>
           {PRO_BUY_URL ? <a href={PRO_BUY_URL} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-base font-bold text-white hover:bg-teal-800 sm:w-auto">Beli Pro <ExternalLink size={16}/></a>
             : <a href={ADMIN_WA} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal-700 px-5 text-base font-bold text-white hover:bg-teal-800 sm:w-auto"><MessageCircle size={16}/>Beli lewat WhatsApp admin</a>}
         </section>}
 
-    <section className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6">
-      <h2 className="font-extrabold text-slate-900">Tetap gratis</h2>
-      <ul className="mt-3 grid gap-2 text-sm text-slate-700 sm:grid-cols-2">{FREE.map(item => <li key={item} className="flex items-start gap-2"><Check size={16} className="mt-0.5 shrink-0 text-emerald-600"/>{item}</li>)}</ul>
-      <div className="mt-4 flex items-start gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-teal-700"/><p><strong>Saat masa Pro habis:</strong> data di perangkat tidak hilang dan data cloud tetap bisa diambil. Yang berhenti hanya sinkron otomatis dan penambahan kelas baru.</p></div>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+      <h2 className="px-5 pt-5 font-extrabold text-slate-900">Perbandingan Gratis vs Pro</h2>
+      <table className="mt-3 w-full text-sm">
+        <thead><tr className="border-y border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500"><th scope="col" className="px-4 py-3 text-left">Fitur</th><th scope="col" className="w-20 px-2 py-3 text-center">Gratis</th><th scope="col" className="w-20 bg-teal-50 px-2 py-3 text-center text-teal-800">Pro</th></tr></thead>
+        <tbody className="divide-y divide-slate-100">{COMPARE.map(([label, free, pro]) => <tr key={label}><th scope="row" className="px-4 py-3 text-left font-semibold text-slate-700">{label}</th><td className="px-2 py-3 text-center"><Mark value={free}/></td><td className="bg-teal-50/60 px-2 py-3 text-center"><Mark value={pro}/></td></tr>)}</tbody>
+        <tfoot><tr className="border-t border-slate-200"><th scope="row" className="px-4 py-3 text-left font-semibold text-slate-700">Harga</th><td className="px-2 py-3 text-center font-bold text-slate-800">Rp0</td><td className="bg-teal-50 px-2 py-3 text-center text-xs font-black text-teal-800">Rp23.000<br/>/semester</td></tr></tfoot>
+      </table>
+      <div className="m-4 flex items-start gap-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-700"><ShieldCheck size={18} className="mt-0.5 shrink-0 text-teal-700"/><p><strong>Saat masa Pro habis:</strong> data di perangkat tidak hilang dan data cloud tetap bisa diambil. Yang berhenti hanya sinkron otomatis dan penambahan kelas baru.</p></div>
     </section>
 
     <details className="rounded-2xl border border-slate-200 bg-white p-5 sm:p-6" open={!!kode}>
