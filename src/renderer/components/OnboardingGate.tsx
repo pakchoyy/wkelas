@@ -10,6 +10,7 @@ import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboar
 import { bootSync, pullSnapshot, remoteSnapshotAt } from '../../lib/cloud-sync'
 import { userClient, useUserSession } from '../../lib/user-auth'
 import { refreshPlan } from '../../lib/pro-license'
+import EmailCodeLogin from './EmailCodeLogin'
 
 const PENDING_PULL = 'bgy-pending-cloud-pull'
 
@@ -88,7 +89,7 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
     if (!client || !userId || saveLock.current) return
     setError(''); setCloudNote('')
     const current = (loginEmail || (await client.auth.getUser()).data.user?.email || '').trim().toLowerCase()
-    if (email.trim().toLowerCase() !== current) { setCloudNote('beda-akun'); return }
+    if (email.trim().toLowerCase() !== current) { try { localStorage.setItem(PENDING_PULL, email.trim().toLowerCase()) } catch {}; setCloudNote('beda-akun'); return }
     saveLock.current = true; setSaving(true)
     try {
       const at = await remoteSnapshotAt(client, userId)
@@ -169,7 +170,7 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
             <label className="block text-xs font-bold text-teal-900">Email akun Anda<input type="email" required autoComplete="email" value={email} onChange={e => { setEmail(e.target.value); setCloudNote('') }} placeholder="nama@email.com" className="field mt-1.5"/></label>
             <p className="mt-1.5 text-xs text-teal-800">Sedang login: <strong className="break-all">{loginEmail || '-'}</strong>. Kami cek apakah ada data kelas dari HP atau laptop lain. Bila ada dan akun Pro, data langsung disalin ke perangkat ini.</p>
             <button disabled={saving || !email.trim()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Memeriksa cloud…' : 'Cek & tarik data'}</button>
-            {cloudNote === 'beda-akun' && <div role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-slate-700"><p>Untuk menjaga data siswa, buktikan dulu bahwa ini akunmu. Kami kirim link masuk ke <strong className="break-all">{email.trim()}</strong>. Buka email itu dan ketuk linknya. Wkelas terbuka dengan akun tersebut dan datanya langsung ditarik.</p><button type="button" disabled={saving} onClick={() => void sendLink()} className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-teal-50 px-3 text-sm font-bold text-teal-900 disabled:opacity-50">{saving ? 'Mengirim…' : 'Kirim link ke email ini'}</button><button type="button" disabled={saving} onClick={() => void googleSwitch()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-3 text-sm font-bold text-white disabled:opacity-50">Masuk langsung dengan Google</button><p className="mt-1.5 text-xs text-slate-500">Akun Gmail paling cepat lewat Google, tanpa menunggu email.</p></div>}
+            {cloudNote === 'beda-akun' && userClient() && <div className="mt-2 rounded-lg bg-white p-3 text-sm text-slate-700"><p className="mb-2">Untuk menjaga data siswa, buktikan dulu bahwa ini akunmu. Kami kirim <strong>kode</strong> ke email itu; setelah kode diisi, data langsung ditarik.</p><EmailCodeLogin client={userClient()!} allowSignup={false} initialEmail={email.trim()} submitLabel="Kirim kode ke email ini"/><button type="button" disabled={saving} onClick={() => void googleSwitch()} className="mt-2 min-h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-700 disabled:opacity-50">Atau masuk dengan Google</button></div>}
             {cloudNote === 'terkirim' && <p role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-emerald-800">Link sudah dikirim ke <strong className="break-all">{email.trim()}</strong>. Cek kotak masuk (atau folder Spam), lalu ketuk <strong>Masuk</strong> di email itu.</p>}
             {cloudNote === 'kosong' && <p role="status" className="mt-2 text-sm text-slate-700">Belum ada data cloud untuk email ini. Isi kelas pertama di bawah.</p>}
             {cloudNote === 'bukan-pro' && <p role="status" className="mt-2 flex items-start gap-2 text-sm text-amber-900"><Lock size={15} className="mt-0.5 shrink-0"/><span>Ada data cloud ({cloudDate}), tetapi menarik data khusus pelanggan Pro. <Link to="/aktivasi" className="font-bold underline">Aktifkan Pro</Link>, lalu coba lagi.</span></p>}
