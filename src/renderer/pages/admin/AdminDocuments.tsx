@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import ShareFolderButton from '../../components/ShareFolderButton'
 import { ChevronRight, ExternalLink, FileText, Folder, FolderPlus, Link2, Pencil, Plus, Trash2, Upload } from 'lucide-react'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import Modal from '../../components/Modal'
@@ -123,6 +124,7 @@ export default function AdminDocuments({ client, items, onChanged }: { client: S
               <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder size={20}/></span>
               <span className="min-w-0"><span className="block break-words font-bold text-slate-800">{folder.name}</span><span className="block text-xs text-slate-500">{sub ? `${sub} folder · ` : ''}{direct} item</span></span>
             </button>
+            <ShareFolderButton folderId={folder.id} name={folder.name} always compact className={`${rowBtn} text-sky-700 hover:bg-sky-50`}/>
             <button disabled={busy} onClick={() => openFolderModal(folder)} aria-label={`Ganti nama ${folder.name}`} className={`${rowBtn} text-teal-700 hover:bg-teal-50`}><Pencil size={17}/></button>
             <button disabled={busy} onClick={() => isFolderEmpty(folders, items, folder.id) ? setDeleteFolder(folder) : setMessage(`Folder “${folder.name}” masih berisi file, link, atau subfolder. Kosongkan dulu.`)} aria-label={`Hapus ${folder.name}`} className={`${rowBtn} text-red-700 hover:bg-red-50`}><Trash2 size={17}/></button>
           </article>
