@@ -84,5 +84,5 @@ export function linkKind(url: string | null | undefined): string {
 
 // Link publik folder Ref Dokumen (tanpa login).
 export function publicFolderUrl(origin: string, folderId: string | null): string {
-  return `${origin.replace(/\/+$/, '')}/#/ref${folderId ? `/${folderId}` : ''}`
+  return `${origin.replace(/\/+$/, '')}/ref${folderId ? `/${folderId}` : ''}`
 }

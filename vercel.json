@@ -3,6 +3,14 @@
   "outputDirectory": "dist/renderer",
   "rewrites": [
     {
+      "source": "/ref",
+      "destination": "/ref-redirect.html"
+    },
+    {
+      "source": "/ref/:path*",
+      "destination": "/ref-redirect.html"
+    },
+    {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
