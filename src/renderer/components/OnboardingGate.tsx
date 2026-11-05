@@ -7,7 +7,7 @@ import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
 import { getPhaseForGrade } from '../../shared/mapelRecommendations'
 import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboarding'
-import { bootSync, pullSnapshot } from '../../lib/cloud-sync'
+import { bootSync, pullSnapshot, remoteSnapshotAt } from '../../lib/cloud-sync'
 import { userClient, useUserSession } from '../../lib/user-auth'
 import { refreshPlan } from '../../lib/pro-license'
 
@@ -63,22 +63,37 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
   const loginEmail = useAuthStore((s) => s.user?.email || '')
   const [cloudOpen, setCloudOpen] = useState(false)
   const [email, setEmail] = useState('')
-  useEffect(() => { const client = userClient(); if (client && userId) void refreshPlan(client, userId).catch(() => {}) }, [userId])
+  // Tanggal data cloud akun ini (null = belum ada). Dipakai untuk hint "sudah dipakai di perangkat lain".
+  const [cloudAt, setCloudAt] = useState<string | null>(null)
+  const [cloudNote, setCloudNote] = useState<'' | 'kosong' | 'bukan-pro'>('')
+  useEffect(() => {
+    const client = userClient(); if (!client || !userId) return
+    void refreshPlan(client, userId).catch(() => {})
+    remoteSnapshotAt(client, userId).then(setCloudAt, () => {})
+  }, [userId])
+  const openCloud = () => { setCloudOpen(true); setError(''); setCloudNote('') }
+  // Satu tombol: cek dulu ada data atau tidak, lalu tarik bila akun Pro.
   const pullCloud = async () => {
     const client = userClient()
     if (!client || !userId || saveLock.current) return
-    if (email.trim().toLowerCase() !== loginEmail.trim().toLowerCase()) { setError(`Email belum sesuai. Masukkan email akun Pro yang sedang dipakai login.`); return }
-    saveLock.current = true; setSaving(true); setError('')
+    setError(''); setCloudNote('')
+    if (email.trim().toLowerCase() !== loginEmail.trim().toLowerCase()) { setError('Email belum sesuai dengan akun yang sedang login. Periksa lagi ejaannya.'); return }
+    saveLock.current = true; setSaving(true)
     try {
+      const at = await remoteSnapshotAt(client, userId)
+      setCloudAt(at)
+      if (!at) { setCloudNote('kosong'); return }
+      if (plan !== 'pro') { setCloudNote('bukan-pro'); return }
       activateMainDb()
       const ok = await pullSnapshot(client, userId, () => true)
       const kelas = ok ? await db.kelas.orderBy('id').first() : undefined
-      if (!kelas?.id) throw new Error('Belum ada data kelas di cloud untuk akun ini. Isi kelas pertama di bawah.')
+      if (!kelas?.id) { setCloudNote('kosong'); return }
       setKelasAktif(kelas.id); onComplete()
     } catch (error) {
-      setError(error instanceof Error ? error.message : 'Data cloud belum bisa diambil. Periksa koneksi lalu coba lagi.')
+      setError(error instanceof Error ? error.message : 'Data cloud belum bisa dicek. Periksa koneksi lalu coba lagi.')
     } finally { saveLock.current = false; setSaving(false) }
   }
+  const cloudDate = cloudAt ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(cloudAt)) : ''
   const finish = async (skip = false) => {
     if (saveLock.current) return
     saveLock.current = true
@@ -115,16 +130,17 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
           <div className="flex items-baseline justify-between gap-3"><h1 className="font-bold text-base sm:text-lg">Siapkan kelas pertama</h1><span className="shrink-0 text-xs font-semibold text-slate-500">Langkah {step}/3 · {labels[step - 1]}</span></div>
           <div className="mt-2 grid grid-cols-3 gap-1.5" aria-hidden>{[1, 2, 3].map(n => <span key={n} className={`h-1.5 rounded-full ${step >= n ? 'bg-teal-600' : 'bg-slate-200'}`} />)}</div>
           <div className="mt-3 flex flex-wrap gap-2">
-            {cloudUser && <button type="button" aria-expanded={cloudOpen} disabled={saving} onClick={() => { setCloudOpen(v => !v); setError('') }} className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-bold ${cloudOpen ? 'border-teal-600 bg-teal-50 text-teal-900' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}><Cloud size={16}/>Ambil data cloud<span className="rounded-md bg-amber-100 px-1.5 text-[11px] font-black text-amber-800">PRO</span></button>}
+            {cloudUser && <button type="button" aria-expanded={cloudOpen} disabled={saving} onClick={() => cloudOpen ? setCloudOpen(false) : openCloud()} className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-bold ${cloudOpen ? 'border-teal-600 bg-teal-50 text-teal-900' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}><Cloud size={16}/>Ambil data cloud<span className="rounded-md bg-amber-100 px-1.5 text-[11px] font-black text-amber-800">PRO</span></button>}
             <button type="button" disabled={saving} onClick={() => finish(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Sparkles size={16} className="text-amber-600"/>{saving && !cloudOpen ? 'Menyiapkan…' : 'Isi data contoh'}</button>
           </div>
-          {cloudOpen && (plan === 'pro'
-            ? <form onSubmit={(e) => { e.preventDefault(); void pullCloud() }} className="mt-3 rounded-xl bg-teal-50 p-3">
-                <label className="block text-xs font-bold text-teal-900">Email akun Pro<input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nama@email.com" className="field mt-1.5"/></label>
-                <p className="mt-1.5 text-xs text-teal-800">Data kelas dari HP atau laptop lain akan disalin ke perangkat ini.</p>
-                <button disabled={saving || !email.trim()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Mengambil data…' : 'Tarik data'}</button>
-              </form>
-            : <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><Lock size={16} className="mt-0.5 shrink-0"/><p>Ambil data dari cloud khusus pelanggan Pro. <Link to="/aktivasi" className="font-bold underline">Lihat Pro</Link>, atau isi kelas di bawah.</p></div>)}
+          {cloudAt && !cloudOpen && <button type="button" onClick={openCloud} className="mt-3 flex w-full items-start gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3 text-left text-sm text-teal-900 hover:bg-teal-100"><Cloud size={17} className="mt-0.5 shrink-0"/><span><strong>Akun ini sudah dipakai di perangkat lain.</strong> Data cloud terakhir {cloudDate}. Tarik datanya agar tidak mulai dari nol{plan === 'pro' ? '.' : ' (khusus Pro).'}</span></button>}
+          {cloudOpen && <form onSubmit={(e) => { e.preventDefault(); void pullCloud() }} className="mt-3 rounded-xl bg-teal-50 p-3">
+            <label className="block text-xs font-bold text-teal-900">Email akun Anda<input type="email" required autoComplete="email" value={email} onChange={e => { setEmail(e.target.value); setCloudNote('') }} placeholder="nama@email.com" className="field mt-1.5"/></label>
+            <p className="mt-1.5 text-xs text-teal-800">Kami cek apakah ada data kelas dari HP atau laptop lain. Bila ada dan akun Pro, data langsung disalin ke perangkat ini.</p>
+            <button disabled={saving || !email.trim()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Memeriksa cloud…' : 'Cek & tarik data'}</button>
+            {cloudNote === 'kosong' && <p role="status" className="mt-2 text-sm text-slate-700">Belum ada data cloud untuk email ini. Isi kelas pertama di bawah.</p>}
+            {cloudNote === 'bukan-pro' && <p role="status" className="mt-2 flex items-start gap-2 text-sm text-amber-900"><Lock size={15} className="mt-0.5 shrink-0"/><span>Ada data cloud ({cloudDate}), tetapi menarik data khusus pelanggan Pro. <Link to="/aktivasi" className="font-bold underline">Aktifkan Pro</Link>, lalu coba lagi.</span></p>}
+          </form>}
           {!cloudOpen && <p className="mt-2 text-xs text-slate-500">Data contoh terpisah dari data asli dan bisa dihapus nanti.</p>}
         </div>
         {error && <p role="alert" className="px-4 sm:px-5 pt-3 text-sm text-red-700">{error}</p>}
