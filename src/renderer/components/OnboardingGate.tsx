@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, ArrowRight, Check, GraduationCap, School, ShieldCheck } from 'lucide-react'
-import { Navigate } from 'react-router-dom'
-import { activateMainDb, db } from '../../lib/db'
+import { ArrowLeft, ArrowRight, Check, Cloud, Lock, Sparkles } from 'lucide-react'
+import { Link, Navigate } from 'react-router-dom'
+import { activateDemoDb, activateMainDb, db } from '../../lib/db'
 import { seedDemoData } from '../../lib/demo-data'
 import { useAuthStore } from '../stores/authStore'
 import { useAppStore } from '../stores/appStore'
@@ -9,6 +9,7 @@ import { getPhaseForGrade } from '../../shared/mapelRecommendations'
 import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboarding'
 import { bootSync, pullSnapshot } from '../../lib/cloud-sync'
 import { userClient, useUserSession } from '../../lib/user-auth'
+import { refreshPlan } from '../../lib/pro-license'
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
   const cloud = userClient()
@@ -57,11 +58,16 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
   const update = (key: keyof SetupData, value: string | number) => setData((v) => ({ ...v, [key]: value }))
   const valid = step === 1 ? data.namaKelas && data.tingkat : step === 2 ? data.namaSekolah && data.namaWali : true
 
-  // Akun yang login tidak memakai data contoh (agar tidak tercampur dengan data akun).
   const cloudUser = !!userId && !!userClient()
+  const plan = useAuthStore((s) => s.plan)
+  const loginEmail = useAuthStore((s) => s.user?.email || '')
+  const [cloudOpen, setCloudOpen] = useState(false)
+  const [email, setEmail] = useState('')
+  useEffect(() => { const client = userClient(); if (client && userId) void refreshPlan(client, userId).catch(() => {}) }, [userId])
   const pullCloud = async () => {
     const client = userClient()
     if (!client || !userId || saveLock.current) return
+    if (email.trim().toLowerCase() !== loginEmail.trim().toLowerCase()) { setError(`Email belum sesuai. Masukkan email akun Pro yang sedang dipakai login.`); return }
     saveLock.current = true; setSaving(true); setError('')
     try {
       activateMainDb()
@@ -80,6 +86,8 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
     setError('')
     try {
     if (skip) {
+      // Data contoh selalu di database terpisah agar tidak tercampur dengan data akun.
+      activateDemoDb()
       await seedDemoData()
       useAuthStore.getState().setDemo()
       setKelasAktif(1)
@@ -98,45 +106,43 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
     }
   }
 
-  const steps = [
-    { n: 1, label: 'Kelas & Akademik', icon: GraduationCap },
-    { n: 2, label: 'Sekolah & Wali Kelas', icon: School },
-    { n: 3, label: 'Ringkasan', icon: ShieldCheck },
-  ]
+  const labels = ['Kelas', 'Sekolah', 'Ringkasan']
 
   return (
     <div className="min-h-dvh bg-slate-100 flex flex-col items-center p-3 sm:p-4">
-      <div className="compact my-auto w-full max-w-2xl rounded-2xl bg-white border border-slate-200 shadow-xl">
-        <div className="px-4 sm:px-6 py-4 border-b border-slate-100 flex flex-wrap items-start justify-between gap-3">
-          <div><h1 className="font-bold text-lg">Siapkan Kelas Pertama</h1><p className="text-sm text-slate-500">Langkah {step} dari 3 · data tersimpan hanya di perangkat ini</p></div>
-          {cloudUser ? <button type="button" disabled={saving} onClick={() => void pullCloud()} className="min-h-11 rounded-xl border border-teal-300 bg-teal-50 px-4 py-2 text-sm font-bold text-teal-900 hover:bg-teal-100 disabled:opacity-50">{saving ? 'Mengambil…' : 'Ambil data dari cloud'}</button>
-          : <button type="button" disabled={saving} onClick={() => finish(true)} className="min-h-11 rounded-xl border border-amber-300 bg-amber-100 px-4 py-2 text-sm font-bold text-amber-950 transition-[background-color,transform] duration-150 hover:bg-amber-200 active:scale-96 disabled:opacity-50">{saving ? 'Menyiapkan…' : 'Coba data contoh'}</button>}
+      <div className="compact my-auto w-full max-w-xl rounded-2xl bg-white border border-slate-200 shadow-xl">
+        <div className="px-4 sm:px-5 pt-4 pb-3 border-b border-slate-100">
+          <div className="flex items-baseline justify-between gap-3"><h1 className="font-bold text-base sm:text-lg">Siapkan kelas pertama</h1><span className="shrink-0 text-xs font-semibold text-slate-500">Langkah {step}/3 · {labels[step - 1]}</span></div>
+          <div className="mt-2 grid grid-cols-3 gap-1.5" aria-hidden>{[1, 2, 3].map(n => <span key={n} className={`h-1.5 rounded-full ${step >= n ? 'bg-teal-600' : 'bg-slate-200'}`} />)}</div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {cloudUser && <button type="button" aria-expanded={cloudOpen} disabled={saving} onClick={() => { setCloudOpen(v => !v); setError('') }} className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-bold ${cloudOpen ? 'border-teal-600 bg-teal-50 text-teal-900' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}><Cloud size={16}/>Ambil data cloud<span className="rounded-md bg-amber-100 px-1.5 text-[11px] font-black text-amber-800">PRO</span></button>}
+            <button type="button" disabled={saving} onClick={() => finish(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Sparkles size={16} className="text-amber-600"/>{saving && !cloudOpen ? 'Menyiapkan…' : 'Isi data contoh'}</button>
+          </div>
+          {cloudOpen && (plan === 'pro'
+            ? <form onSubmit={(e) => { e.preventDefault(); void pullCloud() }} className="mt-3 rounded-xl bg-teal-50 p-3">
+                <label className="block text-xs font-bold text-teal-900">Email akun Pro<input type="email" required autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="nama@email.com" className="field mt-1.5"/></label>
+                <p className="mt-1.5 text-xs text-teal-800">Data kelas dari HP atau laptop lain akan disalin ke perangkat ini.</p>
+                <button disabled={saving || !email.trim()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Mengambil data…' : 'Tarik data'}</button>
+              </form>
+            : <div className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900"><Lock size={16} className="mt-0.5 shrink-0"/><p>Ambil data dari cloud khusus pelanggan Pro. <Link to="/aktivasi" className="font-bold underline">Lihat Pro</Link>, atau isi kelas di bawah.</p></div>)}
+          {!cloudOpen && <p className="mt-2 text-xs text-slate-500">Data contoh terpisah dari data asli dan bisa dihapus nanti.</p>}
         </div>
-        {cloudUser ? <p className="mx-4 mt-3 rounded-xl bg-teal-50 px-3 py-2 text-sm text-teal-900 sm:mx-6">Sudah pernah memakai Wali Kelas di perangkat lain? Ambil datamu dari cloud.</p> : <p className="mx-4 mt-3 rounded-xl bg-amber-50 px-3 py-2 text-sm text-amber-900 sm:mx-6">Belum siap mengisi? Gunakan data contoh. Bisa dihapus nanti.</p>}
-        {error && <p role="alert" className="px-4 sm:px-6 pt-3 text-sm text-red-700">{error}</p>}
-        <div className="px-4 sm:px-6 py-3 border-b border-slate-100 flex items-center gap-3">
-          {steps.map((item, i) => <div key={item.n} className="contents">
-            <div className={`flex items-center gap-2 text-xs font-bold ${step >= item.n ? 'text-emerald-700' : 'text-slate-400'}`}>
-              <span className={`w-6 h-6 rounded-full grid place-items-center border ${step >= item.n ? 'bg-teal-700 text-white border-emerald-600' : 'border-slate-300'}`}>{step > item.n ? <Check size={13}/> : item.n}</span>
-              <span className="hidden sm:inline">{item.label}</span>
-            </div>{i < 2 && <div className="h-px bg-slate-200 flex-1" />}
-          </div>)}
-        </div>
-        <fieldset disabled={saving} className="min-w-0 p-4 sm:p-6 sm:min-h-[240px]">
-          {step === 1 && <div className="grid sm:grid-cols-2 gap-4">
+        {error && <p role="alert" className="px-4 sm:px-5 pt-3 text-sm text-red-700">{error}</p>}
+        <fieldset disabled={saving} className="min-w-0 px-4 py-4 sm:px-5">
+          {step === 1 && <div className="grid grid-cols-2 gap-3">
             <Field label="Nama kelas" placeholder="Contoh: Kelas 2-A" value={data.namaKelas} onChange={(v) => update('namaKelas', v)} wide />
-            <label className="text-sm font-semibold text-slate-700">Tingkat kelas<select value={data.tingkat} onChange={e => update('tingkat', e.target.value)} className="field mt-2">{[1,2,3,4,5,6].map(grade => <option key={grade} value={grade}>Kelas {grade}</option>)}</select></label>
-            <label className="text-sm font-semibold text-slate-700">Fase otomatis<input readOnly value={getPhaseForGrade(data.tingkat)} className="field mt-2"/></label>
+            <label className="text-sm font-semibold text-slate-700">Tingkat kelas<select value={data.tingkat} onChange={e => update('tingkat', e.target.value)} className="field mt-1.5">{[1,2,3,4,5,6].map(grade => <option key={grade} value={grade}>Kelas {grade}</option>)}</select></label>
+            <label className="text-sm font-semibold text-slate-700">Fase otomatis<input readOnly value={getPhaseForGrade(data.tingkat)} className="field mt-1.5"/></label>
             <Field label="Tahun ajaran" value={data.tahunAjaran} onChange={(v) => update('tahunAjaran', v)} />
-            <label className="text-sm font-semibold text-slate-700">Semester<select value={data.semester} onChange={(e) => update('semester', Number(e.target.value))} className="field mt-2"><option value={1}>1 (Ganjil)</option><option value={2}>2 (Genap)</option></select></label>
+            <label className="text-sm font-semibold text-slate-700">Semester<select value={data.semester} onChange={(e) => update('semester', Number(e.target.value))} className="field mt-1.5"><option value={1}>1 (Ganjil)</option><option value={2}>2 (Genap)</option></select></label>
           </div>}
-          {step === 2 && <div className="grid sm:grid-cols-2 gap-4">
+          {step === 2 && <div className="grid sm:grid-cols-2 gap-3">
             <Field label="Nama sekolah" placeholder="Contoh: SD Negeri 1" value={data.namaSekolah} onChange={(v) => update('namaSekolah', v)} wide />
             <Field label="Nama wali kelas" placeholder="Nama lengkap dan gelar" value={data.namaWali} onChange={(v) => update('namaWali', v)} />
             <Field label="NIP (opsional)" placeholder="Nomor induk pegawai" value={data.nip} onChange={(v) => update('nip', v)} />
           </div>}
           {step === 3 && <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-            <div className="flex items-center gap-3 mb-4"><div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 grid place-items-center"><Check size={20}/></div><div><h2 className="font-bold">Data siap digunakan</h2><p className="text-sm text-slate-500">Periksa ringkasan sebelum membuka dashboard.</p></div></div>
+            <div className="flex items-center gap-3 mb-3"><div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 grid place-items-center"><Check size={18}/></div><h2 className="font-bold">Periksa sebelum mulai</h2></div>
             <div className="grid sm:grid-cols-2 gap-3 text-sm">
               <Summary label="Kelas" value={`${data.namaKelas} · Tingkat ${data.tingkat} (Fase ${getPhaseForGrade(data.tingkat)})`} />
               <Summary label="Periode" value={`${data.tahunAjaran} · Semester ${data.semester}`} />
@@ -145,8 +151,8 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
             </div>
           </div>}
         </fieldset>
-        <div className="px-4 sm:px-6 py-4 border-t border-slate-100 flex flex-wrap justify-between gap-3">
-          <button disabled={step === 1 || saving} onClick={() => setStep((s) => s - 1)} className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold disabled:opacity-40 flex items-center gap-2"><ArrowLeft size={16}/> Kembali</button>
+        <div className="px-4 sm:px-5 py-3 border-t border-slate-100 flex justify-between gap-3">
+          <button disabled={step === 1 || saving} onClick={() => setStep((s) => s - 1)} className="min-h-11 px-4 rounded-xl border border-slate-200 text-sm font-semibold disabled:opacity-40 flex items-center gap-2"><ArrowLeft size={16}/> Kembali</button>
           {step < 3 ? <button disabled={!valid || saving} onClick={() => setStep((s) => s + 1)} className="px-5 py-2.5 rounded-xl bg-teal-700 text-white text-sm font-bold disabled:opacity-40 flex items-center gap-2">Selanjutnya <ArrowRight size={16}/></button>
             : <button disabled={saving} onClick={() => finish()} className="px-5 py-2.5 rounded-xl bg-teal-700 text-white text-sm font-bold disabled:opacity-50">{saving ? 'Menyimpan...' : 'Buka Dashboard'}</button>}
         </div>
@@ -156,9 +162,9 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
 }
 
 function Field({ label, value, onChange, placeholder, wide }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string; wide?: boolean }) {
-  return <label className={`text-sm font-semibold text-slate-700 ${wide ? 'sm:col-span-2' : ''}`}>{label}<input required value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="field mt-2" /></label>
+  return <label className={`text-sm font-semibold text-slate-700 ${wide ? 'col-span-full' : ''}`}>{label}<input required value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} className="field mt-1.5" /></label>
 }
 
 function Summary({ label, value }: { label: string; value: string }) {
-  return <div className="rounded-xl bg-white border border-slate-200 p-4"><div className="text-xs uppercase tracking-wide text-slate-400 font-bold mb-1">{label}</div><div className="font-semibold text-slate-800">{value || '-'}</div></div>
+  return <div className="rounded-xl bg-white border border-slate-200 p-3"><div className="text-xs uppercase tracking-wide text-slate-400 font-bold mb-1">{label}</div><div className="font-semibold text-slate-800">{value || '-'}</div></div>
 }
