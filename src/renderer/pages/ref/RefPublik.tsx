@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronRight, Download, ExternalLink, FileText, Folder, FolderOpen } from 'lucide-react'
+import { ArrowLeft, ChevronRight, Download, ExternalLink, FileText, Folder, FolderOpen } from 'lucide-react'
 import { backendClients } from '../../../lib/choy-auth'
 import { downloadChoyDocument, listChoyDocuments, listChoyFolders, openChoyLink } from '../../../lib/document-service'
 import { documentAudience, documentSize, isLinkItem, type ChoyDocument } from '../../../shared/pak-choy-documents'
@@ -43,6 +43,7 @@ export default function RefPublik() {
       <p className="mt-1 text-sm text-teal-50">Perangkat ajar, buku, dan administrasi guru. Langsung buka atau unduh, tanpa daftar.</p>
     </div></header>
     <main className="mx-auto max-w-5xl space-y-4 px-4 py-5">
+      {current && <button type="button" onClick={() => go(current.parent_id)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 text-sm font-bold text-slate-700 hover:bg-slate-50"><ArrowLeft size={16}/>Kembali{crumbs.length > 1 ? ` ke ${crumbs[crumbs.length - 2].name}` : ''}</button>}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <nav aria-label="Lokasi folder" className="flex flex-wrap items-center gap-1 text-sm"><button type="button" onClick={() => go(null)} className="min-h-11 rounded-lg px-2 font-bold text-teal-700 hover:bg-teal-50">Semua</button>{crumbs.map(folder => <span key={folder.id} className="flex items-center gap-1"><ChevronRight size={15} className="text-slate-400"/><button type="button" onClick={() => go(folder.id)} className="min-h-11 rounded-lg px-2 font-bold text-teal-700 hover:bg-teal-50">{folder.name}</button></span>)}</nav>
         <ShareFolderButton folderId={folderId} name={current?.name || 'Ref Dokumen'}/>
