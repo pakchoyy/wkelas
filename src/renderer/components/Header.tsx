@@ -1,4 +1,7 @@
-import { Bell, Cloud, CloudOff, Download, Lock, Moon, Settings, ShieldCheck, Sun, User } from 'lucide-react'
+import { Bell, Cloud, CloudOff, Download, Lock, LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react'
+import TeacherAvatar from './TeacherAvatar'
+import { useLogout } from './useLogout'
+import { AVATAR_KEY, resolveAvatar } from '../../shared/avatar'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { liveQuery } from 'dexie'
@@ -64,6 +67,8 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
   const isDemo = mode === 'demo'
   const kelasId = useAppStore(s => s.kelasAktifId) || 1
   const [nama, setNama] = useState('Profil')
+  const [avatarChoice, setAvatarChoice] = useState('auto')
+  const { start: startLogout, leaving, dialog: logoutDialog } = useLogout(() => setProfileOpen(false))
   const isDark = () => {
     const pref = readTheme()
     return pref === 'dark' || (pref === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
@@ -78,8 +83,9 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
     const subscription = liveQuery(async () => {
       const kelas = await db.kelas.get(kelasId)
       const guru = kelas?.guru_id ? await db.guru.get(kelas.guru_id) : undefined
-      return guru?.nama?.trim() || 'Profil'
-    }).subscribe({ next: setNama, error: () => setNama('Profil') })
+      const choice = (await db.pengaturan.get(AVATAR_KEY))?.value
+      return { nama: guru?.nama?.trim() || 'Profil', choice: typeof choice === 'string' ? choice : 'auto' }
+    }).subscribe({ next: (v) => { setNama(v.nama); setAvatarChoice(v.choice) }, error: () => setNama('Profil') })
     return () => subscription.unsubscribe()
   }, [kelasId, mode])
   return (
@@ -109,18 +115,21 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
         <div className="relative shrink-0">
           <button onClick={() => setProfileOpen(o => !o)} aria-label="Menu profil" aria-expanded={profileOpen} aria-haspopup="menu" title={nama} className="flex min-h-11 max-w-[42vw] items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">
             <span className="hidden truncate text-sm font-semibold sm:block">{nama}</span>
-            <span className="relative grid size-8 shrink-0 place-items-center rounded-full bg-white/20"><User size={17}/>{sync?.decision === 'remote-newer' && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-amber-300 ring-2 ring-teal-800"/>}</span>
+            <span className="relative grid size-9 shrink-0 place-items-center rounded-full bg-white/90 ring-2 ring-white/40"><TeacherAvatar kind={resolveAvatar(avatarChoice, nama === 'Profil' ? authUser?.nama : nama)} name={nama === 'Profil' ? authUser?.nama : nama} size={32}/>{sync?.decision === 'remote-newer' && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-amber-300 ring-2 ring-teal-800"/>}</span>
           </button>
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} aria-hidden="true" />
               <div role="menu" aria-label="Menu profil" className="absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
-                <div className="border-b border-slate-100 px-4 py-3">
-                  <p className="truncate text-sm font-extrabold text-slate-900">{authUser?.nama || nama}</p>
+                <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
+                  <Link to="/pengaturan" aria-label="Ganti avatar" title="Ganti avatar di Pengaturan"><TeacherAvatar kind={resolveAvatar(avatarChoice, nama === 'Profil' ? authUser?.nama : nama)} name={nama === 'Profil' ? authUser?.nama : nama} size={44}/></Link>
+                  <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-extrabold text-slate-900">{nama !== 'Profil' ? nama : authUser?.nama || nama}</p>
                   <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-500"><span className="min-w-0 truncate">{authUser?.email || (mode === 'demo' ? 'Data contoh' : '')}</span>{plan === 'pro'
                     ? <span className="shrink-0 rounded-full bg-teal-700 px-2 py-0.5 text-xs font-bold text-white">PRO</span>
                     : <Link to="/aktivasi" role="menuitem" className="shrink-0 rounded-full bg-slate-200 px-2 py-0.5 text-xs font-bold text-slate-600 hover:bg-slate-300">GRATIS</Link>}</p>
                   {plan === 'pro' && proUntil && <p className="mt-1 text-xs font-semibold text-teal-700">Pro sampai {new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium' }).format(new Date(proUntil))}</p>}
+                  </div>
                 </div>
                 {sync ? (() => {
                   const last = (() => { try { return sync.state?.lastSyncAt ? new Date(sync.state.lastSyncAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'belum pernah' } catch { return 'belum pernah' } })()
@@ -143,12 +152,14 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
                 </div>
                 {mode === 'login' && isOwnerEmail(authUser?.email) && <Link to="/admin" role="menuitem" className="flex min-h-11 items-center gap-3 border-t border-slate-100 px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50"><ShieldCheck size={18} className="shrink-0 text-teal-700"/>Panel Admin</Link>}
                 <Link to="/pengaturan" role="menuitem" className="flex items-center gap-3 border-t border-slate-100 px-4 py-3 text-sm font-bold text-slate-800 hover:bg-slate-50"><Settings size={18} className="shrink-0 text-slate-500"/>Pengaturan</Link>
+                {mode === 'login' && authUser?.email && <button type="button" role="menuitem" disabled={leaving} onClick={startLogout} className="flex min-h-11 w-full items-center gap-3 border-t border-slate-100 px-4 py-3 text-left text-sm font-bold text-red-700 hover:bg-red-50 disabled:opacity-50"><LogOut size={18} className="shrink-0"/>{leaving ? 'Keluar…' : 'Keluar'}</button>}
               </div>
             </>
           )}
         </div>
         </div>
       </header>
+      {logoutDialog}
     </>
   )
 }

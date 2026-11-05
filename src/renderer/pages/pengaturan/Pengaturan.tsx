@@ -1,3 +1,4 @@
+import AvatarPicker from '../../components/AvatarPicker'
 import { saveClassPeriod } from '../../../lib/grade-periods'
 import { BACKUP_HISTORY_KEY, readBackupHistory, type BackupHistory } from '../../../lib/backup-history'
 import { useEffect, useRef, useState } from 'react'
@@ -104,6 +105,7 @@ function PengaturanKelas({kelasId}:{kelasId:number}) {
     {tab==='profil'&&account&&<div className="rounded-2xl border border-teal-100 bg-teal-50 p-4 text-sm text-teal-900"><strong>Akun masuk</strong><p className="mt-1">{account.name||'Pengguna'} · {account.email}</p><p className="mt-1 text-xs text-teal-700">Profil akun tersimpan otomatis saat tersambung ke cloud.</p></div>}
     <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       {tab==='profil'&&<form onSubmit={e=>saveSettings(e,true)}><fieldset disabled={busy || loading} className="min-w-0 space-y-4"><div><h3 className="font-extrabold">Identitas Sekolah dan Guru</h3><p className="mt-1 text-xs text-slate-400">Akan ditampilkan pada kop jurnal dan laporan.</p></div><label className="block text-sm font-bold">Nama sekolah<input required value={guru?.nama_sekolah||''} onChange={(e)=>setGuru({...guru,nama_sekolah:e.target.value})} className="field mt-1.5"/></label><div className="grid gap-3 md:grid-cols-2"><label className="text-sm font-bold">Nama wali kelas<input required value={guru?.nama||''} onChange={(e)=>setGuru({...guru,nama:e.target.value})} className="field mt-1.5"/></label><label className="text-sm font-bold">NIP <span className="font-normal text-slate-400">(opsional)</span><input value={guru?.nip||''} onChange={(e)=>setGuru({...guru,nip:e.target.value})} className="field mt-1.5"/></label></div><button className="flex min-h-11 items-center gap-2 rounded-xl bg-teal-700 px-5 py-2.5 text-sm font-bold text-white"><Save size={16}/>Simpan Identitas</button></fieldset></form>}
+      {tab==='profil'&&<AvatarPicker name={guru?.nama||''}/>}
       {tab==='personalisasi'&&<div className="mb-6 border-b border-slate-100 pb-5"><ThemePicker/></div>}
       {tab==='personalisasi'&&<div className="mb-6 border-b border-slate-100 pb-5"><InstallAppCard/></div>}
       {tab==='personalisasi'&&<div className="mb-2"><QuickNavPicker notify={setToast}/></div>}
