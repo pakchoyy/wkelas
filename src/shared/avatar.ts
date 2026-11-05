@@ -1,7 +1,8 @@
 // Avatar profil guru. Pilihan disimpan di tabel pengaturan (ikut sinkron cloud untuk Pro).
-export type AvatarChoice = 'auto' | 'pak' | 'bu' | 'bu-hijab' | 'inisial'
+export type AvatarChoice = 'auto' | 'pak' | 'bu' | 'bu-hijab' | 'inisial' | 'foto'
 export type AvatarKind = Exclude<AvatarChoice, 'auto'>
 export const AVATAR_KEY = 'avatar_profil'
+export const AVATAR_PHOTO_KEY = 'avatar_foto'
 
 const FEMALE_TITLE = /^(bu|ibu|hj|hajah|hajjah|ny|nyonya|umi|ummi)\b/i
 const MALE_TITLE = /^(pak|bapak|bpk|h|haji|kh|ust|ustadz|ustaz|kyai|kiai|gus)\b/i
@@ -23,7 +24,8 @@ export function guessAvatar(name: string | null | undefined): AvatarKind {
   return 'inisial'
 }
 
-export function resolveAvatar(choice: string | null | undefined, name: string | null | undefined): AvatarKind {
+export function resolveAvatar(choice: string | null | undefined, name: string | null | undefined, photo?: string | null): AvatarKind {
+  if (choice === 'foto') return photo ? 'foto' : guessAvatar(name)
   return choice === 'pak' || choice === 'bu' || choice === 'bu-hijab' || choice === 'inisial' ? choice : guessAvatar(name)
 }
 

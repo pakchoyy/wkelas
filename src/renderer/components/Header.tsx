@@ -1,7 +1,7 @@
 import { Bell, Cloud, CloudOff, Download, Lock, LogOut, Moon, Settings, ShieldCheck, Sun } from 'lucide-react'
 import TeacherAvatar from './TeacherAvatar'
 import { useLogout } from './useLogout'
-import { AVATAR_KEY, resolveAvatar } from '../../shared/avatar'
+import { AVATAR_KEY, AVATAR_PHOTO_KEY, resolveAvatar } from '../../shared/avatar'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useEffect, useRef, useState } from 'react'
 import { liveQuery } from 'dexie'
@@ -68,6 +68,7 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
   const kelasId = useAppStore(s => s.kelasAktifId) || 1
   const [nama, setNama] = useState('Profil')
   const [avatarChoice, setAvatarChoice] = useState('auto')
+  const [avatarPhoto, setAvatarPhoto] = useState<string | null>(null)
   const { start: startLogout, leaving, dialog: logoutDialog } = useLogout(() => setProfileOpen(false))
   const isDark = () => {
     const pref = readTheme()
@@ -84,8 +85,9 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
       const kelas = await db.kelas.get(kelasId)
       const guru = kelas?.guru_id ? await db.guru.get(kelas.guru_id) : undefined
       const choice = (await db.pengaturan.get(AVATAR_KEY))?.value
-      return { nama: guru?.nama?.trim() || 'Profil', choice: typeof choice === 'string' ? choice : 'auto' }
-    }).subscribe({ next: (v) => { setNama(v.nama); setAvatarChoice(v.choice) }, error: () => setNama('Profil') })
+      const photo = (await db.pengaturan.get(AVATAR_PHOTO_KEY))?.value || null
+      return { nama: guru?.nama?.trim() || 'Profil', choice: typeof choice === 'string' ? choice : 'auto', photo }
+    }).subscribe({ next: (v) => { setNama(v.nama); setAvatarChoice(v.choice); setAvatarPhoto(v.photo) }, error: () => setNama('Profil') })
     return () => subscription.unsubscribe()
   }, [kelasId, mode])
   return (
@@ -115,14 +117,14 @@ export default function Header(_props: {onOpenMenu: () => void; menuOpen:boolean
         <div className="relative shrink-0">
           <button onClick={() => setProfileOpen(o => !o)} aria-label="Menu profil" aria-expanded={profileOpen} aria-haspopup="menu" title={nama} className="flex min-h-11 max-w-[42vw] items-center gap-2 rounded-xl px-2 text-white hover:bg-white/15">
             <span className="hidden truncate text-sm font-semibold sm:block">{nama}</span>
-            <span className="relative grid size-9 shrink-0 place-items-center rounded-full bg-white/90 ring-2 ring-white/40"><TeacherAvatar kind={resolveAvatar(avatarChoice, nama === 'Profil' ? authUser?.nama : nama)} name={nama === 'Profil' ? authUser?.nama : nama} size={32}/>{sync?.decision === 'remote-newer' && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-amber-300 ring-2 ring-teal-800"/>}</span>
+            <span className="relative grid size-9 shrink-0 place-items-center rounded-full bg-white/90 ring-2 ring-white/40"><TeacherAvatar kind={resolveAvatar(avatarChoice, nama === 'Profil' ? authUser?.nama : nama, avatarPhoto)} photo={avatarPhoto} name={nama === 'Profil' ? authUser?.nama : nama} size={32}/>{plan === 'pro' && mode === 'login' && <span aria-label="Pro" className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 rounded-full bg-amber-400 px-1.5 text-[9px] font-black leading-[14px] text-amber-950 ring-2 ring-teal-800">PRO</span>}{sync?.decision === 'remote-newer' && <span aria-hidden="true" className="absolute -right-0.5 -top-0.5 size-2.5 rounded-full bg-amber-300 ring-2 ring-teal-800"/>}</span>
           </button>
           {profileOpen && (
             <>
               <div className="fixed inset-0 z-30" onClick={() => setProfileOpen(false)} aria-hidden="true" />
               <div role="menu" aria-label="Menu profil" className="absolute right-0 top-full z-40 mt-2 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xl">
                 <div className="flex items-center gap-3 border-b border-slate-100 px-4 py-3">
-                  <Link to="/pengaturan" aria-label="Ganti avatar" title="Ganti avatar di Pengaturan"><TeacherAvatar kind={resolveAvatar(avatarChoice, nama === 'Profil' ? authUser?.nama : nama)} name={nama === 'Profil' ? authUser?.nama : nama} size={44}/></Link>
+                  <Link to="/pengaturan" aria-label="Ganti avatar" title="Ganti avatar di Pengaturan"><TeacherAvatar kind={resolveAvatar(avatarChoice, nama === 'Profil' ? authUser?.nama : nama, avatarPhoto)} photo={avatarPhoto} name={nama === 'Profil' ? authUser?.nama : nama} size={44}/></Link>
                   <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-extrabold text-slate-900">{nama !== 'Profil' ? nama : authUser?.nama || nama}</p>
                   <p className="mt-0.5 flex items-center gap-2 text-xs text-slate-500"><span className="min-w-0 truncate">{authUser?.email || (mode === 'demo' ? 'Data contoh' : '')}</span>{plan === 'pro'

@@ -1,8 +1,9 @@
 import { useEffect, useId, useState } from 'react'
 import { useLogout } from './useLogout'
+import { isOwnerEmail } from '../../shared/cloud-access'
 import { useAuthStore } from '../stores/authStore'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { AlertTriangle, BarChart3, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, Files, FolderOpen, HeartHandshake, Info, Sparkles, LayoutDashboard, LogOut, NotebookPen, ScrollText, Settings, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, MessageSquareHeart, ShieldCheck, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, Files, FolderOpen, HeartHandshake, Info, Sparkles, LayoutDashboard, LogOut, NotebookPen, ScrollText, Settings, Users } from 'lucide-react'
 
 const groups = [
   { label: 'Siswa', icon: Users, children: [
@@ -30,7 +31,8 @@ const standaloneItems = [
   { to: '/laporan', icon: BarChart3, label: 'Laporan' },
   { to: '/pengaturan', icon: Settings, label: 'Pengaturan' },
   { to: '/bantuan', icon: HeartHandshake, label: 'Bantuan & Komunitas' },
-  { to: '/tentang', icon: Info, label: 'Tentang' },
+  { to: '/bantuan#saran', icon: MessageSquareHeart, label: 'Kritik & Saran' },
+  { to: '/tentang', icon: Info, label: 'Tentang & Aplikasi Lain' },
 ]
 
 const linkClass = ({ isActive }: { isActive: boolean }) => `flex min-h-11 items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors [&>svg]:shrink-0 ${isActive ? 'bg-[var(--accent-soft)] text-[var(--accent)] ring-1 ring-inset ring-teal-200' : 'text-slate-600 hover:bg-slate-100'}`
@@ -45,13 +47,14 @@ export default function Sidebar({onNavigate}: {onNavigate?: () => void}) {
   const navigate = useNavigate()
   const loggedIn = useAuthStore((s) => s.mode === 'login' && !!s.user?.email)
   const pro = useAuthStore((s) => s.plan === 'pro')
+  const email = useAuthStore((s) => s.mode === 'login' ? s.user?.email : null)
   const { start: startLogout, leaving, dialog: logoutDialog } = useLogout(onNavigate)
   const toggle = (label: string) => setOpened((current) => current.includes(label) ? current.filter((item) => item !== label) : [...current, label])
 
   return <aside className="min-h-0 w-full flex-1 overflow-y-auto overscroll-contain border-r bg-white" style={{ borderColor: 'var(--border)' }}><nav aria-label="Menu utama" className="space-y-1 p-3">
     <NavLink onClick={onNavigate} to="/" end className={linkClass}><LayoutDashboard size={18}/>Dashboard</NavLink>
     {groups.map((group, index) => { const open = isOpen(group.label); const active = activeGroup === group.label; return <div key={group.label} className="pt-1"><button aria-expanded={open} aria-controls={`${menuId}-${index}`} onClick={() => toggle(group.label)} className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-bold transition ${active ? 'text-teal-700' : 'text-slate-700 hover:bg-slate-100'}`}><group.icon size={18}/><span className="flex-1 text-left">{group.label}</span><ChevronDown size={16} className={`transition-transform ${open ? 'rotate-180' : ''}`}/></button>{open && <div id={`${menuId}-${index}`} className="ml-4 mt-1 space-y-1 border-l border-slate-200 pl-2">{group.children.map((item) => <NavLink onClick={onNavigate} key={item.to} to={item.to} className={linkClass}><item.icon size={17}/>{item.label}</NavLink>)}</div>}</div> })}
-    <div className="mt-2 space-y-1 border-t border-slate-100 pt-2">{standaloneItems.map((item) => <NavLink onClick={onNavigate} key={item.to} to={item.to} className={linkClass}><item.icon size={18}/>{item.label}</NavLink>)}{loggedIn && <NavLink onClick={onNavigate} to="/aktivasi" className={linkClass}><Sparkles size={18}/>{pro ? 'Pro Aktif' : 'Aktivasi Pro'}</NavLink>}{loggedIn && <button type="button" onClick={startLogout} disabled={leaving} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"><LogOut size={18}/>{leaving ? 'Keluar…' : 'Keluar'}</button>}</div>
+    <div className="mt-2 space-y-1 border-t border-slate-100 pt-2">{standaloneItems.map((item) => <NavLink onClick={onNavigate} key={item.to} to={item.to} className={linkClass}><item.icon size={18}/>{item.label}</NavLink>)}{isOwnerEmail(email) && <NavLink onClick={onNavigate} to="/admin" className={linkClass}><ShieldCheck size={18}/>Panel Admin</NavLink>}{loggedIn && <NavLink onClick={onNavigate} to="/aktivasi" className={linkClass}><Sparkles size={18}/>{pro ? 'Pro Aktif' : 'Aktivasi Pro'}</NavLink>}{loggedIn && <button type="button" onClick={startLogout} disabled={leaving} className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold text-red-700 transition-colors hover:bg-red-50 disabled:opacity-50"><LogOut size={18}/>{leaving ? 'Keluar…' : 'Keluar'}</button>}</div>
   </nav>
     {logoutDialog}
   </aside>

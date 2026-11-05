@@ -1,7 +1,8 @@
 import { initials, type AvatarKind } from '../../shared/avatar'
 
 // Ilustrasi sederhana (SVG) agar tajam di semua layar dan tidak bergantung emoji HP.
-export default function TeacherAvatar({ kind, name, size = 32 }: { kind: AvatarKind; name?: string | null; size?: number }) {
+export default function TeacherAvatar({ kind, name, size = 32, photo }: { kind: AvatarKind; name?: string | null; size?: number; photo?: string | null }) {
+  if (kind === 'foto' && photo) return <img src={photo} alt="" width={size} height={size} style={{ width: size, height: size }} className="shrink-0 rounded-full object-cover" />
   if (kind === 'inisial') return <span aria-hidden="true" style={{ width: size, height: size, fontSize: size * 0.38 }} className="grid shrink-0 place-items-center rounded-full bg-amber-100 font-black text-amber-800">{initials(name)}</span>
   const skin = '#F2C9A0'
   return <svg aria-hidden="true" width={size} height={size} viewBox="0 0 64 64" className="shrink-0 rounded-full">

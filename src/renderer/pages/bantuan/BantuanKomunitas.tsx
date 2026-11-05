@@ -1,4 +1,4 @@
-import { FormEvent, useState, type ReactNode } from 'react'
+import { FormEvent, useEffect, useState, type ReactNode } from 'react'
 import { Bug, HeartHandshake, Lightbulb, MessageCircle, Send, UsersRound } from 'lucide-react'
 import { useLocation } from 'react-router-dom'
 import { APP_VERSION } from '../../../shared/app-info'
@@ -13,6 +13,7 @@ const categories = [
 
 export default function BantuanKomunitas() {
   const location = useLocation()
+  useEffect(() => { if (location.hash === '#saran') setTimeout(() => document.getElementById('saran')?.scrollIntoView({ behavior: 'smooth' }), 100) }, [location.hash])
   const [category, setCategory] = useState('Saran')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
@@ -43,7 +44,7 @@ export default function BantuanKomunitas() {
     </header>
 
     <div className="grid gap-5 lg:grid-cols-[minmax(0,1.35fr)_minmax(250px,.65fr)]">
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+      <section id="saran" className="scroll-mt-20 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
         <div className="mb-4"><h2 className="font-extrabold text-slate-800">Kritik & Saran</h2><p className="mt-1 text-sm text-slate-500">Tulis pesan, lalu lanjutkan pengiriman melalui WhatsApp.</p></div>
         <form onSubmit={sendToWhatsApp} className="space-y-4">
           <fieldset>
