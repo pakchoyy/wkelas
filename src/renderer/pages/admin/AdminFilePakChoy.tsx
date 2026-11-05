@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ArrowLeft, Bell, ChevronRight, Crown, FileText, KeyRound, LayoutDashboard, LogOut, Megaphone, Pencil, Plus, RefreshCw, Search, ShieldAlert, Trash2, Upload, Users } from 'lucide-react'
+import { ArrowLeft, Bell, UserCog, ChevronRight, Crown, FileText, KeyRound, LayoutDashboard, LogOut, Megaphone, Pencil, Plus, RefreshCw, Search, ShieldAlert, Trash2, Upload, Users } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import Modal from '../../components/Modal'
 import ConfirmDialog from '../../components/ConfirmDialog'
@@ -13,8 +13,9 @@ import AdminLicensePanel from './AdminLicensePanel'
 import AdminDocuments from './AdminDocuments'
 import ShareFolderButton from '../../components/ShareFolderButton'
 import EmailCodeLogin from '../../components/EmailCodeLogin'
+import ChangePassword from '../../components/ChangePassword'
 
-type Section = 'ringkasan'|'pengguna'|'lisensi'|'masukan'|'pengumuman'|'versi'|'file'
+type Section = 'ringkasan'|'pengguna'|'lisensi'|'masukan'|'pengumuman'|'versi'|'file'|'akun'
 const MENU_GROUPS: { title: string; items: { value: Section; label: string; hint: string; Icon: typeof Users }[] }[] = [
   { title: 'Umum', items: [{ value: 'ringkasan', label: 'Ringkasan', hint: 'Angka penting hari ini', Icon: LayoutDashboard }] },
   { title: 'Pelanggan', items: [
@@ -27,6 +28,7 @@ const MENU_GROUPS: { title: string; items: { value: Section; label: string; hint
     { value: 'pengumuman', label: 'Pengumuman', hint: 'Info yang muncul di aplikasi', Icon: Megaphone },
     { value: 'versi', label: 'Info pembaruan', hint: 'Catatan versi aplikasi', Icon: RefreshCw },
   ] },
+  { title: 'Akun', items: [{ value: 'akun', label: 'Akun admin', hint: 'Ganti kata sandi dan keluar', Icon: UserCog }] },
 ]
 const SECTION_LABEL = Object.fromEntries(MENU_GROUPS.flatMap(g => g.items).map(i => [i.value, i.label])) as Record<Section, string>
 
@@ -60,8 +62,16 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
   const loadUsers = async () => { setUsersError(''); try { setUsers(await listChoyUsers(client)) } catch(error) { setUsersError(error instanceof Error?error.message:'Daftar pengguna gagal dimuat.') } finally { setUsersLoading(false) } }
   useEffect(() => { if (admin) { void load(); void loadUsers(); void client.from('feedback').select('id',{count:'exact',head:true}).eq('status','baru').then(({count})=>setFeedbackCount(count||0),()=>setFeedbackCount(null)) } else { setLoading(false); setUsersLoading(false) } }, [admin])
   const doLogin = async (e:React.FormEvent) => { e.preventDefault(); if(lock.current)return; lock.current=true;setBusy(true);setMessage(''); try { await choySignIn(client,login.email,login.password) } catch(err) { setMessage(err instanceof Error?err.message:'Login gagal.') } finally { lock.current=false;setBusy(false) } }
-  return <div className="mx-auto max-w-6xl space-y-5 px-4 pb-12 pt-4 sm:px-6">
-    <header className="flex flex-wrap items-start justify-between gap-3"><div><Link to="/" className="mb-3 inline-flex min-h-11 items-center gap-2 text-sm font-bold text-teal-700"><ArrowLeft size={17}/>Kembali ke aplikasi</Link><h1 className="text-2xl font-black text-slate-900">{section==='ringkasan'?'Admin Wkelas':SECTION_LABEL[section]}</h1><p className="mt-1 text-sm text-slate-500">{section==='ringkasan'?'Pelanggan, dokumen, dan info aplikasi.':MENU_GROUPS.flatMap(g=>g.items).find(i=>i.value===section)?.hint}</p></div>{user&&<button onClick={()=>void choySignOut(client)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-600"><LogOut size={16}/>Keluar</button>}</header>
+  return <div className="mx-auto max-w-6xl space-y-5 px-4 pb-24 sm:px-6 lg:pb-12">
+    <nav aria-label="Navigasi admin" className="sticky top-0 z-30 -mx-4 flex min-h-14 items-center gap-2 border-b border-teal-900/20 bg-teal-800 px-4 text-white shadow-sm sm:-mx-6 sm:px-6">
+      <Link to="/" aria-label="Kembali ke aplikasi" className="grid size-11 shrink-0 place-items-center rounded-xl hover:bg-white/15"><ArrowLeft size={19}/></Link>
+      <button type="button" onClick={()=>setSection('ringkasan')} className="flex min-h-11 min-w-0 items-center gap-2 rounded-xl px-1 text-left"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-white"><img src="/icons/logo-bgy-64.png" alt="" className="size-6 rounded-full"/></span><span className="truncate font-extrabold">Admin Wkelas</span></button>
+      {user&&admin&&<div className="ml-auto flex items-center gap-1">
+        <button type="button" onClick={()=>setSection('masukan')} aria-label="Masukan baru" className="relative grid size-11 place-items-center rounded-xl hover:bg-white/15"><Bell size={18}/>{!!feedbackCount&&<span className="absolute right-1 top-1 grid min-w-5 place-items-center rounded-full bg-amber-300 px-1 text-xs font-black text-teal-950">{feedbackCount}</span>}</button>
+        <button type="button" onClick={()=>setSection('akun')} aria-label="Akun admin" className="grid size-11 place-items-center rounded-xl hover:bg-white/15"><UserCog size={18}/></button>
+      </div>}
+    </nav>
+    <header><h1 className="text-2xl font-black text-slate-900">{section==='ringkasan'?'Admin Wkelas':SECTION_LABEL[section]}</h1><p className="mt-1 text-sm text-slate-500">{section==='ringkasan'?'Pelanggan, dokumen, dan info aplikasi.':MENU_GROUPS.flatMap(g=>g.items).find(i=>i.value===section)?.hint}</p></header>
     {message&&<p role="alert" className="rounded-xl bg-red-50 p-3 text-sm text-red-700">{message}</p>}
     {checking||loading ? <p role="status" className="text-sm text-slate-500">Memuat…</p> : !user ? <div className="mx-auto max-w-sm space-y-3 rounded-2xl border border-slate-200 bg-white p-6"><h2 className="font-extrabold text-slate-800">Login admin</h2>{!adminPw?<><EmailCodeLogin client={client} allowSignup={false} initialEmail={login.email}/><button type="button" onClick={()=>setAdminPw(true)} className="min-h-11 w-full text-sm font-semibold text-slate-500 hover:text-teal-700">Masuk dengan kata sandi</button></>:<form onSubmit={doLogin} className="space-y-3"><label className="block text-sm font-bold">Email<input required type="email" value={login.email} onChange={e=>setLogin({...login,email:e.target.value})} className="field mt-1.5"/></label><label className="block text-sm font-bold">Kata sandi<input required type="password" value={login.password} onChange={e=>setLogin({...login,password:e.target.value})} className="field mt-1.5"/></label><button disabled={busy} className="action-primary min-h-11 w-full rounded-xl px-4 font-bold disabled:opacity-40">{busy?'Memeriksa…':'Masuk'}</button><div className="flex items-center gap-2 text-xs text-slate-400"><span className="h-px flex-1 bg-slate-200"/>atau<span className="h-px flex-1 bg-slate-200"/></div><button type="button" disabled={busy} onClick={()=>{try{localStorage.setItem('bgy-after-login','/admin')}catch{};void client.auth.signInWithOAuth({provider:'google',options:{redirectTo:`${window.location.origin}/`,queryParams:{prompt:'select_account',...(login.email?{login_hint:login.email}:{})}}})}} className="min-h-11 w-full rounded-xl border border-slate-200 px-4 text-sm font-bold text-slate-700 hover:bg-slate-50">Masuk dengan Google</button><button type="button" disabled={busy} onClick={async()=>{if(!login.email.trim()){setMessage('Isi email dulu untuk menerima link reset kata sandi.');return}setBusy(true);setMessage('');const {error}=await client.auth.resetPasswordForEmail(login.email.trim(),{redirectTo:`${window.location.origin}/#/login`});setBusy(false);setMessage(error?'Link reset belum terkirim. Coba lagi sebentar lagi.':'Link reset kata sandi sudah dikirim ke email.')}} className="min-h-11 w-full text-sm font-semibold text-teal-700 hover:underline">Lupa kata sandi?</button><button type="button" onClick={()=>setAdminPw(false)} className="min-h-11 w-full text-sm font-semibold text-slate-500 hover:text-teal-700">Masuk tanpa kata sandi (kode email)</button></form>}</div>
     : !admin ? <aside className="flex gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"><ShieldAlert className="shrink-0" size={20}/><p><strong>Akun ini bukan admin.</strong> Panel admin hanya untuk akun pemilik yang sudah terdaftar di tabel <code>pak_choy_admins</code>.</p></aside>
@@ -91,9 +101,13 @@ function AdminCloud({client}:{client:NonNullable<ReturnType<typeof primaryClient
       {section==='masukan'&&<AdminFeedbackPanel client={client}/>}
       {section==='pengumuman'&&<AdminContentPanel client={client} kind="pengumuman"/>}
       {section==='versi'&&<AdminContentPanel client={client} kind="versi"/>}
+      {section==='akun'&&<section className="space-y-3"><div className="rounded-2xl border border-slate-200 bg-white p-4 text-sm"><p className="text-xs font-bold uppercase tracking-wide text-slate-400">Masuk sebagai</p><p className="mt-1 break-all font-bold text-slate-800">{user?.email}</p></div><ChangePassword/><button type="button" onClick={()=>void choySignOut(client)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-red-200 px-4 text-sm font-bold text-red-700 hover:bg-red-50"><LogOut size={16}/>Keluar dari admin</button></section>}
       {section==='file'&&<AdminDocuments client={client} items={items} onChanged={load}/>}
       </div>
     </div>}
+    {user&&admin&&<nav aria-label="Menu admin bawah" className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] lg:hidden">
+      {([['ringkasan','Ringkasan',LayoutDashboard],['pengguna','Pengguna',Users],['lisensi','Lisensi',KeyRound],['file','Dokumen',FileText],['akun','Akun',UserCog]] as const).map(([value,label,Icon])=><button key={value} type="button" aria-current={section===value?'page':undefined} onClick={()=>setSection(value)} className={`flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-bold ${section===value?'text-teal-700':'text-slate-500'}`}><Icon size={19}/>{label}</button>)}
+    </nav>}
   </div>
 }
 
