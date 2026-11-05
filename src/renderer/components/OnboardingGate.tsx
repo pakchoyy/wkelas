@@ -117,6 +117,13 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
     } catch (error) { setError(error instanceof Error ? error.message : 'Link belum bisa dikirim.') }
     finally { saveLock.current = false; setSaving(false) }
   }
+  const googleSwitch = async () => {
+    const client = userClient(); const target = email.trim()
+    if (!client || !target) return
+    try { localStorage.setItem(PENDING_PULL, target.toLowerCase()) } catch {}
+    const { error } = await client.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: `${window.location.origin}/`, queryParams: { prompt: 'select_account', login_hint: target } } })
+    if (error) setError('Login Google belum bisa dibuka. Pakai link email.')
+  }
   const cloudDate = cloudAt ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(cloudAt)) : ''
   const finish = async (skip = false) => {
     if (saveLock.current) return
@@ -155,19 +162,19 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
           <div className="mt-2 grid grid-cols-3 gap-1.5" aria-hidden>{[1, 2, 3].map(n => <span key={n} className={`h-1.5 rounded-full ${step >= n ? 'bg-teal-600' : 'bg-slate-200'}`} />)}</div>
           <div className="mt-3 flex flex-wrap gap-2">
             {cloudUser && <button type="button" aria-expanded={cloudOpen} disabled={saving} onClick={() => cloudOpen ? setCloudOpen(false) : openCloud()} className={`inline-flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-bold ${cloudOpen ? 'border-teal-600 bg-teal-50 text-teal-900' : 'border-slate-200 text-slate-700 hover:bg-slate-50'}`}><Cloud size={16}/>Ambil data cloud<span className="rounded-md bg-amber-100 px-1.5 text-[11px] font-black text-amber-800">PRO</span></button>}
-            <button type="button" disabled={saving} onClick={() => finish(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Sparkles size={16} className="text-amber-600"/>{saving && !cloudOpen ? 'Menyiapkan…' : 'Isi data contoh'}</button>
+            {plan !== 'pro' && <button type="button" disabled={saving} onClick={() => finish(true)} className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"><Sparkles size={16} className="text-amber-600"/>{saving && !cloudOpen ? 'Menyiapkan…' : 'Isi data contoh'}</button>}
           </div>
           {cloudAt && !cloudOpen && <button type="button" onClick={openCloud} className="mt-3 flex w-full items-start gap-2 rounded-xl border border-teal-200 bg-teal-50 p-3 text-left text-sm text-teal-900 hover:bg-teal-100"><Cloud size={17} className="mt-0.5 shrink-0"/><span><strong>Akun ini sudah dipakai di perangkat lain.</strong> Data cloud terakhir {cloudDate}. Tarik datanya agar tidak mulai dari nol{plan === 'pro' ? '.' : ' (khusus Pro).'}</span></button>}
           {cloudOpen && <form onSubmit={(e) => { e.preventDefault(); void pullCloud() }} className="mt-3 rounded-xl bg-teal-50 p-3">
             <label className="block text-xs font-bold text-teal-900">Email akun Anda<input type="email" required autoComplete="email" value={email} onChange={e => { setEmail(e.target.value); setCloudNote('') }} placeholder="nama@email.com" className="field mt-1.5"/></label>
             <p className="mt-1.5 text-xs text-teal-800">Sedang login: <strong className="break-all">{loginEmail || '-'}</strong>. Kami cek apakah ada data kelas dari HP atau laptop lain. Bila ada dan akun Pro, data langsung disalin ke perangkat ini.</p>
             <button disabled={saving || !email.trim()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Memeriksa cloud…' : 'Cek & tarik data'}</button>
-            {cloudNote === 'beda-akun' && <div role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-slate-700"><p>Untuk menjaga data siswa, kami kirim link masuk ke <strong className="break-all">{email.trim()}</strong>. Buka email itu dan ketuk linknya. Wkelas terbuka dengan akun tersebut dan datanya langsung ditarik.</p><button type="button" disabled={saving} onClick={() => void sendLink()} className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-teal-50 px-3 text-sm font-bold text-teal-900 disabled:opacity-50">{saving ? 'Mengirim…' : 'Kirim link ke email ini'}</button></div>}
+            {cloudNote === 'beda-akun' && <div role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-slate-700"><p>Untuk menjaga data siswa, buktikan dulu bahwa ini akunmu. Kami kirim link masuk ke <strong className="break-all">{email.trim()}</strong>. Buka email itu dan ketuk linknya. Wkelas terbuka dengan akun tersebut dan datanya langsung ditarik.</p><button type="button" disabled={saving} onClick={() => void sendLink()} className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-teal-50 px-3 text-sm font-bold text-teal-900 disabled:opacity-50">{saving ? 'Mengirim…' : 'Kirim link ke email ini'}</button><button type="button" disabled={saving} onClick={() => void googleSwitch()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-3 text-sm font-bold text-white disabled:opacity-50">Masuk langsung dengan Google</button><p className="mt-1.5 text-xs text-slate-500">Akun Gmail paling cepat lewat Google, tanpa menunggu email.</p></div>}
             {cloudNote === 'terkirim' && <p role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-emerald-800">Link sudah dikirim ke <strong className="break-all">{email.trim()}</strong>. Cek kotak masuk (atau folder Spam), lalu ketuk <strong>Masuk</strong> di email itu.</p>}
             {cloudNote === 'kosong' && <p role="status" className="mt-2 text-sm text-slate-700">Belum ada data cloud untuk email ini. Isi kelas pertama di bawah.</p>}
             {cloudNote === 'bukan-pro' && <p role="status" className="mt-2 flex items-start gap-2 text-sm text-amber-900"><Lock size={15} className="mt-0.5 shrink-0"/><span>Ada data cloud ({cloudDate}), tetapi menarik data khusus pelanggan Pro. <Link to="/aktivasi" className="font-bold underline">Aktifkan Pro</Link>, lalu coba lagi.</span></p>}
           </form>}
-          {!cloudOpen && <p className="mt-2 text-xs text-slate-500">Data contoh terpisah dari data asli dan bisa dihapus nanti.</p>}
+          {!cloudOpen && plan !== 'pro' && <p className="mt-2 text-xs text-slate-500">Data contoh terpisah dari data asli dan bisa dihapus nanti.</p>}
         </div>
         {error && <p role="alert" className="px-4 sm:px-5 pt-3 text-sm text-red-700">{error}</p>}
         <fieldset disabled={saving} className="min-w-0 px-4 py-4 sm:px-5">

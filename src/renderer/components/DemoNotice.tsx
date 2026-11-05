@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
-import { FlaskConical, Trash2 } from 'lucide-react'
+import { FlaskConical, LogOut, Trash2 } from 'lucide-react'
+import { activateMainDb } from '../../lib/db'
 import { clearDemoDb } from '../../lib/demo-data'
 import { useAuthStore } from '../stores/authStore'
 import Modal from './Modal'
@@ -32,11 +33,16 @@ export default function DemoNotice() {
       <FlaskConical size={21} aria-hidden="true" className="mt-0.5 shrink-0"/>
       <div className="min-w-0 flex-1 basis-52">
         <h2 className="text-sm font-bold">Anda sedang memakai data contoh</h2>
-        <p className="mt-1 text-sm leading-relaxed">Guru, siswa, dan kegiatan di sini untuk mencoba aplikasi. Perubahan tersimpan di ruang contoh. Hapus data contoh saat siap membuat kelas sendiri.</p>
+        <p className="mt-1 text-sm leading-relaxed">Guru, siswa, dan kegiatan di sini untuk mencoba aplikasi. Perubahan tersimpan di ruang contoh. Pilih <strong>Keluar dari data contoh</strong> untuk kembali ke data akunmu.</p>
       </div>
+      <div className="flex flex-wrap gap-2">
+      <button type="button" onClick={() => { activateMainDb(); window.location.assign('/') }} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800">
+        <LogOut size={17} aria-hidden="true"/>Keluar dari data contoh
+      </button>
       <button type="button" onClick={() => setConfirming(true)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-800 hover:bg-red-50">
         <Trash2 size={17} aria-hidden="true"/>Hapus data contoh
       </button>
+      </div>
     </section>
     {confirming && <Modal title="Hapus data contoh?" onClose={() => { if (!locked.current) setConfirming(false) }} footer={<>
       <button autoFocus type="button" disabled={busy} onClick={() => setConfirming(false)} className="min-h-11 rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold disabled:opacity-50">Batal</button>

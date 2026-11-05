@@ -29,11 +29,17 @@ export function useUserSession(client: SupabaseClient | null) {
       const callback = new URL(window.location.href)
       const code = callback.searchParams.get('code')
       if (code) {
+        // Datang dari link login/Google = guru sengaja masuk: keluar dari data contoh.
+        activateMainDb()
+        callback.searchParams.delete('code')
+        window.history.replaceState({}, '', `${callback.pathname}${callback.search}${callback.hash}`)
         const { data, error } = await client.auth.exchangeCodeForSession(code)
-        if (!error) {
-          callback.searchParams.delete('code')
-          window.history.replaceState({}, '', `${callback.pathname}${callback.search}${callback.hash}`)
-          return data.session
+        if (!error && data.session) return data.session
+        // Kode bisa sudah ditukar otomatis oleh klien Supabase; tunggu sebentar sesinya.
+        for (let i = 0; i < 10; i++) {
+          const { data: again } = await client.auth.getSession()
+          if (again.session) return again.session
+          await new Promise(r => setTimeout(r, 300))
         }
       }
       const { data } = await client.auth.getSession()
