@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Cloud, Lock, Sparkles } from 'lucide-react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { activateDemoDb, activateMainDb, db } from '../../lib/db'
 import { seedDemoData } from '../../lib/demo-data'
 import { useAuthStore } from '../stores/authStore'
@@ -8,8 +8,10 @@ import { useAppStore } from '../stores/appStore'
 import { getPhaseForGrade } from '../../shared/mapelRecommendations'
 import { initialSetup, saveInitialClass, type SetupData } from '../../lib/onboarding'
 import { bootSync, pullSnapshot, remoteSnapshotAt } from '../../lib/cloud-sync'
-import { signOutUser, userClient, useUserSession } from '../../lib/user-auth'
+import { userClient, useUserSession } from '../../lib/user-auth'
 import { refreshPlan } from '../../lib/pro-license'
+
+const PENDING_PULL = 'bgy-pending-cloud-pull'
 
 export default function OnboardingGate({ children }: { children: React.ReactNode }) {
   const cloud = userClient()
@@ -65,12 +67,20 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
   const [email, setEmail] = useState('')
   // Tanggal data cloud akun ini (null = belum ada). Dipakai untuk hint "sudah dipakai di perangkat lain".
   const [cloudAt, setCloudAt] = useState<string | null>(null)
-  const [cloudNote, setCloudNote] = useState<'' | 'kosong' | 'bukan-pro' | 'beda-akun'>('')
+  const [cloudNote, setCloudNote] = useState<'' | 'kosong' | 'bukan-pro' | 'beda-akun' | 'terkirim'>('')
   useEffect(() => {
     const client = userClient(); if (!client || !userId) return
     void refreshPlan(client, userId).catch(() => {})
     remoteSnapshotAt(client, userId).then(setCloudAt, () => {})
-  }, [userId])
+    let pending = ''
+    try { pending = localStorage.getItem(PENDING_PULL) || '' } catch {}
+    if (pending && pending === loginEmail.trim().toLowerCase()) {
+      try { localStorage.removeItem(PENDING_PULL) } catch {}
+      setEmail(pending); setCloudOpen(true); autoPull.current = true
+    }
+  }, [userId, loginEmail])
+  const autoPull = useRef(false)
+  useEffect(() => { if (autoPull.current && cloudOpen && email) { autoPull.current = false; void refreshPlan(userClient()!, userId!).catch(() => {}).finally(() => void pullCloud()) } }, [cloudOpen, email])
   const openCloud = () => { setCloudOpen(true); setError(''); setCloudNote('') }
   // Satu tombol: cek dulu ada data atau tidak, lalu tarik bila akun Pro.
   const pullCloud = async () => {
@@ -84,7 +94,7 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
       const at = await remoteSnapshotAt(client, userId)
       setCloudAt(at)
       if (!at) { setCloudNote('kosong'); return }
-      if (plan !== 'pro') { setCloudNote('bukan-pro'); return }
+      if (useAuthStore.getState().plan !== 'pro') { setCloudNote('bukan-pro'); return }
       activateMainDb()
       const ok = await pullSnapshot(client, userId, () => true)
       const kelas = ok ? await db.kelas.orderBy('id').first() : undefined
@@ -94,11 +104,18 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
       setError(error instanceof Error ? error.message : 'Data cloud belum bisa dicek. Periksa koneksi lalu coba lagi.')
     } finally { saveLock.current = false; setSaving(false) }
   }
-  const navigate = useNavigate()
-  const switchAccount = async () => {
+    // Email lain: kirim link masuk (bukti pemilik email). Setelah diketuk, data ditarik otomatis.
+  const sendLink = async () => {
     const client = userClient(); const target = email.trim()
-    try { if (client) await signOutUser(client) } catch {}
-    navigate(`/login?email=${encodeURIComponent(target)}`, { replace: true })
+    if (!client || !target || saveLock.current) return
+    saveLock.current = true; setSaving(true); setError('')
+    try {
+      const { error } = await client.auth.signInWithOtp({ email: target, options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/` } })
+      if (error) throw new Error(/signups not allowed|not found|otp_disabled/i.test(error.message) ? 'Email ini belum terdaftar di Wkelas.' : /rate|seconds/i.test(error.message) ? 'Tunggu sebentar sebelum mengirim link lagi.' : 'Link belum bisa dikirim. Coba lagi.')
+      try { localStorage.setItem(PENDING_PULL, target.toLowerCase()) } catch {}
+      setCloudNote('terkirim')
+    } catch (error) { setError(error instanceof Error ? error.message : 'Link belum bisa dikirim.') }
+    finally { saveLock.current = false; setSaving(false) }
   }
   const cloudDate = cloudAt ? new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(cloudAt)) : ''
   const finish = async (skip = false) => {
@@ -145,7 +162,8 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
             <label className="block text-xs font-bold text-teal-900">Email akun Anda<input type="email" required autoComplete="email" value={email} onChange={e => { setEmail(e.target.value); setCloudNote('') }} placeholder="nama@email.com" className="field mt-1.5"/></label>
             <p className="mt-1.5 text-xs text-teal-800">Sedang login: <strong className="break-all">{loginEmail || '-'}</strong>. Kami cek apakah ada data kelas dari HP atau laptop lain. Bila ada dan akun Pro, data langsung disalin ke perangkat ini.</p>
             <button disabled={saving || !email.trim()} className="mt-2 min-h-11 w-full rounded-xl bg-teal-700 px-4 text-sm font-bold text-white disabled:opacity-50">{saving ? 'Memeriksa cloud…' : 'Cek & tarik data'}</button>
-            {cloudNote === 'beda-akun' && <div role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-slate-700"><p>Perangkat ini sedang login sebagai <strong className="break-all">{loginEmail}</strong>. Data cloud milik <strong className="break-all">{email.trim()}</strong> hanya bisa ditarik setelah masuk dengan email itu.</p><button type="button" onClick={() => void switchAccount()} className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-teal-50 px-3 text-sm font-bold text-teal-900">Keluar & masuk dengan {email.trim()}</button></div>}
+            {cloudNote === 'beda-akun' && <div role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-slate-700"><p>Untuk menjaga data siswa, kami kirim link masuk ke <strong className="break-all">{email.trim()}</strong>. Buka email itu dan ketuk linknya. Wkelas terbuka dengan akun tersebut dan datanya langsung ditarik.</p><button type="button" disabled={saving} onClick={() => void sendLink()} className="mt-2 min-h-11 w-full rounded-xl border border-teal-300 bg-teal-50 px-3 text-sm font-bold text-teal-900 disabled:opacity-50">{saving ? 'Mengirim…' : 'Kirim link ke email ini'}</button></div>}
+            {cloudNote === 'terkirim' && <p role="status" className="mt-2 rounded-lg bg-white p-2.5 text-sm text-emerald-800">Link sudah dikirim ke <strong className="break-all">{email.trim()}</strong>. Cek kotak masuk (atau folder Spam), lalu ketuk <strong>Masuk</strong> di email itu.</p>}
             {cloudNote === 'kosong' && <p role="status" className="mt-2 text-sm text-slate-700">Belum ada data cloud untuk email ini. Isi kelas pertama di bawah.</p>}
             {cloudNote === 'bukan-pro' && <p role="status" className="mt-2 flex items-start gap-2 text-sm text-amber-900"><Lock size={15} className="mt-0.5 shrink-0"/><span>Ada data cloud ({cloudDate}), tetapi menarik data khusus pelanggan Pro. <Link to="/aktivasi" className="font-bold underline">Aktifkan Pro</Link>, lalu coba lagi.</span></p>}
           </form>}
