@@ -33,12 +33,13 @@ export function useUserSession(client: SupabaseClient | null) {
         activateMainDb()
         callback.searchParams.delete('code')
         window.history.replaceState({}, '', `${callback.pathname}${callback.search}${callback.hash}`)
+        const goBack = () => { try { const to = localStorage.getItem('bgy-after-login'); localStorage.removeItem('bgy-after-login'); if (to === '/admin') window.location.hash = '#/admin' } catch {} }
         const { data, error } = await client.auth.exchangeCodeForSession(code)
-        if (!error && data.session) return data.session
+        if (!error && data.session) { goBack(); return data.session }
         // Kode bisa sudah ditukar otomatis oleh klien Supabase; tunggu sebentar sesinya.
         for (let i = 0; i < 10; i++) {
           const { data: again } = await client.auth.getSession()
-          if (again.session) return again.session
+          if (again.session) { goBack(); return again.session }
           await new Promise(r => setTimeout(r, 300))
         }
       }
