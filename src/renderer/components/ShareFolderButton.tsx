@@ -1,10 +1,14 @@
 import { useState } from 'react'
 import { Share2 } from 'lucide-react'
 import { publicFolderUrl } from '../../shared/pak-choy-folders'
+import { isOwnerEmail } from '../../shared/cloud-access'
+import { useAuthStore } from '../stores/authStore'
 
-// Bagikan folder Ref Dokumen: share sheet HP bila ada, kalau tidak salin link.
-export default function ShareFolderButton({ folderId, name }: { folderId: string | null; name: string }) {
+// Bagikan folder Ref Dokumen (khusus admin): share sheet HP bila ada, kalau tidak salin link.
+export default function ShareFolderButton({ folderId, name, always = false }: { folderId: string | null; name: string; always?: boolean }) {
   const [note, setNote] = useState('')
+  const email = useAuthStore(state => state.user?.email)
+  if (!always && !isOwnerEmail(email)) return null
   const share = async () => {
     const url = publicFolderUrl(window.location.origin, folderId)
     const text = `${name} (gratis) di Wkelas:`
