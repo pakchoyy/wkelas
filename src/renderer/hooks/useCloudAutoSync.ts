@@ -4,7 +4,7 @@ import { autoSync, bootSync, markSyncError, type AutoDecision } from '../../lib/
 import { useAuthStore } from '../stores/authStore'
 import { canUse } from '../../shared/subscription'
 
-const MIN_INTERVAL = 2 * 60 * 1000
+const MIN_INTERVAL = 20 * 1000
 
 export function useCloudAutoSync(): AutoDecision | null {
   const uid = useAuthStore(s => canUse('sinkron_cloud', s.plan, s.mode) ? s.user?.id || null : null)
@@ -19,7 +19,12 @@ export function useCloudAutoSync(): AutoDecision | null {
       if (running || (!force && Date.now() - lastRun < MIN_INTERVAL)) return
       if (offline()) return
       running = true
-      try { setLast(await autoSync(client, uid)) } catch (error) { markSyncError(uid, error) }
+      try {
+        let decision = await autoSync(client, uid)
+        // Perangkat lain baru mengirim: ambil diam-diam bila di sini tidak ada editan tertunda.
+        if (decision === 'remote-newer') decision = await bootSync(client, uid)
+        setLast(decision)
+      } catch (error) { markSyncError(uid, error) }
       finally { running = false; lastRun = Date.now() }
     }
     const boot = async () => {

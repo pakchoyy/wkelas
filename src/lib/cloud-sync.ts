@@ -114,6 +114,15 @@ export async function pullSnapshot(client: SupabaseClient, uid: string, confirm:
   return true
 }
 
+// Salinan data perangkat sebelum diganti data cloud (tanpa isi file), untuk jaga-jaga.
+export const SAFETY_KEY = (uid: string) => `bgy-presync-copy-${uid}`
+async function keepSafetyCopy(uid: string) {
+  try {
+    const text = await cloudText()
+    if (text.length < 3_000_000) localStorage.setItem(SAFETY_KEY(uid), JSON.stringify({ at: new Date().toISOString(), text }))
+  } catch { /* penyimpanan penuh: lanjut tanpa salinan */ }
+}
+
 export function disableSync(uid: string) {
   writeSyncState(uid, { ...readSyncState(uid), enabled: false, optedOut: true })
 }
@@ -165,13 +174,20 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
         const ok = await pullSnapshot(client, uid, () => true)
         return ok ? 'unchanged' : decision
       }
+      // Pro = cloud sumber utama: perangkat yang baru bergabung langsung memakai data cloud.
+      // Salinan data lama perangkat ini disimpan dulu agar masih bisa dipulihkan.
       try {
         const fingerprint = await localFingerprint()
-        if (fingerprint && meta.fingerprint && fingerprint !== meta.fingerprint) return 'remote-newer'
+        if (fingerprint && meta.fingerprint && fingerprint === meta.fingerprint) {
+          writeSyncState(uid, { ...readSyncState(uid), enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt: meta.updated_at, lastError: '' })
+          return 'unchanged'
+        }
+        await keepSafetyCopy(uid)
+        const ok = await pullSnapshot(client, uid, () => true)
+        return ok ? 'unchanged' : 'remote-newer'
       } catch {
-        /* abaikan: tanpa pembanding, tetap diam */
+        return 'remote-newer'
       }
-      return decision
     }
     if (decision !== 'remote-newer') return decision
     if (await localFingerprint() !== state.lastFingerprint) return decision
@@ -184,7 +200,7 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
 
 // Tanpa perubahan lokal tidak ada query cloud dan data tidak dirakit ulang,
 // kecuali sudah lama tidak cek (agar banner "data lebih baru" muncul maksimal 15 menit kemudian).
-const IDLE_CHECK_INTERVAL = 15 * 60 * 1000
+const IDLE_CHECK_INTERVAL = 60 * 1000
 let lastIdleCheck = 0
 let lastSeenChange = -1
 

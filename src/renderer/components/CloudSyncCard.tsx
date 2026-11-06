@@ -111,19 +111,21 @@ function ProSync({ client, uid }: { client: NonNullable<ReturnType<typeof docume
 
   return <section className="space-y-3 rounded-xl border border-teal-200 bg-teal-50/60 p-4">
     <div className="flex items-start gap-3"><Cloud size={20} className="mt-0.5 shrink-0 text-teal-700"/><div className="min-w-0"><h4 className="font-bold text-slate-900">Sinkron Cloud <span className="ml-1 rounded-full bg-teal-700 px-2 py-0.5 text-xs font-bold text-white">PRO</span></h4>
-      <p className="mt-1 text-sm text-slate-600">{state.enabled ? 'Aktif di perangkat ini. Perubahan dikirim otomatis; data baru dari perangkat lain diambil otomatis saat aplikasi dibuka bila tidak ada editan tertunda.' : remoteAt ? 'Cloud sudah berisi data. Ambil dulu di perangkat ini agar sinkron aktif tanpa menimpa data.' : 'Kirim data perangkat ini ke cloud untuk mengaktifkan sinkron.'}</p>
+      <p className="mt-1 text-sm text-slate-600">{state.enabled ? 'Otomatis. Masuk dengan akun yang sama di HP, tablet, atau laptop, dan datanya langsung sama. Tidak perlu kirim atau ambil manual.' : 'Menyiapkan sinkron otomatis… Biarkan aplikasi terbuka sebentar dengan internet aktif.'}</p>
       <p className="mt-1 text-xs text-slate-500">Terakhir terkirim: {when(state.lastSyncAt)} · Data cloud: {remoteAt === undefined ? 'memeriksa…' : when(remoteAt || '')}</p>
       <p className="mt-1 text-xs text-slate-500">Isi berkas Dokumen Saya tidak ikut diunggah; hanya judul dan keterangannya.</p>
       {remoteAt && sameAsCloud === true && <p role="status" className="mt-1 text-xs font-semibold text-emerald-700">Data perangkat ini sama dengan cloud.</p>}
       {remoteAt && sameAsCloud === false && <p role="status" className="mt-1 text-xs font-semibold text-amber-700">Data cloud BERBEDA dengan perangkat ini — kirim atau ambil untuk menyamakan.</p>}
       {state.lastError && !busy && <p role="alert" className="mt-1 text-xs font-semibold text-red-700">Sinkron otomatis gagal: {state.lastError}</p>}
       {remoteError && !busy && <p role="alert" className="mt-1 text-xs font-semibold text-red-700">{remoteError}</p>}</div></div>
+    <details className="rounded-lg border border-teal-100 bg-white/60 p-2.5"><summary className="min-h-11 cursor-pointer content-center text-sm font-semibold text-slate-600">Opsi lanjutan (bila data tidak sama)</summary><div className="mt-2 space-y-3">
     {remoteNewer && <p role="status" className="rounded-lg border border-sky-200 bg-sky-50 p-2.5 text-sm text-sky-900">Ada data lebih baru dari perangkat lain. Pilih <strong>Ambil dari cloud</strong> untuk memakainya, atau <strong>Kirim ke cloud</strong> untuk menimpanya dengan data perangkat ini.</p>}
     <div className="grid gap-2 sm:grid-cols-2">
       <button disabled={busy} onClick={upload} className="flex min-h-11 items-center justify-center gap-2 rounded-xl bg-teal-700 px-4 text-sm font-bold text-white hover:bg-teal-800 disabled:opacity-50"><CloudUpload size={18}/>Kirim ke cloud</button>
       <button disabled={busy || !remoteAt} onClick={() => void download()} className="flex min-h-11 items-center justify-center gap-2 rounded-xl border border-teal-300 bg-white px-4 text-sm font-bold text-teal-800 hover:bg-teal-50 disabled:opacity-50"><CloudDownload size={18}/>Ambil dari cloud</button>
     </div>
     {state.enabled && <button disabled={busy} onClick={() => { disableSync(uid); setMsg({ ok: true, text: 'Sinkron otomatis dimatikan di perangkat ini.' }) }} className="min-h-11 text-sm font-semibold text-slate-500 underline underline-offset-2 hover:text-slate-700">Matikan sinkron otomatis di perangkat ini</button>}
+    </div></details>
     {busy && <p role="status" className="text-sm text-slate-500">Memproses…</p>}
     {msg && <p role={msg.ok ? 'status' : 'alert'} className={`rounded-lg p-2.5 text-sm font-semibold ${msg.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-red-50 text-red-700'}`}>{msg.text}</p>}
     <ConfirmDialog open={confirmOverwrite} title="Timpa data cloud?" confirmText="Ya, timpa cloud"
