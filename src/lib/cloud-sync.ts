@@ -7,7 +7,7 @@ import { backupFingerprint } from './backup-history'
 // Payload = JSON cadangan TANPA isi file Dokumen Saya: dokumen pribadi tidak pernah diunggah.
 const TABLE = 'user_data'
 
-export type SyncState = { enabled: boolean; lastFingerprint: string; lastSyncAt: string; remoteAt: string; lastError: string }
+export type SyncState = { enabled: boolean; lastFingerprint: string; lastSyncAt: string; remoteAt: string; lastError: string; optedOut?: boolean }
 export type AutoDecision = 'disabled' | 'remote-newer' | 'unchanged' | 'push'
 
 const stateKey = (uid: string) => `bgy-cloud-sync-${uid}`
@@ -97,7 +97,7 @@ export async function pushSnapshot(client: SupabaseClient, uid: string, options:
   } else {
     remoteAt = String(rpc.data || '')
   }
-  const state = { enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt, lastError: '' }
+  const state = { enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt, lastError: '', optedOut: false }
   writeSyncState(uid, state)
   return state
 }
@@ -115,7 +115,7 @@ export async function pullSnapshot(client: SupabaseClient, uid: string, confirm:
 }
 
 export function disableSync(uid: string) {
-  writeSyncState(uid, { ...readSyncState(uid), enabled: false })
+  writeSyncState(uid, { ...readSyncState(uid), enabled: false, optedOut: true })
 }
 
 // Catat kegagalan agar terlihat di menu profil (bukan ditelan diam-diam).
@@ -153,7 +153,14 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
       if (decision !== 'disabled') return decision
       let meta: CloudMeta | null
       try { meta = await cloudMeta(client, uid) } catch { return decision }
-      if (!meta) return decision
+      // Cloud masih kosong + perangkat berisi kelas: aktifkan sinkron otomatis (akun Pro)
+      // agar perangkat lain bisa langsung mengambil. Akun gratis ditolak server; abaikan.
+      if (!meta) {
+        if (!state.optedOut && (await db.kelas.count()) > 0) {
+          try { await pushSnapshot(client, uid); return 'unchanged' } catch { return decision }
+        }
+        return decision
+      }
       if ((await db.kelas.count()) === 0) {
         const ok = await pullSnapshot(client, uid, () => true)
         return ok ? 'unchanged' : decision
