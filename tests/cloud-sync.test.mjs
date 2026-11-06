@@ -114,3 +114,61 @@ test('a wiped device pulls cloud data instead of overwriting it with nothing', a
   await db.delete()
   setAccount(null)
 })
+
+// Server per tabel: meniru push_user_data_parts + select data->tables->x, dan jsonb yang mengurutkan ulang kunci.
+function fakePartsCloud() {
+  let row = null, n = 0
+  const sent = [], fetched = []
+  const tick = () => `2026-11-07T10:00:0${++n}.000000+00:00`
+  const reorder = v => Array.isArray(v) ? v.map(reorder) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).reverse().map(k => [k, reorder(v[k])])) : v
+  return {
+    sent, fetched, get row() { return row },
+    rpc: async (name, args) => {
+      if (name !== 'push_user_data_parts') return { data: null, error: { code: 'PGRST202', message: 'not found' } }
+      if (row && (!args.p_expected || Date.parse(args.p_expected) !== Date.parse(row.updated_at))) return { data: null, error: { code: 'P0001', message: 'SYNC_CONFLICT' } }
+      sent.push(Object.keys(args.p_parts))
+      row = { tables: { ...(row?.tables || {}), ...reorder(args.p_parts) }, table_fps: args.p_table_fps, fingerprint: args.p_fingerprint, updated_at: tick() }
+      return { data: row.updated_at, error: null }
+    },
+    from: () => ({ select: cols => ({ eq: () => ({ maybeSingle: async () => {
+      if (!row) return { data: null, error: null }
+      const out = {}
+      for (const c of cols.split(',')) {
+        const m = c.match(/^(\w+):data->tables->(\w+)$/)
+        if (m) { out[m[1]] = row.tables[m[2]]; fetched.push(m[2]) }
+        else if (c === 'data') out.data = { tables: row.tables }
+        else out[c] = row[c]
+      }
+      return { data: out, error: null }
+    } }) }) }),
+  }
+}
+
+test('sinkron per tabel: kirim dan ambil hanya tabel yang berubah, tanpa unduh berulang', async () => {
+  fakeBrowser()
+  const client = fakePartsCloud()
+  const { db, setAccount } = await import('../src/lib/db.ts')
+  const { pushSnapshot, pullChanges } = await import('../src/lib/cloud-sync.ts')
+  setAccount('guru-p1')
+  if (!db.isOpen()) await db.open()
+  await db.kelas.add({ nama_kelas: '5A', tingkat: '5', tahun_ajaran: '2026/2027', semester: 1, is_aktif: 1, guru_id: 1, created_at: 'x', updated_at: 'x' })
+  await db.todo.add({ judul: 'A', prioritas: 'normal', created_at: 'x', updated_at: 'x' })
+  await pushSnapshot(client, 'uid-p')
+  assert.ok(client.sent[0].length > 5, 'kiriman pertama lengkap')
+  await db.todo.add({ judul: 'B', prioritas: 'normal', created_at: 'x', updated_at: 'x' })
+  await pushSnapshot(client, 'uid-p')
+  assert.deepEqual(client.sent[1], ['todo'], 'kiriman kedua hanya tabel yang berubah')
+  await db.delete()
+
+  // Perangkat lain: ambil penuh dulu (lokal kosong), lalu tidak mengunduh apa pun bila tidak ada perubahan.
+  setAccount('guru-p2')
+  if (!db.isOpen()) await db.open()
+  assert.equal(await pullChanges(client, 'uid-p'), true)
+  assert.equal((await db.kelas.toArray())[0].nama_kelas, '5A')
+  assert.equal(await db.todo.count(), 2)
+  client.fetched.length = 0
+  assert.equal(await pullChanges(client, 'uid-p'), true)
+  assert.deepEqual(client.fetched, [], 'jsonb mengurutkan ulang kunci, tetapi tidak memicu unduh ulang')
+  await db.delete()
+  setAccount(null)
+})

@@ -1,13 +1,13 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { db, localChangeCount } from './db'
-import { createBackupText, restoreBackupText, type BackupTables } from './backup'
+import { BACKUP_TABLES, createBackupText, restoreBackupText, type BackupTables } from './backup'
 import { backupFingerprint } from './backup-history'
 
 // Satu baris per user di public.user_data (migrasi 202609290001 + 202611040001).
 // Payload = JSON cadangan TANPA isi file Dokumen Saya: dokumen pribadi tidak pernah diunggah.
 const TABLE = 'user_data'
 
-export type SyncState = { enabled: boolean; lastFingerprint: string; lastSyncAt: string; remoteAt: string; lastError: string; optedOut?: boolean }
+export type SyncState = { enabled: boolean; lastFingerprint: string; lastSyncAt: string; remoteAt: string; lastError: string; optedOut?: boolean; tableFps?: Record<string, string> }
 export type AutoDecision = 'disabled' | 'remote-newer' | 'unchanged' | 'push'
 
 const stateKey = (uid: string) => `bgy-cloud-sync-${uid}`
@@ -72,16 +72,52 @@ export async function localFingerprint(): Promise<string> {
   return backupFingerprint(await cloudText())
 }
 
+// JSON dengan urutan kunci baku: jsonb di server mengurutkan ulang kunci objek.
+export function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`
+  if (value && typeof value === 'object') return `{${Object.keys(value as object).sort().map(k => `${JSON.stringify(k)}:${canonicalJson((value as Record<string, unknown>)[k])}`).join(',')}}`
+  return JSON.stringify(value) ?? 'null'
+}
+const sha256 = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), b => b.toString(16).padStart(2, '0')).join('')
+
+// Satu kali rakit: data lengkap, sidik jari total (rumus lama, tetap kompatibel) dan per tabel.
+export async function localSnapshot(): Promise<{ text: string; tables: BackupTables; fingerprint: string; tableFps: Record<string, string> }> {
+  const text = await cloudText()
+  const tables = JSON.parse(text).tables as BackupTables
+  const tableFps: Record<string, string> = {}
+  for (const name of BACKUP_TABLES) tableFps[name] = await sha256(canonicalJson(tables[name] || []))
+  return { text, tables, fingerprint: await backupFingerprint(text), tableFps }
+}
+
+// Tabel yang isinya berbeda dari yang terakhir diketahui ada di cloud.
+export function changedTables(local: Record<string, string>, known: Record<string, string> | undefined): string[] {
+  if (!known || !Object.keys(known).length) return [...BACKUP_TABLES]
+  return BACKUP_TABLES.filter(name => local[name] !== known[name])
+}
+
 // Kirim bersyarat lewat RPC push_user_data. Server menolak bila cloud sudah berubah
 // sejak terakhir dikenal perangkat ini. force=true: pengguna sengaja menimpa cloud.
 export async function pushSnapshot(client: SupabaseClient, uid: string, options: { force?: boolean } = {}): Promise<SyncState> {
-  const text = await cloudText()
-  const fingerprint = await backupFingerprint(text)
+  const snap = await localSnapshot()
+  const { text, fingerprint, tableFps } = snap
   let payload: unknown
   try { payload = JSON.parse(text) } catch { throw new Error('Data lokal rusak sehingga tidak bisa dikirim. Buat cadangan file dulu.') }
   const previous = readSyncState(uid)
   const expected = options.force ? await remoteSnapshotAt(client, uid) : previous.remoteAt || null
   let remoteAt: string
+  // Hemat: kirim hanya tabel yang berubah sejak terakhir sama dengan cloud.
+  const changed = changedTables(tableFps, options.force || !expected ? undefined : previous.tableFps)
+  const parts: Record<string, unknown> = {}
+  for (const name of changed) parts[name] = snap.tables[name as keyof BackupTables]
+  const partsRpc = await client.rpc('push_user_data_parts', { p_parts: parts, p_table_fps: tableFps, p_fingerprint: fingerprint, p_expected: expected })
+  if (!partsRpc.error) {
+    const state = { enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt: String(partsRpc.data || ''), lastError: '', optedOut: false, tableFps }
+    writeSyncState(uid, state)
+    return state
+  }
+  if (/SYNC_CONFLICT/.test(errorText(partsRpc.error))) throw new SyncConflictError()
+  if (!/PGRST202|push_user_data_parts/i.test(errorText(partsRpc.error))) throw tableError(partsRpc.error, 'Data belum terkirim ke cloud. Periksa koneksi lalu coba lagi.')
+  // Migrasi per tabel belum dijalankan: kirim penuh seperti sebelumnya.
   const rpc = await client.rpc('push_user_data', { p_data: payload, p_fingerprint: fingerprint, p_expected: expected })
   if (rpc.error) {
     const msg = errorText(rpc.error)
@@ -97,7 +133,7 @@ export async function pushSnapshot(client: SupabaseClient, uid: string, options:
   } else {
     remoteAt = String(rpc.data || '')
   }
-  const state = { enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt, lastError: '', optedOut: false }
+  const state = { enabled: true, lastFingerprint: fingerprint, lastSyncAt: new Date().toISOString(), remoteAt, lastError: '', optedOut: false, tableFps }
   writeSyncState(uid, state)
   return state
 }
@@ -110,7 +146,48 @@ export async function pullSnapshot(client: SupabaseClient, uid: string, confirm:
   if (!row.data) throw new Error('Data cloud gagal diunduh. Periksa koneksi lalu coba lagi.')
   const restored = await restoreBackupText(db, JSON.stringify(row.data), confirm, { keepLocalFiles: true })
   if (!restored) return false
-  writeSyncState(uid, { enabled: true, lastFingerprint: await localFingerprint(), lastSyncAt: new Date().toISOString(), remoteAt: String(row.updated_at), lastError: '' })
+  const after = await localSnapshot()
+  writeSyncState(uid, { enabled: true, lastFingerprint: after.fingerprint, lastSyncAt: new Date().toISOString(), remoteAt: String(row.updated_at), lastError: '', optedOut: false, tableFps: after.tableFps })
+  return true
+}
+
+const FILE_TABLES = new Set(['dokumen_saya', 'perangkat_ajar_cache'])
+
+// Ambil otomatis yang hemat: unduh hanya tabel yang berbeda dari perangkat ini.
+// Cloud lama tanpa sidik jari per tabel = ambil penuh seperti biasa.
+export async function pullChanges(client: SupabaseClient, uid: string): Promise<boolean> {
+  const { data, error } = await client.from(TABLE).select('updated_at,table_fps').eq('user_id', uid).maybeSingle()
+  if (error) {
+    if (/table_fps/i.test(errorText(error))) return pullSnapshot(client, uid, () => true)
+    throw tableError(error, 'Data cloud gagal diunduh. Periksa koneksi lalu coba lagi.')
+  }
+  const row = data as { updated_at?: string; table_fps?: Record<string, string> } | null
+  if (!row?.updated_at) throw new Error('Belum ada data di cloud untuk akun ini.')
+  const remoteFps = row.table_fps || {}
+  if (!BACKUP_TABLES.every(name => typeof remoteFps[name] === 'string')) return pullSnapshot(client, uid, () => true)
+  const local = await localSnapshot()
+  const changed = BACKUP_TABLES.filter(name => remoteFps[name] !== local.tableFps[name])
+  if (changed.length) {
+    const select = changed.map(name => `${name}:data->tables->${name}`).join(',')
+    const res = await client.from(TABLE).select(select).eq('user_id', uid).maybeSingle()
+    if (res.error || !res.data) throw tableError(res.error, 'Data cloud gagal diunduh. Periksa koneksi lalu coba lagi.')
+    const got = res.data as unknown as Record<string, unknown>
+    for (const name of changed) if (!Array.isArray(got[name])) return pullSnapshot(client, uid, () => true)
+    await db.transaction('rw', changed.map(name => db.table(name)), async () => {
+      for (const name of changed) {
+        let rows = got[name] as Record<string, any>[]
+        if (FILE_TABLES.has(name)) {
+          const files = new Map<unknown, Uint8Array>()
+          for (const r of await db.table(name).toArray()) if (r.file_data) files.set(r.id, r.file_data)
+          rows = rows.map(r => r.file_data == null && files.has(r.id) ? { ...r, file_data: files.get(r.id) } : r)
+        }
+        await db.table(name).clear()
+        await db.table(name).bulkAdd(rows)
+      }
+    })
+  }
+  const after = changed.length ? await localSnapshot() : local
+  writeSyncState(uid, { ...readSyncState(uid), enabled: true, lastFingerprint: after.fingerprint, lastSyncAt: new Date().toISOString(), remoteAt: String(row.updated_at), lastError: '', optedOut: false, tableFps: remoteFps })
   return true
 }
 
@@ -148,7 +225,7 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
   // Tidak ada yang hilang karena di perangkat memang belum ada kelas.
   if (!(typeof navigator !== 'undefined' && navigator.onLine === false) && (await db.kelas.count()) === 0) {
     const meta = await cloudMeta(client, uid).catch(() => null)
-    if (meta) return (await pullSnapshot(client, uid, () => true)) ? 'unchanged' : 'disabled'
+    if (meta) return (await pullChanges(client, uid)) ? 'unchanged' : 'disabled'
   }
   const decision = await autoSync(client, uid, true)
   if (typeof navigator !== 'undefined' && navigator.onLine === false) return decision
@@ -171,7 +248,7 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
         return decision
       }
       if ((await db.kelas.count()) === 0) {
-        const ok = await pullSnapshot(client, uid, () => true)
+        const ok = await pullChanges(client, uid)
         return ok ? 'unchanged' : decision
       }
       // Pro = cloud sumber utama: perangkat yang baru bergabung langsung memakai data cloud.
@@ -183,7 +260,7 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
           return 'unchanged'
         }
         await keepSafetyCopy(uid)
-        const ok = await pullSnapshot(client, uid, () => true)
+        const ok = await pullChanges(client, uid)
         return ok ? 'unchanged' : 'remote-newer'
       } catch {
         return 'remote-newer'
@@ -191,7 +268,7 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
     }
     if (decision !== 'remote-newer') return decision
     if (await localFingerprint() !== state.lastFingerprint) return decision
-    const ok = await pullSnapshot(client, uid, () => true)
+    const ok = await pullChanges(client, uid)
     return ok ? 'unchanged' : decision
   } catch {
     return decision
