@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronRight, Download, ExternalLink, FileText, Folder, FolderOpen } from 'lucide-react'
+import { ArrowLeft, ArrowRight, ChevronRight, ClipboardCheck, Download, NotebookPen, ScrollText, WifiOff, ExternalLink, FileText, Folder, FolderOpen } from 'lucide-react'
 import { backendClients } from '../../../lib/choy-auth'
 import { downloadChoyDocument, listChoyDocuments, listChoyFolders, openChoyLink } from '../../../lib/document-service'
 import { documentAudience, documentSize, isLinkItem, type ChoyDocument } from '../../../shared/pak-choy-documents'
@@ -54,10 +54,18 @@ export default function RefPublik() {
       {subfolders.length > 0 && <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">{subfolders.map(folder => <button key={folder.id} type="button" onClick={() => go(folder.id)} className="flex min-h-14 items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left hover:bg-slate-50"><span className="grid size-10 shrink-0 place-items-center rounded-xl bg-amber-50 text-amber-600"><Folder size={20}/></span><span className="min-w-0 flex-1 break-words font-bold text-slate-800">{folder.name}</span><ChevronRight size={17} className="shrink-0 text-slate-400"/></button>)}</div>}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">{items.map(item => <article key={`${item.backend}-${item.doc.id}`} className="flex flex-col rounded-xl border border-slate-200 bg-white p-4">{isLinkItem(item.doc) ? <ExternalLink size={22} className="text-sky-700"/> : <FileText size={22} className="text-teal-700"/>}<h2 className="mt-3 break-words font-bold text-slate-800">{item.doc.title}</h2><p className="mt-1 text-xs text-slate-500">{isLinkItem(item.doc) ? linkKind(item.doc.link_url) : `${item.doc.category} · ${documentAudience(item.doc.target_grades)} · ${documentSize(item.doc.file_size)}`}</p>{item.doc.description && <p className="mt-3 flex-1 text-sm leading-6 text-slate-600">{item.doc.description}</p>}<button onClick={() => void open(item)} className="action-mint mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border px-4 text-sm font-bold">{isLinkItem(item.doc) ? <><ExternalLink size={16}/>Buka link</> : <><Download size={16}/>Unduh</>}</button></article>)}</div>
       {state === 'ok' && !items.length && !subfolders.length && <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center"><FolderOpen size={30} className="mb-3 text-slate-400"/><p className="text-sm font-semibold text-slate-700">Folder ini belum berisi dokumen</p></div>}
-      <section className="rounded-2xl border border-teal-200 bg-teal-50 p-4">
-        <h2 className="font-bold text-slate-800">Wali kelas? Absen, nilai, dan rapor bisa dari HP.</h2>
-        <p className="mt-1 text-sm text-slate-600">Wkelas gratis dipakai. Data tersimpan di perangkat Anda dan bisa dipakai tanpa internet.</p>
-        <Link to="/login" className="action-primary mt-3 inline-flex min-h-11 items-center rounded-xl px-4 text-sm font-bold">Coba Wkelas gratis</Link>
+      <section aria-label="Kenalan dengan Wkelas" className="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-800 to-emerald-700 text-white shadow-lg">
+        <div className="p-5">
+          <p className="text-xs font-bold uppercase tracking-wider text-teal-100">Untuk wali kelas SD</p>
+          <h2 className="mt-1 text-xl font-extrabold leading-snug">Urusan kelas beres dari HP, tanpa tumpukan buku.</h2>
+          <ul className="mt-4 space-y-2.5 text-sm">
+            {[[ClipboardCheck,'Presensi harian: ketuk nama siswa, rekap bulanan jadi sendiri.'],[ScrollText,'Nilai per mapel langsung terekap, siap dicetak.'],[NotebookPen,'Jurnal mengajar dan jadwal pelajaran di satu tempat.'],[WifiOff,'Tetap jalan tanpa sinyal. Data aman di perangkat Anda.']].map(([Icon,text]) => { const I = Icon as typeof WifiOff; return <li key={text as string} className="flex items-start gap-2.5"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg bg-white/15"><I size={14}/></span><span>{text as string}</span></li> })}
+          </ul>
+        </div>
+        <div className="flex flex-wrap items-center gap-3 bg-black/15 px-5 py-4">
+          <Link to="/login" className="inline-flex min-h-12 items-center gap-2 rounded-xl bg-white px-5 text-sm font-extrabold text-teal-800 hover:bg-teal-50">Pakai Wkelas gratis<ArrowRight size={16}/></Link>
+          <span className="text-xs text-teal-50">Daftar cukup dengan akun Google.</span>
+        </div>
       </section>
     </main>
   </div>
