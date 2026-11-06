@@ -1,5 +1,5 @@
 // Service worker BGY Wali Kelas. Data aplikasi tetap di IndexedDB perangkat.
-const CACHE = 'bgy-walikelas-v4'
+const CACHE = 'bgy-walikelas-v5'
 const NAV_TIMEOUT = 3000
 
 self.addEventListener('install', (event) => {
