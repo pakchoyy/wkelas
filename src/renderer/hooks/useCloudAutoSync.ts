@@ -18,6 +18,8 @@ export function useCloudAutoSync(): AutoDecision | null {
     const run = async (force = false) => {
       if (running || (!force && Date.now() - lastRun < MIN_INTERVAL)) return
       if (offline()) return
+      // Hemat kuota: tab tersembunyi tidak mengecek cloud (kirim tetap jalan saat ditinggalkan).
+      if (!force && document.visibilityState !== 'visible') return
       running = true
       try {
         let decision = await autoSync(client, uid)

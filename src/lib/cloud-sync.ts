@@ -200,7 +200,7 @@ export async function bootSync(client: SupabaseClient, uid: string): Promise<Aut
 
 // Tanpa perubahan lokal tidak ada query cloud dan data tidak dirakit ulang,
 // kecuali sudah lama tidak cek (agar banner "data lebih baru" muncul maksimal 15 menit kemudian).
-const IDLE_CHECK_INTERVAL = 60 * 1000
+const IDLE_CHECK_INTERVAL = 2 * 60 * 1000
 let lastIdleCheck = 0
 let lastSeenChange = -1
 
