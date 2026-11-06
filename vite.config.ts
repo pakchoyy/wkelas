@@ -19,7 +19,7 @@ function legacyCss(): Plugin {
     async generateBundle(_options, bundle) {
       for (const file of Object.values(bundle)) {
         if (file.type !== 'asset' || !file.fileName.endsWith('.css')) continue
-        const result = await postcss([cascadeLayers(), oklab({ preserve: true }), colorMix({ preserve: true })]).process(String(file.source), { from: undefined })
+        const result = await postcss([oklab({ preserve: true }), colorMix({ preserve: true })]).process(String(file.source), { from: undefined })
         file.source = result.css
       }
     },
@@ -28,6 +28,8 @@ function legacyCss(): Plugin {
 
 export default defineConfig({
   plugins: [react(), tailwindcss(), legacyCss()],
+  // Diproses sebelum nama file ber-hash dibuat, jadi nama CSS ikut berubah bila isinya berubah.
+  css: { postcss: { plugins: [cascadeLayers()] } },
   base: './',
   resolve: {
     alias: {
