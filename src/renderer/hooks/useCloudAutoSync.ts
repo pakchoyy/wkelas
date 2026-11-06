@@ -29,8 +29,9 @@ export function useCloudAutoSync(): AutoDecision | null {
       } catch (error) { markSyncError(uid, error) }
       finally { running = false; lastRun = Date.now() }
     }
-    const boot = async () => {
-      if (running || offline()) return
+    const boot = async (first = false) => {
+      // Bolak-balik antar aplikasi tidak memicu cek cloud lebih dari sekali per 30 detik.
+      if (running || offline() || (!first && Date.now() - lastRun < 30 * 1000)) return
       running = true
       try { setLast(await bootSync(client, uid)) } catch (error) { markSyncError(uid, error) }
       finally { running = false; lastRun = Date.now() }
@@ -39,7 +40,7 @@ export function useCloudAutoSync(): AutoDecision | null {
       if (document.visibilityState === 'hidden') void run(true)
       else void boot()
     }
-    void boot()
+    void boot(true)
     const timer = window.setInterval(() => void run(), MIN_INTERVAL)
     document.addEventListener('visibilitychange', onVis)
     const onState = () => setLast(null)
