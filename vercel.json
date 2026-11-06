@@ -11,7 +11,7 @@
       "destination": "/ref-redirect.html"
     },
     {
-      "source": "/((?!api/).*)",
+      "source": "/((?!api/|assets/).*)",
       "destination": "/index.html"
     }
   ],

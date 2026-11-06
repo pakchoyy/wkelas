@@ -1,5 +1,5 @@
 // Service worker BGY Wali Kelas. Data aplikasi tetap di IndexedDB perangkat.
-const CACHE = 'bgy-walikelas-v5'
+const CACHE = 'bgy-walikelas-v6'
 const NAV_TIMEOUT = 3000
 
 self.addEventListener('install', (event) => {
@@ -20,8 +20,13 @@ function store(request, response) {
 }
 
 // File ber-hash tidak pernah berubah isinya: ambil dari cache tanpa menunggu jaringan.
+// File aset yang dijawab dengan HTML (mis. file versi lama sudah dihapus) tidak boleh disimpan.
+const isHtml = (response) => (response.headers.get('content-type') || '').includes('text/html')
 function cacheFirst(request) {
-  return caches.match(request).then((cached) => cached || fetch(request).then((response) => store(request, response)))
+  return caches.match(request).then((cached) => {
+    if (cached && !isHtml(cached)) return cached
+    return fetch(request).then((response) => (isHtml(response) ? response : store(request, response)))
+  })
 }
 
 // Halaman: coba jaringan sebentar agar versi baru terambil, lalu jatuh ke cache bila lambat/offline.
