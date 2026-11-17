@@ -1,3 +1,4 @@
+import { whatsappDisplay, whatsappUrl } from '../../../shared/contact'
 import ProdukBGY from '../produk/ProdukBGY'
 import { BookOpenCheck, ExternalLink, MessageCircle, Music2, Users } from 'lucide-react'
 import { APP_UPDATED_AT, APP_VERSION } from '../../../shared/app-info'
@@ -15,7 +16,7 @@ export default function Tentang() {
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/15 pt-4">
         <span className="text-sm font-bold text-teal-100">Dibuat oleh Pak Choy</span>
         <a href="https://www.tiktok.com/@pak.choyy" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25"><Music2 size={15}/>TikTok @pak.choyy</a>
-        <a href="https://wa.me/6289530713597" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25"><MessageCircle size={15}/>WA 0895-3071-3597</a>
+        <a href={whatsappUrl()} target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25"><MessageCircle size={15}/>WA {whatsappDisplay()}</a>
         <a href="https://chat.whatsapp.com/CK7joLk242kJxZeXu9GBPu" target="_blank" rel="noreferrer" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-white/15 px-3 py-2 text-xs font-bold text-white hover:bg-white/25"><Users size={15}/>Grup diskusi Wali Kelas<ExternalLink size={13}/></a>
       </div>
     </header>

@@ -1,3 +1,4 @@
+import { whatsappUrl } from '../shared/contact'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { useAuthStore } from '../renderer/stores/authStore'
 
@@ -10,7 +11,7 @@ export const PRO_BUY_URL = envBuy && /^https:\/\//.test(envBuy) ? envBuy : 'http
 export const PRO_PRICE = 'Rp23.000 / semester'
 // Salinan status Pro hanya dipercaya maksimal 7 hari saat offline.
 const CACHE_MAX_AGE = 7 * 86400000
-export const ADMIN_WA = 'https://wa.me/6289530713597'
+export const ADMIN_WA = whatsappUrl()
 
 export type ProStatus = { is_pro: boolean; plan_type: string | null; active_until: string | null }
 const PENDING_KEY = 'bgy-pending-activation'

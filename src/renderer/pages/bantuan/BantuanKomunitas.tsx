@@ -3,8 +3,8 @@ import { Bug, HeartHandshake, Lightbulb, MessageCircle, Send, UsersRound } from 
 import { useLocation } from 'react-router-dom'
 import { APP_VERSION } from '../../../shared/app-info'
 import { documentClient } from '../../../lib/document-client'
+import { whatsappUrl } from '../../../shared/contact'
 
-const whatsappNumber = '6289530713597'
 const categories = [
   { value: 'Saran', label: 'Saran fitur', icon: Lightbulb },
   { value: 'Kritik', label: 'Kritik penggunaan', icon: MessageCircle },
@@ -33,7 +33,7 @@ export default function BantuanKomunitas() {
         await client.from('feedback').insert({ user_id: data.user.id, category: category === 'Saran' ? 'saran' : category === 'Kritik' ? 'kritik' : 'masalah', message: message.trim(), page: sourcePage, app_version: APP_VERSION })
       }
     }
-    window.open(`https://wa.me/${whatsappNumber}?text=${encodeURIComponent(text)}`, '_blank', 'noopener,noreferrer')
+    window.open(whatsappUrl(text), '_blank', 'noopener,noreferrer')
     setSent(true); setSending(false)
   }
 
@@ -58,7 +58,7 @@ export default function BantuanKomunitas() {
       </section>
 
       <aside className="space-y-4">
-        <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><MessageCircle size={24} className="text-emerald-700"/><h2 className="mt-3 font-extrabold text-emerald-950">Kontak WhatsApp</h2><p className="mt-1 text-sm text-emerald-800">Kritik, saran, dan laporan masalah diteruskan ke Pak Choyy.</p><a href={`https://wa.me/${whatsappNumber}`} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800">Chat langsung</a></section>
+        <section className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5"><MessageCircle size={24} className="text-emerald-700"/><h2 className="mt-3 font-extrabold text-emerald-950">Kontak WhatsApp</h2><p className="mt-1 text-sm text-emerald-800">Kritik, saran, dan laporan masalah diteruskan ke Pak Choyy.</p><a href={whatsappUrl()} target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800">Chat langsung</a></section>
         <section className="rounded-2xl border border-slate-200 bg-white p-5"><UsersRound size={24} className="text-teal-700"/><h2 className="mt-3 font-extrabold text-slate-800">Grup Diskusi Wali Kelas</h2><p className="mt-1 text-sm text-slate-500">Diskusi seputar aplikasi Wali Kelas dengan pengguna BGY lainnya.</p><a href="https://chat.whatsapp.com/CK7joLk242kJxZeXu9GBPu" target="_blank" rel="noreferrer" className="mt-4 inline-flex min-h-11 items-center rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-bold text-white hover:bg-emerald-800">Gabung grup WA</a></section>
       </aside>
     </div>

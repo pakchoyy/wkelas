@@ -1,4 +1,5 @@
 import './style.css'
+import { whatsappUrl } from '../shared/contact'
 
 // Kreacy mengganti {order} dan {sig} di link produk. Diteruskan ke aplikasi apa adanya;
 // keabsahan tanda tangan dan "satu pesanan satu klaim" diperiksa server saat tombol Klaim ditekan.
@@ -13,3 +14,6 @@ if (/^[A-Za-z0-9_-]{1,80}$/.test(order) && /^[a-f0-9]{64}$/i.test(sig)) {
   ;($('open') as HTMLAnchorElement).href = `/#/aktivasi?${new URLSearchParams({ order, sig: sig.toLowerCase() })}`
   history.replaceState(null, '', window.location.pathname)
 }
+
+// Nomor admin diambil dari satu sumber (src/shared/contact.ts), bukan ditulis di HTML.
+;($('wa-admin') as HTMLAnchorElement).href = whatsappUrl('Halo admin, saya sudah beli Wali Kelas PRO. Email akun saya: ')
