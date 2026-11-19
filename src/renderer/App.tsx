@@ -33,6 +33,7 @@ const Rencana = lazyWithRetry(() => import('./pages/aktivitas/Rencana'))
 const Kalender = lazyWithRetry(() => import('./pages/aktivitas/Kalender'))
 const Jurnal = lazyWithRetry(() => import('./pages/aktivitas/Jurnal'))
 const ToDo = lazyWithRetry(() => import('./pages/aktivitas/ToDo'))
+const TujuanPembelajaran = lazyWithRetry(() => import('./pages/aktivitas/TujuanPembelajaran'))
 const ProtaProsem = lazyWithRetry(() => import('./pages/aktivitas/ProtaProsem'))
 const PerangkatAjar = lazyWithRetry(() => import('./pages/perangkat-ajar/PerangkatAjar'))
 const Laporan = lazyWithRetry(() => import('./pages/laporan/Laporan'))
@@ -68,6 +69,7 @@ const router = createHashRouter(createRoutesFromElements(<>
           <Route path="/aktivitas/kalender" element={page(<Kalender />)} />
           <Route path="/aktivitas/jurnal" element={page(<Jurnal />)} />
           <Route path="/aktivitas/todo" element={page(<ToDo />)} />
+          <Route path="/aktivitas/tujuan-pembelajaran" element={page(<TujuanPembelajaran />)} />
           <Route path="/aktivitas/prota-prosem" element={page(<ProtaProsem />)} />
           <Route path="/perangkat-ajar" element={page(<PerangkatAjar />)} />
           <Route path="/laporan" element={page(<Laporan />)} />

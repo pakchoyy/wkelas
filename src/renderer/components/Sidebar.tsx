@@ -3,7 +3,7 @@ import { useLogout } from './useLogout'
 import { isOwnerEmail } from '../../shared/cloud-access'
 import { useAuthStore } from '../stores/authStore'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { AlertTriangle, BarChart3, ShieldCheck, BookOpen, Calendar, CalendarDays, CalendarRange, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, Files, FolderOpen, HeartHandshake, Info, Sparkles, LayoutDashboard, LogOut, NotebookPen, ScrollText, Settings, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, ShieldCheck, BookOpen, Calendar, CalendarDays, CalendarRange, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, Files, FolderOpen, HeartHandshake, Info, Sparkles, LayoutDashboard, LogOut, NotebookPen, ScrollText, Settings, Target, Users } from 'lucide-react'
 
 const groups = [
   { label: 'Siswa', icon: Users, children: [
@@ -21,6 +21,7 @@ const groups = [
   { label: 'Referensi Mengajar', icon: FolderOpen, children: [
     { to: '/aktivitas/kalender', icon: CalendarDays, label: 'Kalender Akademik' },
     { to: '/aktivitas/prota-prosem', icon: CalendarRange, label: 'Prota & Prosem' },
+    { to: '/aktivitas/tujuan-pembelajaran', icon: Target, label: 'Tujuan Pembelajaran' },
     { to: '/perangkat-ajar', icon: Files, label: 'Perangkat Ajar' },
   ] },
   { label: 'Lainnya', icon: CheckSquare, children: [
