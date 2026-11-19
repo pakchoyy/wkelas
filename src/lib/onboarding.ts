@@ -1,3 +1,4 @@
+import { isValidGrade } from '../shared/mapelRecommendations'
 import type { BgyDatabase } from './db'
 import { getPhaseForGrade, getRecommendedMapel } from '../shared/mapelRecommendations'
 
@@ -15,7 +16,7 @@ export function initialSetup(date = new Date()): SetupData {
 export async function saveInitialClass(db: BgyDatabase, data: SetupData, supabaseUid = 'local', skip = false) {
   const setup = { ...data, namaKelas: data.namaKelas.trim(), namaSekolah: data.namaSekolah.trim(), namaWali: data.namaWali.trim(), nip: data.nip.trim(), tahunAjaran: data.tahunAjaran.trim() }
   if (skip) { setup.namaKelas ||= 'Kelas Saya'; setup.namaWali ||= 'Wali Kelas'; setup.tingkat ||= '1' }
-  if (!/^[1-6]$/.test(setup.tingkat)) throw new Error('Pilih tingkat kelas SD 1 sampai 6.')
+  if (!isValidGrade(setup.tingkat)) throw new Error('Pilih tingkat kelas 1 sampai 12.')
   if (!/^\d{4}\/\d{4}$/.test(setup.tahunAjaran) || Number(setup.tahunAjaran.slice(5)) !== Number(setup.tahunAjaran.slice(0,4)) + 1) throw new Error('Tahun ajaran harus berurutan, misalnya 2026/2027.')
   if (![1,2].includes(setup.semester)) throw new Error('Pilih semester 1 atau 2.')
   if (!setup.namaKelas || !setup.namaWali || (!skip && !setup.namaSekolah)) throw new Error('Lengkapi nama kelas, sekolah, dan wali kelas.')

@@ -1,3 +1,4 @@
+import GradeOptions from './GradeOptions'
 import { useEffect, useRef, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, Cloud, Lock, Sparkles } from 'lucide-react'
 import { Link, Navigate } from 'react-router-dom'
@@ -180,7 +181,7 @@ function SetupWizard({ userId, onComplete }: { userId?: string; onComplete: () =
         <fieldset disabled={saving} className="min-w-0 px-4 py-4 sm:px-5">
           {step === 1 && <div className="grid grid-cols-2 gap-3">
             <Field label="Nama kelas" placeholder="Contoh: Kelas 2-A" value={data.namaKelas} onChange={(v) => update('namaKelas', v)} wide />
-            <label className="text-sm font-semibold text-slate-700">Tingkat kelas<select value={data.tingkat} onChange={e => update('tingkat', e.target.value)} className="field mt-1.5">{[1,2,3,4,5,6].map(grade => <option key={grade} value={grade}>Kelas {grade}</option>)}</select></label>
+            <label className="text-sm font-semibold text-slate-700">Tingkat kelas<select value={data.tingkat} onChange={e => update('tingkat', e.target.value)} className="field mt-1.5"><GradeOptions/></select></label>
             <label className="text-sm font-semibold text-slate-700">Fase otomatis<input readOnly value={getPhaseForGrade(data.tingkat)} className="field mt-1.5"/></label>
             <Field label="Tahun ajaran" value={data.tahunAjaran} onChange={(v) => update('tahunAjaran', v)} />
             <label className="text-sm font-semibold text-slate-700">Semester<select value={data.semester} onChange={(e) => update('semester', Number(e.target.value))} className="field mt-1.5"><option value={1}>1 (Ganjil)</option><option value={2}>2 (Genap)</option></select></label>

@@ -1,3 +1,4 @@
+import { isValidGrade } from '../shared/mapelRecommendations'
 import type { BgyDatabase, Kelas } from './db'
 import { getRecommendedMapel } from '../shared/mapelRecommendations'
 
@@ -6,7 +7,7 @@ export type NewClass = { nama_kelas: string; tingkat: string; tahun_ajaran: stri
 function validate(input: NewClass): NewClass {
   const data = { ...input, nama_kelas: input.nama_kelas.trim(), tahun_ajaran: input.tahun_ajaran.trim(), tingkat: String(input.tingkat) }
   if (!data.nama_kelas) throw new Error('Isi nama kelas.')
-  if (!/^[1-6]$/.test(data.tingkat)) throw new Error('Pilih tingkat kelas 1 sampai 6.')
+  if (!isValidGrade(data.tingkat)) throw new Error('Pilih tingkat kelas 1 sampai 12.')
   const m = /^(\d{4})\/(\d{4})$/.exec(data.tahun_ajaran)
   if (!m || Number(m[2]) !== Number(m[1]) + 1) throw new Error('Tahun ajaran harus berurutan, misalnya 2027/2028.')
   if (![1, 2].includes(Number(data.semester))) throw new Error('Pilih semester 1 atau 2.')

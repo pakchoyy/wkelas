@@ -45,7 +45,7 @@ test('parallel setup and reopening keep one class and its identity', async t => 
 })
 test('invalid input never creates partial setup', async t => {
  const db = await fixture(t)
- for (const data of [{...full,tingkat:'7'},{...full,tahunAjaran:'2026/2028'},{...full,namaSekolah:'  '},{...full,semester:3}]) await assert.rejects(saveInitialClass(db,data))
+ for (const data of [{...full,tingkat:'13'},{...full,tingkat:'0'},{...full,tahunAjaran:'2026/2028'},{...full,namaSekolah:'  '},{...full,semester:3}]) await assert.rejects(saveInitialClass(db,data))
  assert.equal(await db.kelas.count(),0)
  assert.equal(await db.guru.count(),0)
 })
@@ -60,4 +60,15 @@ test('failed subject write rolls back teacher and class', async t => {
  db.mata_pelajaran.hook('creating').unsubscribe(fail)
  await saveInitialClass(db,full)
  assert.equal(await db.kelas.count(),1)
+})
+
+test('kelas SMP dan SMA bisa dibuat dengan fase dan mapel jenjangnya', async t => {
+ for (const [tingkat, fase, mapel, bukan] of [['7','D','Informatika','Ilmu Pengetahuan Alam dan Sosial'],['10','E','Fisika','Ilmu Pengetahuan Alam dan Sosial']]) {
+  const db = await fixture(t)
+  await saveInitialClass(db,{...full,tingkat})
+  const names = (await db.mata_pelajaran.toArray()).map(m => m.nama)
+  assert.ok(names.includes(mapel), `${tingkat}: ${mapel}`)
+  assert.ok(!names.includes(bukan))
+  assert.equal((await db.pengaturan.get('fase_aktif')).value, fase)
+ }
 })

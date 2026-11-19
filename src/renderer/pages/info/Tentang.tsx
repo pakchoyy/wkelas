@@ -3,14 +3,14 @@ import { BookOpenCheck, ExternalLink, MessageCircle, Music2, Users } from 'lucid
 import { APP_UPDATED_AT, APP_VERSION } from '../../../shared/app-info'
 import { BGY_PRODUCTS } from '../../../shared/bgy-products'
 
-const FITUR = ['Presensi harian, rekap semester & Auto Hadir', 'Penilaian, catatan perilaku & rekap nilai', 'Jadwal, Rencana Mengajar & Jurnal Harian', 'Kalender Akademik (otomatis Jatim 2026/2027)', 'Laporan siap cetak & cadangan data .bgy']
+const FITUR = ['Presensi harian, rekap semester & Auto Hadir', 'Penilaian, Katrol Nilai, catatan perilaku & rekap nilai', 'Prota, Prosem & minggu efektif otomatis', 'Bank Tujuan Pembelajaran kelas 1–12 untuk e-Rapor', 'Jadwal, Rencana Mengajar & Jurnal Harian', 'Kalender Akademik (otomatis Jatim 2026/2027)', 'Laporan siap cetak & cadangan data .bgy']
 
 export default function Tentang() {
   return <div className="mx-auto max-w-6xl space-y-6">
     <header className="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-800 via-teal-900 to-slate-800 p-6 text-white sm:p-8">
       <p className="text-xs font-bold uppercase tracking-widest text-teal-200">Bantu Guru Yuk</p>
       <h1 className="mt-1 text-3xl font-black tracking-tight">Wali Kelas</h1>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-teal-50">Teman kerja wali kelas SD: absensi, nilai, dan perangkat mengajar beres dalam satu aplikasi. Data tersimpan aman di perangkat ini dan bisa dicadangkan sebagai file .bgy.</p>
+      <p className="mt-2 max-w-2xl text-sm leading-6 text-teal-50">Teman kerja wali kelas SD, SMP, dan SMA: absensi, nilai, dan perangkat mengajar beres dalam satu aplikasi. Data tersimpan aman di perangkat ini dan bisa dicadangkan sebagai file .bgy.</p>
       <p className="mt-3 inline-block rounded-full bg-white/15 px-3 py-1 text-xs font-bold">Versi {APP_VERSION} · diperbarui {APP_UPDATED_AT}</p>
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-white/15 pt-4">
         <span className="text-sm font-bold text-teal-100">Dibuat oleh Pak Choy</span>

@@ -1,3 +1,5 @@
+import GradeOptions from './GradeOptions'
+import { MAX_GRADE, nextClassName } from '../../shared/mapelRecommendations'
 import { Link } from 'react-router-dom'
 import { useRef, useState } from 'react'
 import { ArrowUpRight, Check, Lock, Plus } from 'lucide-react'
@@ -25,9 +27,9 @@ export default function ClassManager() {
 
   const open = (next: Mode) => {
     if (!active) return
-    const grade = Math.min(6, Number(active.tingkat) + (next === 'naik' ? 1 : 0))
+    const grade = Math.min(MAX_GRADE, Number(active.tingkat) + (next === 'naik' ? 1 : 0))
     setForm(next === 'naik'
-      ? { nama_kelas: active.nama_kelas.replace(/\d/, String(grade)), tingkat: String(grade), tahun_ajaran: nextAcademicYear(active.tahun_ajaran), semester: 1 }
+      ? { nama_kelas: nextClassName(active.nama_kelas, Number(active.tingkat), grade), tingkat: String(grade), tahun_ajaran: nextAcademicYear(active.tahun_ajaran), semester: 1 }
       : { nama_kelas: '', tingkat: active.tingkat, tahun_ajaran: active.tahun_ajaran, semester: active.semester })
     setError(''); setMsg(''); setMode(next)
   }
@@ -73,7 +75,7 @@ export default function ClassManager() {
         {mode === 'naik' && <p className="rounded-lg bg-sky-50 p-2.5 text-sm text-sky-900">Siswa aktif dan kolom tambahannya disalin. Presensi, nilai, jadwal, dan jurnal dimulai kosong di kelas baru.</p>}
         <label className="block text-sm font-bold">Nama kelas<input required value={form.nama_kelas} onChange={e => setForm({ ...form, nama_kelas: e.target.value })} className="field mt-1.5" placeholder="Contoh: 5A"/></label>
         <div className="grid grid-cols-2 gap-3">
-          <label className="text-sm font-bold">Tingkat<select value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="field mt-1.5">{[1,2,3,4,5,6].map(n => <option key={n} value={n}>Kelas {n}</option>)}</select></label>
+          <label className="text-sm font-bold">Tingkat<select value={form.tingkat} onChange={e => setForm({ ...form, tingkat: e.target.value })} className="field mt-1.5"><GradeOptions/></select></label>
           <label className="text-sm font-bold">Semester<select value={form.semester} onChange={e => setForm({ ...form, semester: Number(e.target.value) })} className="field mt-1.5"><option value={1}>1 (Ganjil)</option><option value={2}>2 (Genap)</option></select></label>
         </div>
         <label className="block text-sm font-bold">Tahun ajaran<input required value={form.tahun_ajaran} onChange={e => setForm({ ...form, tahun_ajaran: e.target.value })} className="field mt-1.5" placeholder="2027/2028"/></label>

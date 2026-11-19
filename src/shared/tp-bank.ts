@@ -24,12 +24,13 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 export function matchMapel(options: string[], wkelasNama: string): string | null {
   const n = norm(wkelasNama)
   if (!n) return null
-  const alias: Record<string, string> = { 'ppkn': 'pendidikan pancasila', 'pkn': 'pendidikan pancasila', 'ipa': 'ipas', 'ips': 'ipas', 'pai': 'pendidikan agama islam dan budi pekerti', 'agama islam': 'pendidikan agama islam dan budi pekerti', 'penjas': 'pjok', 'b indonesia': 'bahasa indonesia', 'b inggris': 'bahasa inggris', 'seni budaya': 'seni rupa' }
-  const target = alias[n] || n
-  return options.find(o => norm(o) === target)
+  const alias: Record<string, string> = { 'ppkn': 'pendidikan pancasila', 'pkn': 'pendidikan pancasila', 'ipa': 'ipas', 'ips': 'ipas', 'pai': 'pendidikan agama islam dan budi pekerti', 'agama islam': 'pendidikan agama islam dan budi pekerti', 'penjas': 'pjok', 'b indonesia': 'bahasa indonesia', 'b inggris': 'bahasa inggris', 'seni budaya': 'seni rupa', 'seni dan budaya': 'seni rupa', 'pendidikan jasmani olahraga dan kesehatan': 'pjok', 'pendidikan agama dan budi pekerti': 'pendidikan agama islam dan budi pekerti', 'ipas': 'ipas' }
+  const find = (target: string) => options.find(o => norm(o) === target)
     || options.find(o => norm(o).startsWith(target) || target.startsWith(norm(o)))
     || options.find(o => norm(o).includes(target))
-    || null
+    // Singkatan dalam kurung, mis. "Ilmu Pengetahuan Alam (IPA)".
+    || options.find(o => norm(o).split(' ').includes(target))
+  return (alias[n] && find(alias[n])) || find(n) || null
 }
 
 export function lengthStatus(tp: string): 'ok' | 'panjang' {

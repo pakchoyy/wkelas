@@ -5,13 +5,16 @@ import { mapelOptions, tpList, matchMapel, lengthStatus, ERAPOR_MAX } from '../s
 
 const bank = JSON.parse(readFileSync(new URL('../public/data/tp-bank.json', import.meta.url), 'utf8'))
 
-test('bank TP SD berisi kelas 1–6 untuk kedua sumber CP', () => {
-  assert.deepEqual(Object.keys(bank.cp2025).sort(), ['1', '2', '3', '4', '5', '6'])
-  assert.deepEqual(Object.keys(bank.cp2026).sort(), ['1', '2', '3', '4', '5', '6'])
+test('bank TP berisi kelas 1–12 untuk kedua sumber CP', () => {
+  const all = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+  assert.deepEqual(Object.keys(bank.cp2025).sort((a, b) => a - b), all)
+  assert.deepEqual(Object.keys(bank.cp2026).sort((a, b) => a - b), all)
+  assert.ok(mapelOptions(bank, 'cp2025', 8, 1).length > 0, 'SMP')
+  assert.ok(mapelOptions(bank, 'cp2025', 11, 2).length > 0, 'SMA')
   const mapel = mapelOptions(bank, 'cp2025', 5, 1)
   assert.ok(mapel.includes('Matematika'))
   assert.ok(tpList(bank, 'cp2025', 5, 1, 'Matematika').length > 0)
-  assert.deepEqual(tpList(bank, 'cp2025', 9, 1, 'Matematika'), [], 'kelas di luar SD kosong')
+  assert.deepEqual(tpList(bank, 'cp2025', 13, 1, 'Matematika'), [], 'kelas di luar 1–12 kosong')
 })
 
 test('TP mapel umum CP 2025 muat di e-Rapor (≤100 karakter)', () => {
@@ -26,6 +29,15 @@ test('nama mapel Wkelas dicocokkan dengan nama di bank', () => {
   assert.equal(matchMapel(opts, 'IPA'), 'IPAS')
   assert.equal(matchMapel(opts, 'PJOK'), 'PJOK')
   assert.equal(matchMapel(opts, 'Bahasa Indonesia'), 'Bahasa Indonesia')
+  assert.equal(matchMapel(opts, 'Pendidikan Jasmani, Olahraga, dan Kesehatan'), 'PJOK')
+  assert.equal(matchMapel(opts, 'Pendidikan Agama dan Budi Pekerti'), 'Pendidikan Agama Islam dan Budi Pekerti')
+  assert.equal(matchMapel(opts, 'Seni dan Budaya'), 'Seni Rupa')
+  const smp = mapelOptions(bank, 'cp2025', 8, 1)
+  assert.equal(matchMapel(smp, 'Ilmu Pengetahuan Alam'), 'Ilmu Pengetahuan Alam (IPA)')
+  assert.equal(matchMapel(smp, 'Informatika'), 'Informatika')
+  assert.equal(matchMapel(smp, 'IPA'), 'Ilmu Pengetahuan Alam (IPA)', 'singkatan SMP')
+  assert.equal(matchMapel(smp, 'IPS'), 'Ilmu Pengetahuan Sosial (IPS)')
+  assert.equal(matchMapel(opts, 'IPA'), 'IPAS', 'di SD IPA = IPAS')
   assert.equal(matchMapel(opts, 'Mulok Bahasa Jawa'), null)
 })
 

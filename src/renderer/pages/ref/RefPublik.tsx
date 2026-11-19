@@ -56,7 +56,7 @@ export default function RefPublik() {
       {state === 'ok' && !items.length && !subfolders.length && <div className="flex min-h-40 flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-6 text-center"><FolderOpen size={30} className="mb-3 text-slate-400"/><p className="text-sm font-semibold text-slate-700">Folder ini belum berisi dokumen</p></div>}
       <section aria-label="Kenalan dengan Wkelas" className="overflow-hidden rounded-2xl bg-gradient-to-br from-teal-800 to-emerald-700 text-white shadow-lg">
         <div className="p-5">
-          <p className="text-xs font-bold uppercase tracking-wider text-teal-100">Untuk wali kelas SD</p>
+          <p className="text-xs font-bold uppercase tracking-wider text-teal-100">Untuk wali kelas SD, SMP, dan SMA</p>
           <h2 className="mt-1 text-xl font-extrabold leading-snug">Urusan kelas beres dari HP, tanpa tumpukan buku.</h2>
           <ul className="mt-4 space-y-2.5 text-sm">
             {[[ClipboardCheck,'Presensi harian: ketuk nama siswa, rekap bulanan jadi sendiri.'],[ScrollText,'Nilai per mapel langsung terekap, siap dicetak.'],[NotebookPen,'Jurnal mengajar dan jadwal pelajaran di satu tempat.'],[WifiOff,'Tetap jalan tanpa sinyal. Data aman di perangkat Anda.']].map(([Icon,text]) => { const I = Icon as typeof WifiOff; return <li key={text as string} className="flex items-start gap-2.5"><span className="mt-0.5 grid size-6 shrink-0 place-items-center rounded-lg bg-white/15"><I size={14}/></span><span>{text as string}</span></li> })}

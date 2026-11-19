@@ -9,7 +9,7 @@ export async function listChoyDocuments(client:SupabaseClient,grade?:number):Pro
   for(let offset=0;;offset+=100) {
     let query=client.from('pak_choy_documents').select('*').order('created_at',{ascending:false}).order('id').range(offset,offset+99)
     if(grade!==undefined) {
-      if(!Number.isInteger(grade)||grade<1||grade>6) return []
+      if(!Number.isInteger(grade)||grade<1||grade>12) return []
       query=query.eq('published',true).or(`target_grades.eq.{},target_grades.cs.{${grade}}`)
     }
     const {data,error}=await query

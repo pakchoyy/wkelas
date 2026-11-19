@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Check, Copy, Download, Target } from 'lucide-react'
 import { db } from '../../../lib/db'
 import { useAppStore } from '../../stores/appStore'
+import GradeOptions from '../../components/GradeOptions'
 import { ERAPOR_MAX, TP_SOURCES, lengthStatus, mapelOptions, matchMapel, tpList, type TpBank } from '../../../shared/tp-bank'
 
 // Bank TP (tanpa AI) dari alat Draft TP BGY. Data diunduh hanya saat halaman ini dibuka.
@@ -29,7 +30,7 @@ function TpKelas({ kelasId }: { kelasId: number }) {
     ;(async () => {
       const [k, mapelRaw, b] = await Promise.all([db.kelas.get(kelasId), window.electronAPI.mapel.list(kelasId), loadBank()])
       if (cancelled) return
-      const t = Number(k?.tingkat); setKelas(t >= 1 && t <= 6 ? t : 1)
+      const t = Number(k?.tingkat); setKelas(t >= 1 && t <= 12 ? t : 1)
       setSem(k?.semester === 2 ? 2 : 1)
       setWkelasMapel((mapelRaw as any[]).filter(m => m.is_aktif !== 0).map(m => String(m.nama)))
       setBank(b)
@@ -72,8 +73,8 @@ function TpKelas({ kelasId }: { kelasId: number }) {
           <div className="flex gap-1 rounded-xl bg-slate-200/70 p-1">{TP_SOURCES.map(s => <button key={s.value} type="button" aria-pressed={cp === s.value} onClick={() => setCp(s.value)} className={seg(cp === s.value)}>{s.label}</button>)}</div>
           <div className="flex gap-1 rounded-xl bg-slate-200/70 p-1">{[1, 2].map(s => <button key={s} type="button" aria-pressed={sem === s} onClick={() => setSem(s)} className={seg(sem === s)}>Sem {s}</button>)}</div>
         </div>
-        <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
-          <label className="text-sm font-bold text-slate-700">Kelas<select value={kelas} onChange={e => setKelas(Number(e.target.value))} className="field mt-1.5">{[1, 2, 3, 4, 5, 6].map(k => <option key={k} value={k}>Kelas {k}</option>)}</select></label>
+        <div className="grid gap-3 sm:grid-cols-[150px_1fr]">
+          <label className="text-sm font-bold text-slate-700">Kelas<select value={kelas} onChange={e => setKelas(Number(e.target.value))} className="field mt-1.5"><GradeOptions/></select></label>
           <label className="text-sm font-bold text-slate-700">Mata pelajaran<select value={mapel} onChange={e => setMapel(e.target.value)} className="field mt-1.5">{ordered.map(o => <option key={o.value} value={o.value}>{o.value}{o.mine ? ' (ada di kelas Anda)' : ''}</option>)}</select></label>
         </div>
         <p className="text-xs text-slate-500">Sumber: {TP_SOURCES.find(s => s.value === cp)?.detail}.</p>
