@@ -22,7 +22,9 @@
 [data-theme="dark"] .ring-teal-200 { --tw-ring-color: #134e4a; }
 [data-theme="dark"] .field { color: var(--text); background: #0d1626; border-color: #334155; }
 [data-theme="dark"] .field::placeholder { color: #64748b; }
-[data-theme="dark"] .action-mint, [data-theme="dark"] .action-teal { background: #0f2e2c; color: #99f6e4; border-color: #134e4a; }
+[data-theme="dark"] .action-mint, [data-theme="dark"] .action-teal { background: #111a2b; color: #e2e8f0; border-color: #334155; }
+[data-theme="dark"] .action-mint > svg, [data-theme="dark"] .action-teal > svg { color: #5eead4; }
+[data-theme="dark"] .action-mint:hover, [data-theme="dark"] .action-teal:hover { background: #1a2436; border-color: #2dd4bf; }
 [data-theme="dark"] .tab-mint, [data-theme="dark"] .tab-teal { background: #1a2436; color: #cbd5e1; }
 [data-theme="dark"] .skip-link { background: var(--card-bg); color: #5eead4; }
 [data-theme="dark"] [style*="background: rgb(241, 245, 249)"], [data-theme="dark"] [style*="background: rgb(248, 250, 252)"] { background: #1a2436 !important; }

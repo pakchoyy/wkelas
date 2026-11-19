@@ -82,7 +82,7 @@ export default function PerangkatAjar() {
   const crumbs=folderPath(folders,folderId)
   return <div className="space-y-3">
     <div className="flex items-center gap-2"><Files size={21} className="text-emerald-600"/><h1 className="text-xl font-bold">Perangkat Ajar</h1></div>
-    <div className="flex gap-2">{[['saya','Dokumen Saya'],['resmi','Ref Dokumen']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>setTab(id)} className={`min-h-11 flex-1 rounded-xl border px-2 py-2 text-xs sm:text-sm font-semibold ${tab===id?'border-teal-700 bg-teal-700 text-white':'border-slate-200 bg-white text-slate-600'}`}>{label}</button>)}</div>
+    <div className="flex gap-1 rounded-xl bg-slate-200/70 p-1">{[['saya','Dokumen Saya'],['resmi','Ref Dokumen']].map(([id,label])=><button key={id} aria-pressed={tab===id} onClick={()=>setTab(id)} className={`min-h-11 flex-1 rounded-lg px-2 py-2 text-sm font-bold ${tab===id?'bg-white text-teal-700 shadow-sm':'text-slate-500 hover:text-slate-700'}`}>{label}</button>)}</div>
     {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
     {tab==='resmi' ? <>
       <div className="flex flex-wrap items-center justify-between gap-2"><p className="text-sm text-slate-500">Referensi perangkat ajar, buku, dan administrasi guru. Pilih folder, lalu buka atau unduh.</p><ShareFolderButton folderId={folderId} name={crumbs[crumbs.length-1]?.name||'Ref Dokumen'}/></div>

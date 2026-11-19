@@ -234,7 +234,7 @@ export default function Jadwal() {
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h1 className="text-xl font-bold">Jadwal Pelajaran</h1>
         <div className="flex flex-wrap gap-2 [&>button]:px-2 [&>label]:px-2 [&>*]:text-xs sm:[&>*]:text-sm"><button onClick={downloadTemplate} className="action-mint min-h-11 flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Download size={16}/><span className="sm:hidden">Template</span><span className="hidden sm:inline">Template Excel</span></button><label className="action-teal min-h-11 flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-600"><Upload size={16}/><span className="sm:hidden">Unggah</span><span className="hidden sm:inline">Unggah Excel</span><input type="file" accept=".xlsx,.xls" className="hidden" onChange={(e) => { uploadTemplate(e.target.files?.[0]); e.currentTarget.value = '' }}/></label><button onClick={openSettings}
-          className="action-primary min-h-11 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold text-white">
+          className="action-mint min-h-11 flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold">
           <Settings2 size={16} /><span className="sm:hidden">Atur</span><span className="hidden sm:inline">Pengaturan</span>
         </button></div>
       </div>

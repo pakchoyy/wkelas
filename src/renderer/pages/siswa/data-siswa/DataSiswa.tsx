@@ -132,7 +132,7 @@ export default function DataSiswa() {
               onClick={() => setHapusSemuaOpen(true)}
               className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40"
             >
-              <Trash2 size={16} /><span className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40">Hapus semua</span><span className="flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-40">Hapus Semua</span>
+              <Trash2 size={16} />Hapus semua
             </button>
           )}
         </div>
