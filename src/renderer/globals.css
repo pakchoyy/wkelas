@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Naikkan angka ini bila cara pemrosesan CSS saat build berubah, agar nama file CSS ikut berganti. */
+:root { --bgy-css-rev: 3; }
+
 :root {
   --bg: #f0f4f8;
   --card-bg: #ffffff;
@@ -50,6 +53,8 @@ body {
   .dashboard-welcome { flex-direction: row; align-items: center; }
 }
 
+/* Dalam layer components agar kelas utilitas (pl-9, text-center, dll.) tetap bisa menimpanya. */
+@layer components {
 .field {
   width: 100%;
   min-width: 0;
@@ -73,6 +78,7 @@ body {
 
 /* Varian ringkas untuk wizard onboarding agar kartu tidak terlalu besar. */
 .compact .field { min-height: 2.5rem; padding: 0.5rem 0.75rem; }
+}
 
 .app-modal {
   scroll-padding-block: 1rem;

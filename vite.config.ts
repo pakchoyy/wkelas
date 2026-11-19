@@ -11,6 +11,7 @@ import type { Plugin } from 'vite'
 
 // Browser dalam aplikasi (WebView Android lama, dibuka dari WA/Kreacy) tidak mengenal @layer dan oklch(),
 // sehingga seluruh CSS Tailwind v4 diabaikan. Ratakan @layer dan beri warna cadangan setelah build.
+// Harus pada CSS yang SUDAH digabung: diproses per file membuat urutan prioritas antar-file (mis. tema gelap) salah.
 function legacyCss(): Plugin {
   return {
     name: 'legacy-css',
@@ -19,7 +20,7 @@ function legacyCss(): Plugin {
     async generateBundle(_options, bundle) {
       for (const file of Object.values(bundle)) {
         if (file.type !== 'asset' || !file.fileName.endsWith('.css')) continue
-        const result = await postcss([oklab({ preserve: true }), colorMix({ preserve: true })]).process(String(file.source), { from: undefined })
+        const result = await postcss([cascadeLayers(), oklab({ preserve: true }), colorMix({ preserve: true })]).process(String(file.source), { from: undefined })
         file.source = result.css
       }
     },
@@ -29,7 +30,6 @@ function legacyCss(): Plugin {
 export default defineConfig({
   plugins: [react(), tailwindcss(), legacyCss()],
   // Diproses sebelum nama file ber-hash dibuat, jadi nama CSS ikut berubah bila isinya berubah.
-  css: { postcss: { plugins: [cascadeLayers()] } },
   base: './',
   resolve: {
     alias: {

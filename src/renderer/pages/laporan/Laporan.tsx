@@ -164,7 +164,7 @@ export default function Laporan() {
         })}{!reportRows.length && <p className="p-8 text-center text-sm text-slate-500">Belum ada data pada periode ini.</p>}</div>
         <div className="hidden lg:block print:block overflow-x-auto"><table className={`w-full text-sm ${tab === 'jurnal' ? 'min-w-[980px]' : ''}`}>
           <thead>
-            <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
+            <tr className="text-xs uppercase tracking-wider" style={{ background: 'var(--color-slate-50)' }}>
               {tab!=='nilai'&&tab!=='presensi'&&tab!=='perilaku'&&<th className="px-4 py-3 text-left">Tanggal</th>}
               {tab === 'presensi' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Hadir</th><th className="px-3 py-3 text-center">Sakit</th><th className="px-3 py-3 text-center">Izin</th><th className="px-3 py-3 text-center">Alpa</th><th className="px-3 py-3 text-center">Terlambat</th><th className="px-3 py-3 text-center">Total</th><th className="px-3 py-3 text-center">Kehadiran</th></>}
               {tab === 'perilaku' && <><th className="px-4 py-3 text-left">Siswa</th><th className="px-3 py-3 text-center">Positif</th><th className="px-3 py-3 text-center">Perlu Perhatian</th><th className="px-4 py-3 text-left">Catatan Terakhir</th><th className="px-4 py-3 text-left">Tindak Lanjut</th></>}

@@ -255,7 +255,7 @@ export default function Jadwal() {
       <div className="hidden lg:block rounded-xl overflow-x-auto" style={{ background: 'var(--card-bg)', boxShadow: 'var(--shadow)' }}>
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-xs uppercase tracking-wider" style={{ background: '#f8fafc' }}>
+            <tr className="text-xs uppercase tracking-wider" style={{ background: 'var(--color-slate-50)' }}>
               <th className="px-3 py-3 text-left">Jam</th><th className="px-3 py-3 text-left">Waktu</th>
               {HARI.slice(0, hariSekolah).map((h, i) => <th key={i} className="px-3 py-3 text-left">{h}</th>)}
             </tr>
