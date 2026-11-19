@@ -3,6 +3,7 @@ import {useUnsavedChanges} from '../../../hooks/useUnsavedChanges'
 import { classWeightKey, saveGradeWeights, ensureDefaultGradeColumns } from '../../../../lib/grade-periods'
 import { calculateGrade, DEFAULT_WEIGHTS, readGradeWeights, validateGradeWeights, orderedGradeColumns, nextDailyLabel } from '../../../../shared/grades'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { AlertCircle, BookOpen, CheckCircle2, CircleHelp, ChevronDown, ChevronLeft, ChevronRight, Pencil, Plus, Save, ScrollText, Search, Settings2, Sparkles, TrendingUp, Trash2, X } from 'lucide-react'
 import { useSiswaList } from '../../../hooks/useSiswa'
 import { useAppStore } from '../../../stores/appStore'
@@ -137,6 +138,29 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
     await Promise.all(keys.map(key=>{const [sid,kid]=key.split('-').map(Number);return saveCell(sid,kid)}))
     if(!Object.keys(draftRef.current).length)setToast({type:'success',text:'Semua perubahan nilai berhasil disimpan.'})
   }
+  // Katrol langsung tersimpan; nilai lama disimpan sebentar agar bisa dibatalkan.
+  const [katrolUndo, setKatrolUndo] = useState<{ siswaId: number; kolomId: number; old: number | null }[] | null>(null)
+  useEffect(() => { if (!katrolUndo) return; const t = setTimeout(() => setKatrolUndo(null), 10000); return () => clearTimeout(t) }, [katrolUndo])
+  const writeScores = async (items: { siswaId: number; kolomId: number; value: number | null }[]) => {
+    for (const it of items) {
+      const key = `${it.siswaId}-${it.kolomId}`
+      await window.electronAPI.nilai.save(it.siswaId, it.kolomId, it.value)
+      delete draftRef.current[key]
+    }
+    setNilaiMap(m => { const next = { ...m }; for (const it of items) next[`${it.siswaId}-${it.kolomId}`] = it.value; return next })
+    setDirty(new Set(Object.keys(draftRef.current)))
+  }
+  const applyKatrol = async (columnId: number, rows: { id: number; katrol: number }[]) => {
+    const undo = rows.map(r => ({ siswaId: r.id, kolomId: columnId, old: nilaiMap[`${r.id}-${columnId}`] ?? null }))
+    try { await writeScores(rows.map(r => ({ siswaId: r.id, kolomId: columnId, value: r.katrol }))); setKatrolUndo(undo) }
+    catch { setSaveError('Katrol belum tersimpan. Periksa lalu coba lagi.') }
+  }
+  const undoKatrol = async () => {
+    const undo = katrolUndo; if (!undo) return
+    setKatrolUndo(null)
+    try { await writeScores(undo.map(u => ({ siswaId: u.siswaId, kolomId: u.kolomId, value: u.old }))); setToast({ type: 'success', text: 'Katrol dibatalkan. Nilai kembali seperti semula.' }) }
+    catch { setSaveError('Pembatalan katrol gagal. Muat ulang halaman lalu periksa nilai.') }
+  }
   const isFixed = (k: PenilaianKolom) => ['UTS', 'UAS'].includes(k.label.toUpperCase())
   const orderedKomponen = orderedGradeColumns(komponen)
   const dailyKomponen = orderedKomponen.filter((item) => !isFixed(item))
@@ -246,7 +270,8 @@ function PenilaianKelas({kelasId}:{kelasId:number}) {
     </>}
 
     {showHelp && <Modal title="Cara Mengisi Nilai" onClose={() => setShowHelp(false)} maxWidth="max-w-md"><ul className="list-disc space-y-2 pl-5 text-sm text-slate-700"><li>Isi nilai <strong>0–100</strong>. Otomatis tersimpan saat pindah isian.</li><li>Klik <strong>+ Harian</strong> untuk menambah ulangan (sekaligus 4 kolom, bisa diubah).</li><li>Geser tabel untuk melihat kolom lain.</li><li>Kosong = belum dinilai. Angka 0 tetap dihitung.</li></ul><p className="mt-3 text-xs text-slate-500">Tanda * pada nilai akhir berarti ada komponen yang belum diisi.</p></Modal>}
-    {showKatrol && <KatrolDialog columns={orderedKomponen.map(k => ({ id: k.id as number, label: k.label }))} students={siswa.map(x => ({ id: x.id, nama: x.nama }))} nilaiMap={nilaiMap} onClose={() => setShowKatrol(false)} onApply={(columnId, rows) => { rows.forEach(r => changeNilai(`${r.id}-${columnId}`, String(r.katrol))); setToast({ type: 'success', text: `Katrol dipasang ke ${rows.length} siswa. Periksa lalu klik tombol Simpan.` }) }}/>}
+    {showKatrol && <KatrolDialog columns={orderedKomponen.map(k => ({ id: k.id as number, label: k.label }))} students={siswa.map(x => ({ id: x.id, nama: x.nama }))} nilaiMap={nilaiMap} onClose={() => setShowKatrol(false)} onApply={applyKatrol}/>}
+    {katrolUndo && createPortal(<div role="status" className="fixed inset-x-0 bottom-24 z-[500] flex justify-center px-4 lg:bottom-6"><div className="flex items-center gap-3 rounded-2xl bg-slate-900 px-4 py-3 text-sm font-semibold text-white shadow-xl"><CheckCircle2 size={18} className="shrink-0 text-emerald-400"/><span>Katrol tersimpan untuk {katrolUndo.length} siswa.</span><button type="button" onClick={() => void undoKatrol()} className="min-h-11 rounded-xl bg-white/15 px-3 font-bold hover:bg-white/25">Batalkan</button></div></div>, document.body)}
     {showChooseMapel && <Modal title="Pilih Mata Pelajaran" onClose={() => setShowChooseMapel(false)} maxWidth="max-w-lg"><div className="space-y-1">{dirty.size > 0 && <p role="status" className="mb-3 text-sm text-amber-800">Simpan perubahan nilai sebelum berganti mata pelajaran.</p>}{mapelList.map(m => <button key={m.id} disabled={dirty.size > 0} aria-pressed={m.id === mapelId} onClick={() => { switchMapel(m.id); setShowChooseMapel(false) }} className={'flex min-h-11 w-full items-center justify-between gap-3 rounded-lg px-3 py-3 text-left text-sm disabled:opacity-50 ' + (m.id === mapelId ? 'bg-teal-50 font-semibold text-teal-800' : 'text-slate-700 hover:bg-slate-50')}><span className="break-words">{m.nama}</span>{m.id === mapelId && <CheckCircle2 size={18} className="shrink-0"/>}</button>)}</div></Modal>}
     {showMapel && <Modal title="Mata Pelajaran" onClose={() => {if(!mapelLock.current)setShowMapel(false)}} maxWidth="max-w-lg">
       {mapelError && <p role="alert" className="mb-2 text-sm text-red-700">{mapelError}</p>}
