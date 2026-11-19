@@ -1,5 +1,4 @@
 import { whatsappDisplay, whatsappUrl } from '../../../shared/contact'
-import ProdukBGY from '../produk/ProdukBGY'
 import { BookOpenCheck, ExternalLink, MessageCircle, Music2, Users } from 'lucide-react'
 import { APP_UPDATED_AT, APP_VERSION } from '../../../shared/app-info'
 import { BGY_PRODUCTS } from '../../../shared/bgy-products'
@@ -41,6 +40,5 @@ export default function Tentang() {
         </a>)}
       </div>
     </section>
-    <ProdukBGY/>
   </div>
 }

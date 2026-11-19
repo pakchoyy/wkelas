@@ -3,7 +3,7 @@ import { useLogout } from './useLogout'
 import { isOwnerEmail } from '../../shared/cloud-access'
 import { useAuthStore } from '../stores/authStore'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
-import { AlertTriangle, BarChart3, MessageSquareHeart, ShieldCheck, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, Files, FolderOpen, HeartHandshake, Info, Sparkles, LayoutDashboard, LogOut, NotebookPen, ScrollText, Settings, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, ShieldCheck, BookOpen, Calendar, CalendarDays, CheckSquare, ChevronDown, ClipboardCheck, ClipboardList, Files, FolderOpen, HeartHandshake, Info, Sparkles, LayoutDashboard, LogOut, NotebookPen, ScrollText, Settings, Users } from 'lucide-react'
 
 const groups = [
   { label: 'Siswa', icon: Users, children: [
@@ -30,8 +30,7 @@ const groups = [
 const standaloneItems = [
   { to: '/laporan', icon: BarChart3, label: 'Laporan' },
   { to: '/pengaturan', icon: Settings, label: 'Pengaturan' },
-  { to: '/bantuan', icon: HeartHandshake, label: 'Bantuan & Komunitas' },
-  { to: '/bantuan#saran', icon: MessageSquareHeart, label: 'Kritik & Saran' },
+  { to: '/bantuan', icon: HeartHandshake, label: 'Bantuan & Saran' },
   { to: '/tentang', icon: Info, label: 'Tentang & Aplikasi Lain' },
 ]
 

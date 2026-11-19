@@ -39,7 +39,7 @@ export default function BantuanKomunitas() {
 
   return <div className="mx-auto max-w-4xl space-y-5 pb-16">
     <header>
-      <div className="flex items-center gap-2"><HeartHandshake size={22} className="text-teal-700"/><h1 className="text-xl font-extrabold text-slate-900">Bantuan & Komunitas</h1></div>
+      <div className="flex items-center gap-2"><HeartHandshake size={22} className="text-teal-700"/><h1 className="text-xl font-extrabold text-slate-900">Bantuan & Saran</h1></div>
       <p className="mt-1 text-sm text-slate-500">Sampaikan pengalamanmu agar BGY Wali Kelas terus berkembang.</p>
     </header>
 
