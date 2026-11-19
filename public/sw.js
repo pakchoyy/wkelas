@@ -1,5 +1,5 @@
 // Service worker BGY Wali Kelas. Data aplikasi tetap di IndexedDB perangkat.
-const CACHE = 'bgy-walikelas-v6'
+const CACHE = 'bgy-walikelas-v7'
 const NAV_TIMEOUT = 3000
 
 self.addEventListener('install', (event) => {
@@ -38,6 +38,11 @@ function networkFirst(request) {
     .catch(() => caches.match('/'))
 }
 
+// Data (mis. bank TP) bisa diperbarui tanpa ganti nama file: ambil dari jaringan dulu, cache hanya cadangan offline.
+function dataNetworkFirst(request) {
+  return fetch(request).then((response) => store(request, response)).catch(() => caches.match(request))
+}
+
 function staleWhileRevalidate(request) {
   const network = fetch(request).then((response) => store(request, response)).catch(() => undefined)
   return caches.match(request).then((cached) => cached || network.then((response) => response || caches.match('/')))
@@ -52,6 +57,7 @@ self.addEventListener('fetch', (event) => {
   // Hanya halaman aplikasi yang disimpan sebagai '/'; halaman lain (mis. aktivasi) tidak.
   else if (request.mode === 'navigate' && (url.pathname === '/' || url.pathname === '/index.html')) event.respondWith(networkFirst(request))
   else if (request.mode === 'navigate') return
+  else if (url.pathname.startsWith('/data/')) event.respondWith(dataNetworkFirst(request))
   else event.respondWith(staleWhileRevalidate(request))
 })
 

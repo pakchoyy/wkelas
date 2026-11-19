@@ -6,8 +6,10 @@ import GradeOptions from '../../components/GradeOptions'
 import { ERAPOR_MAX, TP_SOURCES, lengthStatus, mapelOptions, matchMapel, tpList, type TpBank } from '../../../shared/tp-bank'
 
 // Bank TP (tanpa AI) dari alat Draft TP BGY. Data diunduh hanya saat halaman ini dibuka.
+// Naikkan versi bila isi public/data/tp-bank.json berubah, agar cache lama tidak dipakai.
+const TP_BANK_VERSION = '2'
 let bankCache: Promise<TpBank> | null = null
-const loadBank = () => (bankCache ??= fetch('/data/tp-bank.json').then(r => { if (!r.ok) throw new Error(); return r.json() }).catch(e => { bankCache = null; throw e }))
+const loadBank = () => (bankCache ??= fetch(`/data/tp-bank.json?v=${TP_BANK_VERSION}`).then(r => { if (!r.ok) throw new Error(); return r.json() }).catch(e => { bankCache = null; throw e }))
 
 export default function TujuanPembelajaran() {
   const kelasId = useAppStore((s) => s.kelasAktifId) || 1
@@ -75,7 +77,7 @@ function TpKelas({ kelasId }: { kelasId: number }) {
         </div>
         <div className="grid gap-3 sm:grid-cols-[150px_1fr]">
           <label className="text-sm font-bold text-slate-700">Kelas<select value={kelas} onChange={e => setKelas(Number(e.target.value))} className="field mt-1.5"><GradeOptions/></select></label>
-          <label className="text-sm font-bold text-slate-700">Mata pelajaran<select value={mapel} onChange={e => setMapel(e.target.value)} className="field mt-1.5">{ordered.map(o => <option key={o.value} value={o.value}>{o.value}{o.mine ? ' (ada di kelas Anda)' : ''}</option>)}</select></label>
+          <label className="text-sm font-bold text-slate-700">Mata pelajaran<select value={mapel} onChange={e => setMapel(e.target.value)} disabled={!ordered.length} className="field mt-1.5">{!ordered.length && <option value="">Belum ada mapel untuk pilihan ini</option>}{ordered.map(o => <option key={o.value} value={o.value}>{o.value}{o.mine ? ' (ada di kelas Anda)' : ''}</option>)}</select></label>
         </div>
         <p className="text-xs text-slate-500">Sumber: {TP_SOURCES.find(s => s.value === cp)?.detail}.</p>
       </section>
